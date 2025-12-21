@@ -11,6 +11,7 @@ import { templatesApp } from "./routes/templates.js";
 import { rulesApp } from "./routes/rules.js";
 import { campaignsApp } from "./routes/campaigns.js";
 import { accountsApp } from "./routes/accounts.js";
+import { redditApp } from "./routes/reddit.js";
 import { registerOpenAPIEndpoints, openApiConfig } from "./lib/openapi.js";
 import { ApiException, ErrorCode } from "./lib/errors.js";
 
@@ -100,6 +101,7 @@ app.route("/", templatesApp);
 app.route("/", rulesApp);
 app.route("/", campaignsApp);
 app.route("/", accountsApp);
+app.route("/", redditApp);
 
 // ============================================================================
 // OpenAPI Documentation

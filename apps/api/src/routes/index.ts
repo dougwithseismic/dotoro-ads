@@ -4,3 +4,4 @@ export { templatesApp } from "./templates.js";
 export { rulesApp } from "./rules.js";
 export { campaignsApp } from "./campaigns.js";
 export { accountsApp } from "./accounts.js";
+export { redditApp } from "./reddit.js";

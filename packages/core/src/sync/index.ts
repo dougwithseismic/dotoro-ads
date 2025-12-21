@@ -1,0 +1,31 @@
+export {
+  SyncEngine,
+  EntityTypeSchema,
+  OperationTypeSchema,
+} from "./sync-engine.js";
+
+export type {
+  EntityType,
+  OperationType,
+  LocalCampaign,
+  LocalAdGroup,
+  LocalAd,
+  LocalState,
+  PlatformCampaign,
+  PlatformAdGroup,
+  PlatformAd,
+  PlatformState,
+  SyncOperation,
+  CreateDiff,
+  UpdateDiff,
+  DeleteDiff,
+  InSyncItem,
+  DiffResult,
+  DiffOptions,
+  SyncOptions,
+  ExecutedOperation,
+  SyncError,
+  SyncResult,
+  SyncHistoryEntry,
+  PlatformAdapter,
+} from "./sync-engine.js";

@@ -6,3 +6,6 @@ export * from "./validators/index.js";
 
 // Re-export rule engine
 export * from "./rules/index.js";
+
+// Re-export sync engine
+export * from "./sync/index.js";
