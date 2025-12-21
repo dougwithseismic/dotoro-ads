@@ -238,11 +238,13 @@ Response: {
 #### 1.4 Campaign Template System
 **Priority: HIGH** - Core value proposition
 
-- [ ] Build template editor component
+- [x] Build template editor component ✅ (2025-12-21)
   - File: `apps/web/app/templates/editor/TemplateEditor.tsx`
   - Visual campaign structure builder
   - Variable insertion with autocomplete from data source columns
   - Real-time validation of variable syntax
+  - Platform-specific CTA dropdowns and character limits
+  - 34 frontend tests passing
 
 - [x] Implement variable substitution engine ✅ (2025-12-21)
   - File: `packages/core/src/services/variable-engine.ts`
@@ -253,11 +255,12 @@ Response: {
   - DoS prevention (max template size, variable count, nesting depth)
   - 214 tests passing
 
-- [ ] Create template preview system (frontend)
+- [x] Create template preview system (frontend) ✅ (2025-12-21)
   - File: `apps/web/app/templates/[id]/preview/page.tsx`
   - Show sample generated ads with real data
   - Paginate through all variations
-  - Highlight variable substitutions
+  - Highlight variable substitutions with visual indicators
+  - JSON sample data editor with validation
 
 - [x] Implement platform-specific template validation ✅ (2025-12-21)
   - File: `packages/core/src/validators/reddit-validator.ts`

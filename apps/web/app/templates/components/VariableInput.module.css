@@ -1,0 +1,181 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.required {
+  color: #dc2626;
+  margin-left: 2px;
+}
+
+.inputWrapper {
+  position: relative;
+}
+
+.input {
+  width: 100%;
+  padding: 10px 12px;
+  font-family: var(--font-geist-mono);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--foreground);
+  background: var(--background);
+  border: 1px solid rgba(var(--gray-rgb, 0, 0, 0), 0.2);
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  resize: vertical;
+}
+
+.input:focus {
+  border-color: var(--foreground);
+  box-shadow: 0 0 0 3px rgba(var(--gray-rgb, 0, 0, 0), 0.1);
+}
+
+.input::placeholder {
+  color: rgba(var(--gray-rgb, 0, 0, 0), 0.4);
+}
+
+.inputError {
+  border-color: #dc2626;
+}
+
+.inputError:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+}
+
+/* Autocomplete dropdown */
+.autocomplete {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  background: var(--background);
+  border: 1px solid rgba(var(--gray-rgb, 0, 0, 0), 0.15);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.autocompleteHeader {
+  padding: 8px 12px 4px;
+  font-family: var(--font-geist-sans);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(var(--gray-rgb, 0, 0, 0), 0.5);
+}
+
+.autocompleteItem {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 8px 12px;
+  font-family: var(--font-geist-mono);
+  font-size: 13px;
+  color: var(--foreground);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.autocompleteItem:hover,
+.autocompleteItemSelected {
+  background: rgba(var(--gray-rgb, 0, 0, 0), 0.05);
+}
+
+.autocompleteValue {
+  color: #0ea5e9;
+}
+
+/* Footer with error and character count */
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 20px;
+}
+
+.error {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  color: #dc2626;
+}
+
+/* Preview with highlighted variables */
+.preview {
+  padding: 8px 12px;
+  font-family: var(--font-geist-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  background: rgba(var(--gray-rgb, 0, 0, 0), 0.03);
+  border-radius: 6px;
+  word-break: break-word;
+}
+
+.variable {
+  color: #0ea5e9;
+  background: rgba(14, 165, 233, 0.1);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .input {
+    border-color: rgba(var(--gray-rgb, 255, 255, 255), 0.2);
+  }
+
+  .input:focus {
+    box-shadow: 0 0 0 3px rgba(var(--gray-rgb, 255, 255, 255), 0.1);
+  }
+
+  .input::placeholder {
+    color: rgba(var(--gray-rgb, 255, 255, 255), 0.4);
+  }
+
+  .autocomplete {
+    border-color: rgba(var(--gray-rgb, 255, 255, 255), 0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  .autocompleteHeader {
+    color: rgba(var(--gray-rgb, 255, 255, 255), 0.5);
+  }
+
+  .autocompleteItem:hover,
+  .autocompleteItemSelected {
+    background: rgba(var(--gray-rgb, 255, 255, 255), 0.08);
+  }
+
+  .autocompleteValue {
+    color: #38bdf8;
+  }
+
+  .error {
+    color: #ef4444;
+  }
+
+  .preview {
+    background: rgba(var(--gray-rgb, 255, 255, 255), 0.05);
+  }
+
+  .variable {
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.15);
+  }
+}

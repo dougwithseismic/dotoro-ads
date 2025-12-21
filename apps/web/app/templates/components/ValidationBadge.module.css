@@ -1,0 +1,83 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+
+.message {
+  line-height: 1;
+}
+
+/* Valid status */
+.badge[data-status="valid"] {
+  background: rgba(22, 163, 74, 0.1);
+  color: #16a34a;
+}
+
+/* Invalid status */
+.badge[data-status="invalid"] {
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+}
+
+/* Warning status */
+.badge[data-status="warning"] {
+  background: rgba(202, 138, 4, 0.1);
+  color: #ca8a04;
+}
+
+/* Pending status */
+.badge[data-status="pending"] {
+  background: rgba(var(--gray-rgb, 0, 0, 0), 0.05);
+  color: rgba(var(--gray-rgb, 0, 0, 0), 0.6);
+}
+
+/* Spinner animation */
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .badge[data-status="valid"] {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+  }
+
+  .badge[data-status="invalid"] {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+  }
+
+  .badge[data-status="warning"] {
+    background: rgba(234, 179, 8, 0.15);
+    color: #eab308;
+  }
+
+  .badge[data-status="pending"] {
+    background: rgba(var(--gray-rgb, 255, 255, 255), 0.08);
+    color: rgba(var(--gray-rgb, 255, 255, 255), 0.6);
+  }
+}

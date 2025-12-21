@@ -1,0 +1,10 @@
+.loadingContainer {
+  padding: 48px;
+  text-align: center;
+}
+
+.errorContainer {
+  padding: 48px;
+  text-align: center;
+  color: #dc2626;
+}
