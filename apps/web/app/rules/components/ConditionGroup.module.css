@@ -1,0 +1,134 @@
+.group {
+  --group-color: hsl(calc(var(--depth, 0) * 60 + 210), 60%, 50%);
+  position: relative;
+  padding: 16px;
+  background: rgba(var(--gray-rgb, 0, 0, 0), 0.02);
+  border: 1px solid rgba(var(--gray-rgb, 0, 0, 0), 0.1);
+  border-left: 3px solid var(--group-color);
+  border-radius: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .group {
+    --gray-rgb: 255, 255, 255;
+  }
+}
+
+.rootGroup {
+  border-left-color: var(--foreground);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.logicToggle {
+  display: flex;
+  background: rgba(var(--gray-rgb, 0, 0, 0), 0.05);
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.logicButton {
+  font-family: var(--font-geist-mono);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: rgba(var(--gray-rgb, 0, 0, 0), 0.5);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.logicButton.active {
+  background: var(--foreground);
+  color: var(--background);
+}
+
+.logicButton:not(.active):hover {
+  color: var(--foreground);
+}
+
+.removeGroupButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(var(--gray-rgb, 0, 0, 0), 0.4);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.removeGroupButton:hover {
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+}
+
+.conditions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.conditionWrapper {
+  position: relative;
+}
+
+.logicLabel {
+  display: inline-block;
+  font-family: var(--font-geist-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--group-color);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+  padding-left: 12px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(var(--gray-rgb, 0, 0, 0), 0.1);
+}
+
+.addButton,
+.addGroupButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border: 1px dashed rgba(var(--gray-rgb, 0, 0, 0), 0.2);
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(var(--gray-rgb, 0, 0, 0), 0.6);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.addButton:hover,
+.addGroupButton:hover {
+  border-color: var(--foreground);
+  color: var(--foreground);
+  background: rgba(var(--gray-rgb, 0, 0, 0), 0.02);
+}
+
+/* Nested group styling */
+.group .group {
+  margin-top: 4px;
+}

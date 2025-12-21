@@ -1,0 +1,251 @@
+.container {
+  --gray-rgb: 0, 0, 0;
+  background: var(--background);
+  border: 1px solid rgba(var(--gray-rgb), 0.1);
+  border-radius: 12px;
+  padding: 20px;
+  position: sticky;
+  top: 24px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .container {
+    --gray-rgb: 255, 255, 255;
+  }
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.title {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0;
+}
+
+.testButton {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border: 1px solid var(--foreground);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--foreground);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.testButton:hover:not(:disabled) {
+  background: var(--foreground);
+  color: var(--background);
+}
+
+.testButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.error {
+  padding: 12px;
+  background: rgba(220, 38, 38, 0.1);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.error p {
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  color: #dc2626;
+  margin: 0;
+}
+
+.summary {
+  margin-bottom: 16px;
+}
+
+.summaryLabel {
+  display: block;
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  color: rgba(var(--gray-rgb), 0.7);
+  margin-bottom: 8px;
+}
+
+.summaryBar {
+  height: 6px;
+  background: rgba(var(--gray-rgb), 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.summaryFill {
+  height: 100%;
+  background: #22c55e;
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.resultItem {
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(var(--gray-rgb), 0.1);
+}
+
+.matched {
+  background: rgba(34, 197, 94, 0.05);
+  border-color: rgba(34, 197, 94, 0.2);
+}
+
+.unmatched {
+  background: rgba(var(--gray-rgb), 0.02);
+}
+
+.resultHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.resultIndex {
+  font-family: var(--font-geist-mono);
+  font-size: 11px;
+  color: rgba(var(--gray-rgb), 0.5);
+}
+
+.resultBadge {
+  font-family: var(--font-geist-sans);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.matchedBadge {
+  background: rgba(34, 197, 94, 0.2);
+  color: #16a34a;
+}
+
+.unmatchedBadge {
+  background: rgba(var(--gray-rgb), 0.1);
+  color: rgba(var(--gray-rgb), 0.5);
+}
+
+.resultData {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dataField {
+  display: flex;
+  gap: 6px;
+  font-family: var(--font-geist-mono);
+  font-size: 11px;
+}
+
+.dataKey {
+  color: rgba(var(--gray-rgb), 0.5);
+}
+
+.dataValue {
+  color: var(--foreground);
+}
+
+.modifications {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(34, 197, 94, 0.3);
+}
+
+.modLabel {
+  display: block;
+  font-family: var(--font-geist-sans);
+  font-size: 10px;
+  font-weight: 600;
+  color: #16a34a;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.modField {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-geist-mono);
+  font-size: 11px;
+  color: #16a34a;
+}
+
+.modKey {
+  font-weight: 600;
+}
+
+.modArrow {
+  color: rgba(var(--gray-rgb), 0.4);
+}
+
+.modValue {
+  background: rgba(34, 197, 94, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.placeholder {
+  text-align: center;
+  padding: 24px;
+}
+
+.placeholder p {
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  color: rgba(var(--gray-rgb), 0.5);
+  margin: 0 0 16px;
+}
+
+.sampleInfo {
+  text-align: left;
+  padding: 12px;
+  background: rgba(var(--gray-rgb), 0.02);
+  border-radius: 8px;
+}
+
+.sampleLabel {
+  display: block;
+  font-family: var(--font-geist-sans);
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(var(--gray-rgb), 0.5);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.sampleList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  font-family: var(--font-geist-mono);
+  font-size: 11px;
+  color: rgba(var(--gray-rgb), 0.7);
+}
+
+.sampleList li {
+  padding: 4px 0;
+}

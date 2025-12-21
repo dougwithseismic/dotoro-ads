@@ -288,36 +288,41 @@ Response: {
 #### 1.5 Rule Engine
 **Priority: MEDIUM** - Enables advanced automation
 
-- [ ] Design rule condition schema
+- [x] Design rule condition schema ✅ (2025-12-21)
   - File: `packages/core/src/rules/condition-schema.ts`
-  ```typescript
-  type Condition = {
-    field: string;
-    operator: 'equals' | 'contains' | 'greater_than' | 'less_than' | 'regex' | 'in' | 'not_in';
-    value: string | number | string[];
-    logic?: 'AND' | 'OR';
-    children?: Condition[];
-  }
-  ```
+  - 15 operators (equals, contains, regex, in, is_empty, etc.)
+  - Nested AND/OR condition groups
+  - 7 action types (skip, set_field, modify_field, add_to_group, etc.)
+  - Zod validation schemas
 
-- [ ] Implement rule evaluation engine
+- [x] Implement rule evaluation engine ✅ (2025-12-21)
   - File: `packages/core/src/rules/rule-engine.ts`
   - Evaluate conditions against data rows
-  - Support complex nested AND/OR logic
+  - Support complex nested AND/OR logic (5+ levels)
   - Return matching rows with applied transformations
+  - ReDoS protection for regex patterns
+  - 41 tests passing
 
-- [ ] Build rule action system
+- [x] Build rule action system ✅ (2025-12-21)
   - File: `packages/core/src/rules/actions.ts`
   - Skip row (don't generate ad)
-  - Modify field value
+  - Modify field value with variable substitution
   - Add/remove from ad group
   - Set custom targeting
+  - 33 tests passing
 
-- [ ] Create rule builder UI
+- [x] Create rule builder UI ✅ (2025-12-21)
   - File: `apps/web/app/rules/builder/RuleBuilder.tsx`
   - Visual condition builder (similar to Notion filters)
-  - Test rule against current data source
-  - Show matching row count in real-time
+  - Test rule against sample data with test-draft endpoint
+  - Real-time matching row count
+  - Full accessibility support
+
+- [x] Rule API routes ✅ (2025-12-21)
+  - File: `apps/api/src/routes/rules.ts`
+  - CRUD operations + test-draft endpoint
+  - Evaluate rules against dataset
+  - 27 API tests passing
 
 **Example Use Cases:**
 - Rule: IF `price > 100` AND `category = 'Electronics'` THEN `add to "Premium Tech" ad group`

@@ -1,4 +1,6 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+import { RuleEngine } from "@repo/core";
+import type { Rule as CoreRule, ConditionGroup, Action } from "@repo/core";
 import {
   ruleSchema,
   createRuleSchema,
@@ -7,7 +9,10 @@ import {
   ruleQuerySchema,
   ruleTestRequestSchema,
   ruleTestResponseSchema,
-  ruleTestResultSchema,
+  testDraftRuleRequestSchema,
+  testDraftRuleResponseSchema,
+  evaluateRulesRequestSchema,
+  evaluateRulesResponseSchema,
 } from "../schemas/rules.js";
 import { idParamSchema } from "../schemas/common.js";
 import { commonResponses, createPaginatedResponse } from "../lib/openapi.js";
@@ -15,6 +20,9 @@ import { createNotFoundError, ApiException, ErrorCode } from "../lib/errors.js";
 
 // In-memory mock data store
 export const mockRules = new Map<string, z.infer<typeof ruleSchema>>();
+
+// Rule engine instance
+const ruleEngine = new RuleEngine();
 
 // Function to reset and seed mock data
 export function seedMockRules() {
@@ -25,13 +33,20 @@ export function seedMockRules() {
     id: seedId,
     userId: null,
     name: "Premium Products Filter",
-    type: "filter",
-    conditions: [
-      { field: "price", operator: "greater_than", value: 100 },
-    ],
-    actions: [{ type: "set", target: "tier", value: "premium" }],
-    priority: 1,
+    description: "Filters for high-value products",
     enabled: true,
+    priority: 1,
+    conditionGroup: {
+      id: "g1",
+      logic: "AND",
+      conditions: [
+        { id: "c1", field: "price", operator: "greater_than", value: 100 },
+      ],
+    },
+    actions: [
+      { id: "a1", type: "add_to_group", groupName: "premium" },
+      { id: "a2", type: "set_field", field: "tier", value: "premium" },
+    ],
     createdAt: "2025-01-01T00:00:00.000Z",
     updatedAt: "2025-01-01T00:00:00.000Z",
   });
@@ -41,13 +56,17 @@ export function seedMockRules() {
     id: seedId2,
     userId: null,
     name: "Low Stock Skip",
-    type: "conditional",
-    conditions: [
-      { field: "stock", operator: "less_than", value: 10 },
-    ],
-    actions: [{ type: "set", target: "skip", value: true }],
-    priority: 2,
+    description: "Skip items with low stock",
     enabled: false,
+    priority: 2,
+    conditionGroup: {
+      id: "g1",
+      logic: "AND",
+      conditions: [
+        { id: "c1", field: "stock", operator: "less_than", value: 10 },
+      ],
+    },
+    actions: [{ id: "a1", type: "skip" }],
     createdAt: "2025-01-02T00:00:00.000Z",
     updatedAt: "2025-01-02T00:00:00.000Z",
   });
@@ -55,6 +74,23 @@ export function seedMockRules() {
 
 // Initial seed
 seedMockRules();
+
+/**
+ * Convert API rule to core rule engine format
+ */
+function toEngineRule(apiRule: z.infer<typeof ruleSchema>): CoreRule {
+  return {
+    id: apiRule.id,
+    name: apiRule.name,
+    description: apiRule.description,
+    enabled: apiRule.enabled,
+    priority: apiRule.priority,
+    conditionGroup: apiRule.conditionGroup as ConditionGroup,
+    actions: apiRule.actions as Action[],
+    createdAt: new Date(apiRule.createdAt),
+    updatedAt: new Date(apiRule.updatedAt),
+  };
+}
 
 // Create the OpenAPI Hono app
 export const rulesApp = new OpenAPIHono();
@@ -90,7 +126,7 @@ const createRuleRoute = createRoute({
   path: "/api/v1/rules",
   tags: ["Rules"],
   summary: "Create a new rule",
-  description: "Creates a new rule for data transformation or filtering",
+  description: "Creates a new rule for data filtering and transformation",
   request: {
     body: {
       content: {
@@ -186,7 +222,7 @@ const testRuleRoute = createRoute({
   path: "/api/v1/rules/{id}/test",
   tags: ["Rules"],
   summary: "Test rule against sample data",
-  description: "Tests a rule against provided sample data and returns results",
+  description: "Tests a rule against provided sample data and returns detailed results",
   request: {
     params: idParamSchema,
     body: {
@@ -210,6 +246,70 @@ const testRuleRoute = createRoute({
   },
 });
 
+const testDraftRuleRoute = createRoute({
+  method: "post",
+  path: "/api/v1/rules/test-draft",
+  tags: ["Rules"],
+  summary: "Test a draft rule without persisting",
+  description:
+    "Tests a rule configuration against sample data without creating the rule in the database. Useful for previewing rule behavior before saving.",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: testDraftRuleRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Draft rule test results",
+      content: {
+        "application/json": {
+          schema: testDraftRuleResponseSchema,
+        },
+      },
+    },
+    ...commonResponses,
+  },
+});
+
+// TODO: Add rate limiting middleware to this endpoint.
+// The evaluate endpoint is resource-intensive as it processes potentially large datasets
+// through multiple rules. Consider implementing:
+// - Request rate limiting (e.g., 10 requests/minute per user)
+// - Payload size limits (e.g., max 1000 rows per request)
+// - Timeout handling for long-running evaluations
+// - Queue-based processing for large datasets
+const evaluateRulesRoute = createRoute({
+  method: "post",
+  path: "/api/v1/rules/evaluate",
+  tags: ["Rules"],
+  summary: "Evaluate rules against dataset",
+  description: "Evaluates all enabled rules (or specified rules) against a dataset",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: evaluateRulesRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Evaluation results",
+      content: {
+        "application/json": {
+          schema: evaluateRulesResponseSchema,
+        },
+      },
+    },
+    ...commonResponses,
+  },
+});
+
 // ============================================================================
 // Route Handlers
 // ============================================================================
@@ -221,15 +321,23 @@ rulesApp.openapi(listRulesRoute, async (c) => {
 
   let rules = Array.from(mockRules.values());
 
-  // Filter by type if provided
-  if (query.type) {
-    rules = rules.filter((r) => r.type === query.type);
-  }
-
   // Filter by enabled status if provided
   if (query.enabled !== undefined) {
     rules = rules.filter((r) => r.enabled === query.enabled);
   }
+
+  // Filter by search term if provided
+  if (query.search) {
+    const searchLower = query.search.toLowerCase();
+    rules = rules.filter(
+      (r) =>
+        r.name.toLowerCase().includes(searchLower) ||
+        r.description?.toLowerCase().includes(searchLower)
+    );
+  }
+
+  // Sort by priority
+  rules.sort((a, b) => a.priority - b.priority);
 
   const total = rules.length;
   const start = (page - 1) * limit;
@@ -245,11 +353,11 @@ rulesApp.openapi(createRuleRoute, async (c) => {
     id: crypto.randomUUID(),
     userId: null,
     name: body.name,
-    type: body.type,
-    conditions: body.conditions,
-    actions: body.actions,
-    priority: body.priority ?? 0,
+    description: body.description,
     enabled: body.enabled ?? true,
+    priority: body.priority ?? 0,
+    conditionGroup: body.conditionGroup,
+    actions: body.actions,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   };
@@ -282,8 +390,8 @@ rulesApp.openapi(updateRuleRoute, async (c) => {
   const updatedRule: z.infer<typeof ruleSchema> = {
     ...rule,
     ...(body.name && { name: body.name }),
-    ...(body.type && { type: body.type }),
-    ...(body.conditions && { conditions: body.conditions }),
+    ...(body.description !== undefined && { description: body.description }),
+    ...(body.conditionGroup && { conditionGroup: body.conditionGroup }),
     ...(body.actions && { actions: body.actions }),
     ...(body.priority !== undefined && { priority: body.priority }),
     ...(body.enabled !== undefined && { enabled: body.enabled }),
@@ -317,31 +425,145 @@ rulesApp.openapi(testRuleRoute, async (c) => {
     throw createNotFoundError("Rule", id);
   }
 
-  // Mock rule testing - in real implementation, this would evaluate conditions
-  const results: z.infer<typeof ruleTestResultSchema>[] = body.sampleData.map(
-    (row, index) => {
-      // Simple mock evaluation
-      const matched = Math.random() > 0.5;
-      return {
-        matched,
-        originalData: row,
-        transformedData: matched ? { ...row, _ruleApplied: true } : undefined,
-        matchedConditions: matched ? [0] : [],
-        appliedActions: matched ? [0] : [],
-      };
-    }
-  );
+  // Convert to engine format and test
+  const engineRule = toEngineRule(rule);
+  const testResult = ruleEngine.testRule(engineRule, body.sampleData);
 
-  const matchedCount = results.filter((r) => r.matched).length;
+  // Format results for API response
+  const results = testResult.results.map((r) => ({
+    matched: r.matched,
+    originalData: r.row,
+    modifiedData: r.matched ? r.modifiedRow : undefined,
+    appliedActions: r.actions.map((a) => ({
+      actionId: a.actionId,
+      type: a.type,
+      success: a.success,
+      error: a.error,
+    })),
+    groups: r.matched ? [] : undefined, // Would be populated from processRow
+    tags: r.matched ? [] : undefined,
+  }));
+
+  const skippedRows = results.filter(
+    (r) => r.matched && r.appliedActions.some((a) => a.type === "skip" && a.success)
+  ).length;
 
   return c.json(
     {
       ruleId: id,
       results,
       summary: {
-        totalRows: body.sampleData.length,
-        matchedRows: matchedCount,
-        transformedRows: matchedCount,
+        totalRows: testResult.totalRows,
+        matchedRows: testResult.matchedRows,
+        skippedRows,
+      },
+    },
+    200
+  );
+});
+
+rulesApp.openapi(testDraftRuleRoute, async (c) => {
+  const body = c.req.valid("json");
+
+  // Create a temporary rule object for testing (not persisted)
+  const draftRule: CoreRule = {
+    id: "draft",
+    name: "Draft Rule",
+    description: undefined,
+    enabled: true,
+    priority: 0,
+    conditionGroup: body.conditionGroup as ConditionGroup,
+    actions: body.actions as Action[],
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  // Test the draft rule
+  const testResult = ruleEngine.testRule(draftRule, body.sampleData);
+
+  // Format results for API response
+  const results = testResult.results.map((r) => ({
+    matched: r.matched,
+    originalData: r.row,
+    modifiedData: r.matched ? r.modifiedRow : undefined,
+    appliedActions: r.actions.map((a) => ({
+      actionId: a.actionId,
+      type: a.type,
+      success: a.success,
+      error: a.error,
+    })),
+    groups: r.matched ? [] : undefined,
+    tags: r.matched ? [] : undefined,
+  }));
+
+  const skippedRows = results.filter(
+    (r) =>
+      r.matched && r.appliedActions.some((a) => a.type === "skip" && a.success)
+  ).length;
+
+  return c.json(
+    {
+      results,
+      summary: {
+        totalRows: testResult.totalRows,
+        matchedRows: testResult.matchedRows,
+        skippedRows,
+      },
+    },
+    200
+  );
+});
+
+rulesApp.openapi(evaluateRulesRoute, async (c) => {
+  const body = c.req.valid("json");
+
+  // Get rules to evaluate
+  let rulesToEvaluate: z.infer<typeof ruleSchema>[];
+
+  if (body.ruleIds && body.ruleIds.length > 0) {
+    // Use specified rules
+    rulesToEvaluate = body.ruleIds
+      .map((id) => mockRules.get(id))
+      .filter((r): r is z.infer<typeof ruleSchema> => r !== undefined);
+  } else {
+    // Use all enabled rules
+    rulesToEvaluate = Array.from(mockRules.values()).filter((r) => r.enabled);
+  }
+
+  // Convert to engine format
+  const engineRules = rulesToEvaluate.map(toEngineRule);
+
+  // Process dataset
+  const processedRows = ruleEngine.processDataset(engineRules, body.data);
+
+  // Format results
+  const results = processedRows.map((row) => ({
+    originalRow: row.originalRow,
+    modifiedRow: row.modifiedRow,
+    matchedRuleIds: row.matchedRules.map((r) => r.id),
+    appliedActions: row.actions.map((a) => ({
+      actionId: a.actionId,
+      type: a.type,
+      success: a.success,
+      error: a.error,
+    })),
+    shouldSkip: row.shouldSkip,
+    groups: row.groups,
+    tags: row.tags,
+    targeting: row.targeting,
+  }));
+
+  const skippedRows = results.filter((r) => r.shouldSkip).length;
+  const rulesApplied = new Set(results.flatMap((r) => r.matchedRuleIds)).size;
+
+  return c.json(
+    {
+      results,
+      summary: {
+        totalRows: body.data.length,
+        processedRows: results.length,
+        skippedRows,
+        rulesApplied,
       },
     },
     200

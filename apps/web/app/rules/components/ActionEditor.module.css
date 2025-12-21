@@ -1,0 +1,214 @@
+.container {
+  --gray-rgb: 0, 0, 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .container {
+    --gray-rgb: 255, 255, 255;
+  }
+}
+
+.header {
+  margin-bottom: 16px;
+}
+
+.title {
+  font-family: var(--font-geist-sans);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0 0 4px;
+}
+
+.subtitle {
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  color: rgba(var(--gray-rgb), 0.5);
+}
+
+.emptyState {
+  padding: 24px;
+  background: rgba(var(--gray-rgb), 0.02);
+  border: 1px dashed rgba(var(--gray-rgb), 0.15);
+  border-radius: 8px;
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.emptyState p {
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  color: rgba(var(--gray-rgb), 0.5);
+  margin: 0;
+}
+
+.actionsList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.actionItem {
+  background: rgba(var(--gray-rgb), 0.02);
+  border: 1px solid rgba(var(--gray-rgb), 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.actionHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(var(--gray-rgb), 0.03);
+  border-bottom: 1px solid rgba(var(--gray-rgb), 0.1);
+}
+
+.actionNumber {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  font-family: var(--font-geist-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(var(--gray-rgb), 0.5);
+  background: rgba(var(--gray-rgb), 0.05);
+  border-radius: 50%;
+}
+
+.actionTypeSelect {
+  flex: 1;
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 10px;
+  border: 1px solid rgba(var(--gray-rgb), 0.15);
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--foreground);
+  cursor: pointer;
+}
+
+.actionTypeSelect:focus {
+  outline: none;
+  border-color: var(--foreground);
+}
+
+.removeButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(var(--gray-rgb), 0.4);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.removeButton:hover {
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+}
+
+.actionBody {
+  padding: 12px;
+}
+
+.actionDescription {
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  color: rgba(var(--gray-rgb), 0.6);
+  margin: 0;
+}
+
+.actionFields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fieldRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fieldLabel {
+  font-family: var(--font-geist-sans);
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(var(--gray-rgb), 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.fieldInput,
+.textareaInput {
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  padding: 8px 10px;
+  border: 1px solid rgba(var(--gray-rgb), 0.15);
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--foreground);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.fieldInput:focus,
+.textareaInput:focus {
+  outline: none;
+  border-color: var(--foreground);
+  box-shadow: 0 0 0 2px rgba(var(--gray-rgb), 0.1);
+}
+
+.textareaInput {
+  font-family: var(--font-geist-mono);
+  font-size: 12px;
+  resize: vertical;
+  min-height: 60px;
+}
+
+.addButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 10px 16px;
+  border: 1px dashed rgba(var(--gray-rgb), 0.2);
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(var(--gray-rgb), 0.6);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.addButton:hover {
+  border-color: var(--foreground);
+  color: var(--foreground);
+  background: rgba(var(--gray-rgb), 0.02);
+}
+
+.inputError {
+  border-color: #dc2626;
+}
+
+.inputError:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.15);
+}
+
+.error {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  color: #dc2626;
+  margin-top: 4px;
+}

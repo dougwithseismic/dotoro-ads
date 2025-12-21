@@ -89,7 +89,39 @@ describe("validateRegex", () => {
       const result = validateRegex("(a+)+");
       expect(result.valid).toBe(false);
       if (!result.valid) {
-        expect(result.reason).toBe("Pattern contains nested quantifiers which could cause performance issues");
+        expect(result.reason).toBe(
+          "Pattern contains unsafe patterns: Nested quantifiers detected"
+        );
+      }
+    });
+
+    it("should return specific error for overlapping alternation", () => {
+      const result = validateRegex("(a|aa)+");
+      expect(result.valid).toBe(false);
+      if (!result.valid) {
+        expect(result.reason).toBe(
+          "Pattern contains unsafe patterns: Overlapping alternation detected"
+        );
+      }
+    });
+
+    it("should return specific error for optional repetition", () => {
+      const result = validateRegex("(a?)*");
+      expect(result.valid).toBe(false);
+      if (!result.valid) {
+        expect(result.reason).toBe(
+          "Pattern contains unsafe patterns: Repetition of optional group detected"
+        );
+      }
+    });
+
+    it("should return specific error for consecutive quantifiers", () => {
+      const result = validateRegex("a++");
+      expect(result.valid).toBe(false);
+      if (!result.valid) {
+        expect(result.reason).toBe(
+          "Pattern contains unsafe patterns: Multiple consecutive quantifiers detected"
+        );
       }
     });
   });

@@ -4,6 +4,9 @@
 
 // Patterns that indicate potential catastrophic backtracking
 const NESTED_QUANTIFIERS = /\([^)]*[+*][^)]*\)[+*?]/;
+const OVERLAPPING_ALTERNATION = /\([^|)]*\|[^|)]*\)[+*]/;
+const OPTIONAL_REPETITION = /\([^)]*\?\)[+*]/;
+const LONG_QUANTIFIER_CHAIN = /[+*]{2,}/;
 const MAX_PATTERN_LENGTH = 100;
 
 /**
@@ -12,6 +15,34 @@ const MAX_PATTERN_LENGTH = 100;
 export type RegexValidationResult =
   | { valid: true }
   | { valid: false; reason: string };
+
+/**
+ * Check if a regex pattern is safe from ReDoS attacks
+ */
+function checkRegexSafety(pattern: string): { safe: boolean; reason?: string } {
+  const checks = [
+    { pattern: NESTED_QUANTIFIERS, reason: "Nested quantifiers detected" },
+    {
+      pattern: OVERLAPPING_ALTERNATION,
+      reason: "Overlapping alternation detected",
+    },
+    {
+      pattern: OPTIONAL_REPETITION,
+      reason: "Repetition of optional group detected",
+    },
+    {
+      pattern: LONG_QUANTIFIER_CHAIN,
+      reason: "Multiple consecutive quantifiers detected",
+    },
+  ];
+
+  for (const check of checks) {
+    if (check.pattern.test(pattern)) {
+      return { safe: false, reason: check.reason };
+    }
+  }
+  return { safe: true };
+}
 
 /**
  * Validates a regex pattern for safety against ReDoS attacks.
@@ -23,12 +54,19 @@ export type RegexValidationResult =
 export function validateRegex(pattern: string): RegexValidationResult {
   // Check length
   if (pattern.length > MAX_PATTERN_LENGTH) {
-    return { valid: false, reason: "Pattern exceeds maximum length of 100 characters" };
+    return {
+      valid: false,
+      reason: "Pattern exceeds maximum length of 100 characters",
+    };
   }
 
-  // Check for nested quantifiers (ReDoS risk)
-  if (NESTED_QUANTIFIERS.test(pattern)) {
-    return { valid: false, reason: "Pattern contains nested quantifiers which could cause performance issues" };
+  // Check for ReDoS patterns
+  const safetyCheck = checkRegexSafety(pattern);
+  if (!safetyCheck.safe) {
+    return {
+      valid: false,
+      reason: `Pattern contains unsafe patterns: ${safetyCheck.reason}`,
+    };
   }
 
   // Try to compile
@@ -36,7 +74,10 @@ export function validateRegex(pattern: string): RegexValidationResult {
     new RegExp(pattern);
     return { valid: true };
   } catch (err) {
-    return { valid: false, reason: `Invalid regex syntax: ${err instanceof Error ? err.message : "unknown error"}` };
+    return {
+      valid: false,
+      reason: `Invalid regex syntax: ${err instanceof Error ? err.message : "unknown error"}`,
+    };
   }
 }
 
