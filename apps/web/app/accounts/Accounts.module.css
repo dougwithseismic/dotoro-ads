@@ -1,0 +1,154 @@
+.page {
+  --gray-rgb: 0, 0, 0;
+  min-height: 100vh;
+  padding: 32px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+@media (prefers-color-scheme: dark) {
+  .page {
+    --gray-rgb: 255, 255, 255;
+  }
+}
+
+/* Header */
+.header {
+  margin-bottom: 40px;
+}
+
+.headerContent {
+  max-width: 600px;
+}
+
+.title {
+  font-family: var(--font-geist-sans);
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 0 8px;
+  color: var(--foreground);
+}
+
+.subtitle {
+  font-family: var(--font-geist-sans);
+  font-size: 15px;
+  color: rgba(var(--gray-rgb), 0.6);
+  margin: 0;
+}
+
+/* Sections */
+.section {
+  margin-bottom: 40px;
+}
+
+.sectionTitle {
+  font-family: var(--font-geist-sans);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0 0 20px;
+}
+
+/* Connect buttons grid */
+.connectGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+/* Loading state */
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 400px;
+  color: rgba(var(--gray-rgb), 0.6);
+  font-family: var(--font-geist-sans);
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid rgba(var(--gray-rgb), 0.1);
+  border-top-color: var(--foreground);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Error state */
+.error {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  background: rgba(220, 38, 38, 0.05);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  border-radius: 10px;
+  margin-bottom: 24px;
+}
+
+.error p {
+  flex: 1;
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  color: #dc2626;
+  margin: 0;
+}
+
+.retryButton {
+  padding: 8px 16px;
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--foreground);
+  background: transparent;
+  border: 1px solid rgba(var(--gray-rgb), 0.2);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+
+.retryButton:hover {
+  background: rgba(var(--gray-rgb), 0.05);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .page {
+    padding: 20px;
+  }
+
+  .title {
+    font-size: 24px;
+  }
+
+  .connectGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .error {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .error {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.3);
+  }
+
+  .error p {
+    color: #ef4444;
+  }
+}

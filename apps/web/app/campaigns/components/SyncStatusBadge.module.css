@@ -1,0 +1,83 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+
+.message {
+  line-height: 1;
+}
+
+/* Draft status */
+.badge[data-status="draft"] {
+  background: rgba(107, 114, 128, 0.1);
+  color: #6b7280;
+}
+
+/* Pending sync status */
+.badge[data-status="pending_sync"] {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+/* Synced status */
+.badge[data-status="synced"] {
+  background: rgba(22, 163, 74, 0.1);
+  color: #16a34a;
+}
+
+/* Sync error status */
+.badge[data-status="sync_error"] {
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+}
+
+/* Spinner animation */
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .badge[data-status="draft"] {
+    background: rgba(156, 163, 175, 0.15);
+    color: #9ca3af;
+  }
+
+  .badge[data-status="pending_sync"] {
+    background: rgba(96, 165, 250, 0.15);
+    color: #60a5fa;
+  }
+
+  .badge[data-status="synced"] {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+  }
+
+  .badge[data-status="sync_error"] {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+  }
+}

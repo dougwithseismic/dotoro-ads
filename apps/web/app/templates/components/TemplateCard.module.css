@@ -1,0 +1,174 @@
+.card {
+  background: var(--background);
+  border: 1px solid rgba(var(--gray-rgb), 0.1);
+  border-radius: 12px;
+  padding: 20px;
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.card:hover {
+  border-color: rgba(var(--gray-rgb), 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.platform {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--platform-color);
+  background: color-mix(in srgb, var(--platform-color) 10%, transparent);
+  border-radius: 4px;
+}
+
+.date {
+  font-family: var(--font-geist-mono);
+  font-size: 12px;
+  color: rgba(var(--gray-rgb), 0.5);
+}
+
+.cardTitle {
+  font-family: var(--font-geist-sans);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0 0 8px;
+  line-height: 1.4;
+}
+
+.cardObjective,
+.cardBudget,
+.cardVariables {
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  color: rgba(var(--gray-rgb), 0.6);
+  margin: 0 0 4px;
+}
+
+.cardVariables {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(var(--gray-rgb), 0.7);
+  background: rgba(var(--gray-rgb), 0.05);
+  border-radius: 4px;
+}
+
+.cardActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(var(--gray-rgb), 0.1);
+}
+
+.actionButton {
+  padding: 8px 14px;
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--foreground);
+  background: rgba(var(--gray-rgb), 0.05);
+  border: 1px solid rgba(var(--gray-rgb), 0.1);
+  border-radius: 6px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.actionButton:hover {
+  background: rgba(var(--gray-rgb), 0.1);
+}
+
+.deleteButton {
+  margin-left: auto;
+  padding: 8px 14px;
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: #dc2626;
+  background: transparent;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.deleteButton:hover {
+  background: rgba(220, 38, 38, 0.05);
+}
+
+.deleteConfirm {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.deleteConfirmYes,
+.deleteConfirmNo {
+  padding: 8px 12px;
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.deleteConfirmYes {
+  color: #fff;
+  background: #dc2626;
+  border: none;
+}
+
+.deleteConfirmNo {
+  color: var(--foreground);
+  background: transparent;
+  border: 1px solid rgba(var(--gray-rgb), 0.2);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .cardActions {
+    flex-wrap: wrap;
+  }
+
+  .deleteButton,
+  .deleteConfirm {
+    margin-left: 0;
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+
+  .deleteButton {
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.3);
+  }
+
+  .deleteButton:hover {
+    background: rgba(239, 68, 68, 0.1);
+  }
+
+  .deleteConfirmYes {
+    background: #ef4444;
+  }
+}

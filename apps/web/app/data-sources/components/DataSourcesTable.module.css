@@ -1,0 +1,189 @@
+.tableContainer {
+  --gray-rgb: 0, 0, 0;
+  overflow-x: auto;
+  border: 1px solid rgba(var(--gray-rgb), 0.1);
+  border-radius: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .tableContainer {
+    --gray-rgb: 255, 255, 255;
+  }
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+}
+
+.table th {
+  text-align: left;
+  padding: 12px 16px;
+  font-weight: 600;
+  color: rgba(var(--gray-rgb), 0.7);
+  background: rgba(var(--gray-rgb), 0.03);
+  border-bottom: 1px solid rgba(var(--gray-rgb), 0.1);
+  white-space: nowrap;
+}
+
+.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+
+.sortable:hover {
+  background: rgba(var(--gray-rgb), 0.06);
+}
+
+.headerContent {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sortIcon {
+  flex-shrink: 0;
+  color: rgba(var(--gray-rgb), 0.5);
+}
+
+.table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(var(--gray-rgb), 0.05);
+  color: var(--foreground);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.row {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.row:hover {
+  background: rgba(var(--gray-rgb), 0.03);
+}
+
+.nameCell {
+  font-weight: 500;
+}
+
+.rowCountCell {
+  font-family: var(--font-geist-mono);
+  font-size: 13px;
+}
+
+.dateCell {
+  font-family: var(--font-geist-mono);
+  font-size: 13px;
+  color: rgba(var(--gray-rgb), 0.6);
+}
+
+/* Type badge */
+.typeBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.csv {
+  color: #059669;
+  background: rgba(5, 150, 105, 0.1);
+}
+
+.api {
+  color: #6366f1;
+  background: rgba(99, 102, 241, 0.1);
+}
+
+/* Status badge */
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 9999px;
+}
+
+.status-ready {
+  color: #059669;
+  background: rgba(5, 150, 105, 0.1);
+}
+
+.status-processing {
+  color: #d97706;
+  background: rgba(217, 119, 6, 0.1);
+}
+
+.status-error {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.1);
+}
+
+/* Actions */
+.actionsHeader {
+  text-align: right;
+}
+
+.actionsCell {
+  text-align: right;
+}
+
+.deleteButton {
+  padding: 6px 12px;
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: #dc2626;
+  background: transparent;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.deleteButton:hover {
+  background: rgba(220, 38, 38, 0.05);
+}
+
+/* Empty state */
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  color: rgba(var(--gray-rgb), 0.6);
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  background: rgba(var(--gray-rgb), 0.02);
+  border: 2px dashed rgba(var(--gray-rgb), 0.1);
+  border-radius: 8px;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .deleteButton {
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.3);
+  }
+
+  .deleteButton:hover {
+    background: rgba(239, 68, 68, 0.1);
+  }
+
+  .status-error {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+  }
+}

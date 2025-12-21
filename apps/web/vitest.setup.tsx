@@ -43,6 +43,15 @@ vi.mock("next/link", () => ({
 // Mock fetch globally
 global.fetch = vi.fn();
 
+// Mock ResizeObserver
+class MockResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
+global.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
+
 // Suppress console errors during tests (optional)
 const originalError = console.error;
 beforeAll(() => {

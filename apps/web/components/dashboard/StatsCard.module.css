@@ -1,0 +1,115 @@
+.card {
+  --gray-rgb: 0, 0, 0;
+  background: var(--background);
+  border: 1px solid rgba(var(--gray-rgb), 0.1);
+  border-radius: 12px;
+  padding: 20px;
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+@media (prefers-color-scheme: dark) {
+  .card {
+    --gray-rgb: 255, 255, 255;
+  }
+}
+
+.card:hover {
+  border-color: rgba(var(--gray-rgb), 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+@media (prefers-color-scheme: dark) {
+  .card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: rgba(var(--gray-rgb), 0.05);
+  border-radius: 8px;
+  color: rgba(var(--gray-rgb), 0.6);
+}
+
+.title {
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(var(--gray-rgb), 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.content {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.value {
+  font-family: var(--font-geist-sans);
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--foreground);
+  line-height: 1;
+}
+
+.trend {
+  font-family: var(--font-geist-mono);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.trend[data-trend="positive"] {
+  color: #16a34a;
+  background: rgba(22, 163, 74, 0.1);
+}
+
+.trend[data-trend="negative"] {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+  .trend[data-trend="positive"] {
+    color: #22c55e;
+    background: rgba(34, 197, 94, 0.15);
+  }
+
+  .trend[data-trend="negative"] {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.15);
+  }
+}
+
+/* Warning state */
+.warning {
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.warning .value {
+  color: #f59e0b;
+}
+
+@media (prefers-color-scheme: dark) {
+  .warning {
+    border-color: rgba(251, 191, 36, 0.3);
+  }
+
+  .warning .value {
+    color: #fbbf24;
+  }
+}

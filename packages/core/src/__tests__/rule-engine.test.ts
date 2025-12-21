@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { RuleEngine } from "../rules/rule-engine.js";
 import type {
   Condition,
@@ -590,6 +590,112 @@ describe("RuleEngine", () => {
       expect(sensitiveEngine.evaluateCondition(condition, { category: "Electronics" })).toBe(true);
       expect(sensitiveEngine.evaluateCondition(condition, { category: "electronics" })).toBe(false);
       expect(sensitiveEngine.evaluateCondition(condition, { category: "ELECTRONICS" })).toBe(false);
+    });
+  });
+
+  describe("unknown operators", () => {
+    it("logs a warning for unknown operators", () => {
+      const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      const condition: Condition = {
+        id: "c1",
+        field: "category",
+        operator: "equal" as any, // Typo: should be "equals"
+        value: "Electronics",
+      };
+
+      const result = engine.evaluateCondition(condition, { category: "Electronics" });
+
+      // Should return false for unknown operator
+      expect(result).toBe(false);
+
+      // Should log a warning
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Unknown operator "equal"')
+      );
+
+      consoleWarnSpy.mockRestore();
+    });
+
+    it("returns false for unknown operators", () => {
+      const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      const invalidCondition: Condition = {
+        id: "c1",
+        field: "name",
+        operator: "matches_exactly" as any, // Invalid operator
+        value: "test",
+      };
+
+      expect(engine.evaluateCondition(invalidCondition, { name: "test" })).toBe(false);
+
+      consoleWarnSpy.mockRestore();
+    });
+  });
+
+  describe("regex warning logs", () => {
+    it("logs a warning when regex pattern is unsafe", () => {
+      const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      const condition: Condition = {
+        id: "c1",
+        field: "text",
+        operator: "regex",
+        value: "(a+)+", // ReDoS pattern - unsafe
+      };
+
+      const result = engine.evaluateCondition(condition, { text: "aaaaaa" });
+
+      // Should return false for unsafe pattern
+      expect(result).toBe(false);
+
+      // Should log a warning about why it was rejected
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Regex pattern")
+      );
+
+      consoleWarnSpy.mockRestore();
+    });
+
+    it("logs a warning when regex pattern is too long", () => {
+      const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      const condition: Condition = {
+        id: "c1",
+        field: "text",
+        operator: "regex",
+        value: "a".repeat(101), // Exceeds max length
+      };
+
+      const result = engine.evaluateCondition(condition, { text: "aaa" });
+
+      expect(result).toBe(false);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Regex pattern")
+      );
+
+      consoleWarnSpy.mockRestore();
+    });
+
+    it("logs a warning when regex execution fails", () => {
+      const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      // This pattern is syntactically invalid in some edge cases
+      const condition: Condition = {
+        id: "c1",
+        field: "text",
+        operator: "regex",
+        value: "[invalid regex", // Invalid regex syntax
+      };
+
+      const result = engine.evaluateCondition(condition, { text: "test" });
+
+      expect(result).toBe(false);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("Regex pattern")
+      );
+
+      consoleWarnSpy.mockRestore();
     });
   });
 

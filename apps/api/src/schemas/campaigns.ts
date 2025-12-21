@@ -193,3 +193,97 @@ export const campaignQuerySchema = paginationSchema.extend({
 });
 
 export type CampaignQuery = z.infer<typeof campaignQuerySchema>;
+
+// ============================================================================
+// Preview API Schemas
+// ============================================================================
+
+/**
+ * Preview Request Schema
+ * Fetches template and data source by ID, applies rules, and generates preview
+ */
+export const previewRequestSchema = z.object({
+  template_id: uuidSchema,
+  data_source_id: uuidSchema,
+  rules: z.array(uuidSchema).optional().default([]),
+  limit: z.number().min(1).max(100).optional().default(20),
+});
+
+export type PreviewRequest = z.infer<typeof previewRequestSchema>;
+
+/**
+ * Generated Ad Schema for Preview
+ */
+export const generatedAdPreviewSchema = z.object({
+  id: z.string(),
+  templateId: z.string(),
+  headline: z.string(),
+  description: z.string(),
+  displayUrl: z.string().optional(),
+  finalUrl: z.string().optional(),
+  callToAction: z.string().optional(),
+  sourceRowId: z.string(),
+  warnings: z.array(z.string()),
+});
+
+/**
+ * Generated Ad Group Schema for Preview
+ */
+export const generatedAdGroupPreviewSchema = z.object({
+  id: z.string(),
+  templateId: z.string(),
+  name: z.string(),
+  targeting: z.record(z.unknown()).optional(),
+  bidStrategy: z.string().optional(),
+  bidAmount: z.number().optional(),
+  ads: z.array(generatedAdPreviewSchema),
+});
+
+/**
+ * Generated Campaign Schema for Preview
+ */
+export const generatedCampaignPreviewSchema = z.object({
+  id: z.string(),
+  templateId: z.string(),
+  name: z.string(),
+  platform: platformSchema,
+  objective: z.string().optional(),
+  budget: z
+    .object({
+      type: z.enum(["daily", "lifetime"]),
+      amount: z.number(),
+      currency: z.string(),
+    })
+    .optional(),
+  targeting: z.record(z.unknown()).optional(),
+  adGroups: z.array(generatedAdGroupPreviewSchema),
+  sourceRowId: z.string(),
+  groups: z.array(z.string()).optional(),
+  tags: z.array(z.string()).optional(),
+});
+
+/**
+ * Preview Metadata Schema
+ */
+export const previewMetadataSchema = z.object({
+  template_name: z.string(),
+  data_source_name: z.string(),
+  generated_at: z.string(),
+});
+
+export type PreviewMetadata = z.infer<typeof previewMetadataSchema>;
+
+/**
+ * Preview Response Schema
+ * Matches the format specified in TODO.md
+ */
+export const previewResponseSchema = z.object({
+  campaign_count: z.number(),
+  ad_group_count: z.number(),
+  ad_count: z.number(),
+  preview: z.array(generatedCampaignPreviewSchema),
+  warnings: z.array(z.string()),
+  metadata: previewMetadataSchema,
+});
+
+export type PreviewResponse = z.infer<typeof previewResponseSchema>;

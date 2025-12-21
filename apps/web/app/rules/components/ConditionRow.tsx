@@ -1,7 +1,7 @@
 "use client";
 
 import styles from "./ConditionRow.module.css";
-import type { Condition } from "../types";
+import type { Condition, Operator } from "../types";
 
 const OPERATORS = [
   { value: "equals", label: "equals" },
@@ -43,7 +43,8 @@ export default function ConditionRow({
     onChange({ ...condition, field });
   };
 
-  const handleOperatorChange = (operator: string) => {
+  const handleOperatorChange = (operatorValue: string) => {
+    const operator = operatorValue as Operator;
     let value = condition.value;
     if (["is_empty", "is_not_empty"].includes(operator)) {
       value = "";

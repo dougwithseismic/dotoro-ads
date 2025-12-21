@@ -7,11 +7,11 @@ export {
 export type {
   EntityType,
   OperationType,
-  LocalCampaign,
+  LocalCampaign as SyncLocalCampaign,
   LocalAdGroup,
   LocalAd,
   LocalState,
-  PlatformCampaign,
+  PlatformCampaign as SyncPlatformCampaign,
   PlatformAdGroup,
   PlatformAd,
   PlatformState,
@@ -20,8 +20,8 @@ export type {
   UpdateDiff,
   DeleteDiff,
   InSyncItem,
-  DiffResult,
-  DiffOptions,
+  DiffResult as SyncDiffResult,
+  DiffOptions as SyncDiffOptions,
   SyncOptions,
   ExecutedOperation,
   SyncError,
@@ -29,3 +29,19 @@ export type {
   SyncHistoryEntry,
   PlatformAdapter,
 } from "./sync-engine.js";
+
+// Export diff calculator
+export { DiffCalculator } from "./diff-calculator.js";
+
+export type {
+  CampaignData,
+  LocalCampaign,
+  PlatformCampaign,
+  CampaignToCreate,
+  CampaignToUpdate,
+  CampaignToDelete,
+  UnchangedCampaign,
+  DiffSummary,
+  DiffResult,
+  DiffOptions,
+} from "./diff-calculator.js";

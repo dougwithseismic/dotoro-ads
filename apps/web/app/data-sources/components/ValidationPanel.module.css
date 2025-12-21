@@ -1,0 +1,344 @@
+.container {
+  --gray-rgb: 0, 0, 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .container {
+    --gray-rgb: 255, 255, 255;
+  }
+}
+
+/* Empty State */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 24px;
+  text-align: center;
+  background: rgba(16, 185, 129, 0.05);
+  border: 1px solid rgba(16, 185, 129, 0.15);
+  border-radius: 12px;
+}
+
+.emptyIcon {
+  color: #10b981;
+  margin-bottom: 16px;
+}
+
+.emptyTitle {
+  font-family: var(--font-geist-sans);
+  font-size: 18px;
+  font-weight: 600;
+  color: #10b981;
+  margin: 0 0 8px;
+}
+
+.emptyText {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  color: rgba(var(--gray-rgb), 0.6);
+  margin: 0;
+  max-width: 320px;
+}
+
+/* Summary Header */
+.summaryHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: rgba(var(--gray-rgb), 0.03);
+  border: 1px solid rgba(var(--gray-rgb), 0.1);
+  border-radius: 8px 8px 0 0;
+}
+
+.title {
+  font-family: var(--font-geist-sans);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0;
+}
+
+.totalCounts {
+  display: flex;
+  gap: 12px;
+}
+
+.errorCount {
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: #dc2626;
+  padding: 4px 10px;
+  background: rgba(220, 38, 38, 0.1);
+  border-radius: 12px;
+}
+
+.warningCount {
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: #f59e0b;
+  padding: 4px 10px;
+  background: rgba(245, 158, 11, 0.1);
+  border-radius: 12px;
+}
+
+/* Column Summary */
+.columnSummary {
+  padding: 16px 20px;
+  border: 1px solid rgba(var(--gray-rgb), 0.1);
+  border-top: none;
+  background: var(--background);
+}
+
+.sectionTitle {
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(var(--gray-rgb), 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin: 0 0 12px;
+}
+
+.columnList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.columnItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: rgba(var(--gray-rgb), 0.03);
+  border: 1px solid rgba(var(--gray-rgb), 0.1);
+  border-radius: 6px;
+}
+
+.columnName {
+  font-family: var(--font-geist-mono);
+  font-size: 12px;
+  color: var(--foreground);
+}
+
+.columnCounts {
+  display: flex;
+  gap: 8px;
+}
+
+.columnErrorCount {
+  font-family: var(--font-geist-sans);
+  font-size: 11px;
+  font-weight: 500;
+  color: #dc2626;
+}
+
+.columnWarningCount {
+  font-family: var(--font-geist-sans);
+  font-size: 11px;
+  font-weight: 500;
+  color: #f59e0b;
+}
+
+/* Error List */
+.errorList {
+  padding: 16px 20px;
+  border: 1px solid rgba(var(--gray-rgb), 0.1);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  background: var(--background);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.listItem {
+  margin: 0;
+}
+
+.errorButton {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 16px;
+  background: rgba(var(--gray-rgb), 0.02);
+  border: 1px solid rgba(var(--gray-rgb), 0.1);
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s;
+  position: relative;
+}
+
+.errorButton:hover {
+  background: rgba(var(--gray-rgb), 0.05);
+  border-color: rgba(var(--gray-rgb), 0.2);
+}
+
+.errorButton:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.errorHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.severityBadge {
+  display: inline-flex;
+  padding: 3px 8px;
+  font-family: var(--font-geist-sans);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  border-radius: 4px;
+}
+
+.errorBadge {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.1);
+}
+
+.warningBadge {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.errorColumn {
+  font-family: var(--font-geist-mono);
+  font-size: 12px;
+  color: var(--foreground);
+  padding: 2px 6px;
+  background: rgba(var(--gray-rgb), 0.08);
+  border-radius: 4px;
+}
+
+.errorRow {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  color: rgba(var(--gray-rgb), 0.5);
+}
+
+.errorMessage {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  color: var(--foreground);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.suggestionBox {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px 10px;
+  background: rgba(59, 130, 246, 0.05);
+  border: 1px solid rgba(59, 130, 246, 0.15);
+  border-radius: 6px;
+  width: 100%;
+}
+
+.suggestionLabel {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: #3b82f6;
+  flex-shrink: 0;
+}
+
+.suggestionText {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  color: rgba(var(--gray-rgb), 0.8);
+}
+
+.goToRow {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(var(--gray-rgb), 0.3);
+  transition: color 0.15s;
+}
+
+.errorButton:hover .goToRow {
+  color: rgba(var(--gray-rgb), 0.6);
+}
+
+@media (prefers-color-scheme: dark) {
+  .errorCount {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.15);
+  }
+
+  .warningCount {
+    color: #fbbf24;
+    background: rgba(251, 191, 36, 0.15);
+  }
+
+  .columnErrorCount {
+    color: #ef4444;
+  }
+
+  .columnWarningCount {
+    color: #fbbf24;
+  }
+
+  .errorBadge {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.15);
+  }
+
+  .warningBadge {
+    color: #fbbf24;
+    background: rgba(251, 191, 36, 0.15);
+  }
+
+  .suggestionBox {
+    background: rgba(96, 165, 250, 0.08);
+    border-color: rgba(96, 165, 250, 0.2);
+  }
+
+  .suggestionLabel {
+    color: #60a5fa;
+  }
+
+  .emptyState {
+    background: rgba(16, 185, 129, 0.08);
+    border-color: rgba(16, 185, 129, 0.2);
+  }
+}
+
+@media (max-width: 600px) {
+  .summaryHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .columnList {
+    flex-direction: column;
+  }
+
+  .columnItem {
+    width: 100%;
+    justify-content: space-between;
+  }
+}

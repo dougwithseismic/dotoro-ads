@@ -310,8 +310,8 @@ export type PreviewWithDataRequest = z.infer<typeof previewWithDataRequestSchema
 export const generatedAdSchema = z.object({
   headline: z.string().nullable(),
   description: z.string().nullable(),
-  displayUrl: z.string().optional(),
-  finalUrl: z.string().optional(),
+  displayUrl: z.string().nullable().optional(),
+  finalUrl: z.string().nullable().optional(),
   callToAction: z.string().optional(),
   sourceRow: z.record(z.unknown()),
   warnings: z.array(z.string()),

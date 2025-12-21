@@ -540,6 +540,98 @@ const campaign = await redditClient.campaigns.create(accountId, {
   - OAuth connect buttons per platform
   - Account health status
 
+#### 1.10 Data Transform Layer
+**Priority: MEDIUM** - Enables aggregated campaign generation (e.g., campaigns by brand)
+
+**Concept:** Transforms take a data source and produce a "virtual" data source with aggregated/reshaped rows. This enables use cases like "one campaign per brand" instead of "one ad per product."
+
+**Data Flow:**
+```
+Data Source (raw CSV) → Transform (group/aggregate) → Virtual Data Source → Rules → Template → Ads
+```
+
+**Design Decisions:**
+- Transforms create an explicit virtual data source (not ephemeral) - makes it debuggable and reusable
+- No transform chaining in v1 (can create transform on virtual source if needed)
+- Rules run AFTER grouping (filter/modify the aggregated rows)
+
+- [ ] Create transform database schema
+  - File: `packages/database/src/schema/transforms.ts`
+  ```sql
+  transforms: id, name, source_data_source_id, output_data_source_id, config (JSONB), created_at, updated_at
+
+  -- config structure:
+  {
+    group_by: string | string[],        -- "item.brand" or ["brand", "category"]
+    aggregations: [
+      { output_field: string, function: AggregateFunction, source_field?: string, limit?: number }
+    ],
+    include_group_key: boolean          -- auto-include the grouped field in output
+  }
+  ```
+
+- [ ] Define aggregation function types
+  - File: `packages/core/src/transforms/aggregations.ts`
+  - Basic: `COUNT`, `SUM`, `MIN`, `MAX`, `AVG`
+  - Text: `FIRST`, `LAST`, `CONCAT` (with separator)
+  - Collection: `COLLECT` (array of values, with optional limit)
+  - Advanced: `DISTINCT_COUNT`, `COUNT_IF` (conditional count)
+
+- [ ] Implement transform execution engine
+  - File: `packages/core/src/transforms/transform-engine.ts`
+  - Parse group_by fields (support nested paths like "item.brand")
+  - Execute aggregation functions
+  - Generate virtual data source rows
+  - Handle null/missing values gracefully
+  - Performance: streaming for large datasets
+
+- [ ] Create transform validation
+  - File: `packages/core/src/transforms/transform-validator.ts`
+  - Validate group_by fields exist in source
+  - Validate source_field exists for aggregations that need it
+  - Check for circular references (transform of a transform of itself)
+
+- [ ] Implement transform service & API routes
+  - File: `apps/api/src/services/transform-service.ts`
+  - File: `apps/api/src/routes/transforms.ts`
+  ```
+  GET /api/v1/transforms              - List all transforms
+  POST /api/v1/transforms             - Create transform
+  GET /api/v1/transforms/:id          - Get transform details
+  PUT /api/v1/transforms/:id          - Update transform
+  DELETE /api/v1/transforms/:id       - Delete transform
+  POST /api/v1/transforms/:id/execute - Execute transform (regenerate virtual source)
+  POST /api/v1/transforms/preview     - Preview transform output (first N rows)
+  ```
+
+- [ ] Build transform builder UI
+  - File: `apps/web/app/transforms/builder/TransformBuilder.tsx`
+  - Select source data source
+  - Configure group_by field(s) with autocomplete
+  - Add aggregations with function picker
+  - Live preview: "This creates X rows from Y source rows"
+  - Show sample output row
+
+- [ ] Build transforms list page
+  - File: `apps/web/app/transforms/page.tsx`
+  - List transforms with source → output visualization
+  - Show row counts (source rows → output rows)
+  - Quick actions: execute, preview, edit, delete
+
+- [ ] Update template system to use virtual data sources
+  - File: `apps/api/src/services/template-service.ts`
+  - Templates can reference virtual data sources from transforms
+  - Variable extraction includes aggregated field names
+  - Preview works with transformed data
+
+**Example Use Cases:**
+- User uploads 2,847 product CSV
+- Creates transform: "Group by item.brand" with aggregations: COUNT → product_count, MIN(price), MAX(price), COLLECT(name, limit: 5) → top_products
+- Preview shows: "43 brand rows created"
+- Template: "Shop {product_count} {brand} items from ${min_price}"
+- Rules: "IF product_count < 5 THEN skip" (filters out small brands)
+- Result: 38 brand campaigns generated
+
 ---
 
 ## Not In Scope

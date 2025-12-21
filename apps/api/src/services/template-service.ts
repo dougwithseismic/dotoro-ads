@@ -21,10 +21,10 @@ import {
  * Generated ad from template
  */
 export interface GeneratedAd {
-  headline: string | undefined;
-  description: string | undefined;
-  displayUrl?: string;
-  finalUrl?: string;
+  headline: string | null;
+  description: string | null;
+  displayUrl?: string | null;
+  finalUrl?: string | null;
   callToAction?: string;
   sourceRow: Record<string, unknown>;
   warnings: string[];
@@ -189,12 +189,12 @@ export class TemplateService {
     const warnings: string[] = [];
 
     // Substitute variables in each field
-    // Returns undefined for missing fields to maintain consistency
+    // Returns null for missing fields to maintain consistency with JSON schema
     const substituteField = (
       field: string | undefined,
       fieldName: string
-    ): string | undefined => {
-      if (!field) return undefined;
+    ): string | null => {
+      if (!field) return null;
       const result = this.variableEngine.substitute(field, rowData);
 
       // Check for substitution errors
@@ -263,8 +263,8 @@ export class TemplateService {
         const validationResult = this.redditValidator.validate({
           headline: generatedAd.headline ?? "",
           description: generatedAd.description ?? undefined,
-          displayUrl: generatedAd.displayUrl,
-          finalUrl: generatedAd.finalUrl,
+          displayUrl: generatedAd.displayUrl ?? undefined,
+          finalUrl: generatedAd.finalUrl ?? undefined,
           callToAction: generatedAd.callToAction,
         });
 

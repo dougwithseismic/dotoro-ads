@@ -1,0 +1,80 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 500;
+  width: fit-content;
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.label {
+  line-height: 1;
+}
+
+/* Status variants */
+.ready {
+  color: #059669;
+  background: rgba(5, 150, 105, 0.1);
+}
+
+.processing {
+  color: #d97706;
+  background: rgba(217, 119, 6, 0.1);
+}
+
+.error {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.1);
+}
+
+/* Spinner animation for processing */
+.spinnerIcon {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Error message */
+.errorMessage {
+  margin: 0;
+  padding: 10px 14px;
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.05);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  border-radius: 6px;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .error {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+  }
+
+  .errorMessage {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.3);
+  }
+}

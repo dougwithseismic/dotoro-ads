@@ -9,11 +9,18 @@ import {
   syncResponseSchema,
   syncRecordSchema,
   diffResponseSchema,
+  previewRequestSchema,
+  previewResponseSchema,
 } from "../schemas/campaigns.js";
 import { platformSchema } from "../schemas/templates.js";
 import { idParamSchema } from "../schemas/common.js";
 import { commonResponses, createPaginatedResponse } from "../lib/openapi.js";
 import { createNotFoundError, ApiException, ErrorCode } from "../lib/errors.js";
+import { PreviewService, PreviewError } from "../services/preview-service.js";
+import { mockTemplates } from "./templates.js";
+import { mockDataSources, mockDataRows } from "./data-sources.js";
+import { mockRules } from "./rules.js";
+import { hasStoredData, getStoredRows } from "../services/data-ingestion.js";
 
 // In-memory mock data store
 export const mockCampaigns = new Map<string, z.infer<typeof generatedCampaignSchema>>();
@@ -95,6 +102,61 @@ seedMockCampaigns();
 
 // Create the OpenAPI Hono app
 export const campaignsApp = new OpenAPIHono();
+
+// Create preview service with mock data dependencies
+const previewService = new PreviewService({
+  getTemplate: (id) => {
+    const template = mockTemplates.get(id);
+    if (!template) return undefined;
+    return {
+      id: template.id,
+      name: template.name,
+      platform: template.platform,
+      structure: template.structure,
+    };
+  },
+  getDataSource: (id) => {
+    const dataSource = mockDataSources.get(id);
+    if (!dataSource) return undefined;
+    return {
+      id: dataSource.id,
+      name: dataSource.name,
+      type: dataSource.type,
+    };
+  },
+  getDataRows: (dataSourceId) => {
+    // Try stored data first (from CSV upload)
+    if (hasStoredData(dataSourceId)) {
+      const { rows } = getStoredRows(dataSourceId, 1, 10000); // Get all rows
+      return rows;
+    }
+
+    // In development, allow mock data fallback with warning
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(`Falling back to mock data for data source ${dataSourceId}`);
+      const rows = mockDataRows.get(dataSourceId) ?? [];
+      return rows.map((row) => row.rowData);
+    }
+
+    // In production, throw error - no silent fallback to mock data
+    throw new Error(`Data source ${dataSourceId} has no stored data`);
+  },
+  getRule: (id) => {
+    const rule = mockRules.get(id);
+    if (!rule) return undefined;
+    return {
+      id: rule.id,
+      name: rule.name,
+      description: rule.description,
+      enabled: rule.enabled,
+      priority: rule.priority,
+      conditionGroup: rule.conditionGroup,
+      actions: rule.actions,
+      createdAt: rule.createdAt,
+      updatedAt: rule.updatedAt,
+    };
+  },
+});
 
 // ============================================================================
 // Route Definitions
@@ -219,6 +281,35 @@ const diffCampaignRoute = createRoute({
       content: {
         "application/json": {
           schema: diffResponseSchema,
+        },
+      },
+    },
+    ...commonResponses,
+  },
+});
+
+const previewCampaignsRoute = createRoute({
+  method: "post",
+  path: "/api/v1/campaigns/preview",
+  tags: ["Campaigns"],
+  summary: "Preview campaign generation from stored resources",
+  description:
+    "Generates a preview of campaigns using template ID, data source ID, and rule IDs. Fetches the resources, applies rules to filter/transform data, and validates against platform constraints. Returns paginated preview with counts and warnings.",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: previewRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Campaign preview generated successfully",
+      content: {
+        "application/json": {
+          schema: previewResponseSchema,
         },
       },
     },
@@ -368,6 +459,25 @@ campaignsApp.openapi(diffCampaignRoute, async (c) => {
     },
     200
   );
+});
+
+campaignsApp.openapi(previewCampaignsRoute, async (c) => {
+  const body = c.req.valid("json");
+
+  try {
+    const result = previewService.generatePreview(body);
+    return c.json(result, 200);
+  } catch (error) {
+    if (error instanceof PreviewError) {
+      if (error.code === "TEMPLATE_NOT_FOUND") {
+        throw createNotFoundError("Template", body.template_id);
+      }
+      if (error.code === "DATA_SOURCE_NOT_FOUND") {
+        throw createNotFoundError("Data source", body.data_source_id);
+      }
+    }
+    throw error;
+  }
 });
 
 // Error handler for API exceptions

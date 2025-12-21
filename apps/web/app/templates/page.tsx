@@ -1,26 +1,16 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
+import { TemplateGrid } from "./components/TemplateGrid";
+import {
+  PlatformFilter,
+  type Platform,
+  type PlatformCounts,
+} from "./components/PlatformFilter";
+import { SearchInput } from "./components/SearchInput";
+import type { CampaignTemplate } from "./components/TemplateCard";
 import styles from "./TemplateList.module.css";
-
-interface CampaignTemplate {
-  id: string;
-  userId: string | null;
-  name: string;
-  platform: "reddit" | "google" | "facebook";
-  structure: {
-    objective?: string;
-    budget?: {
-      type: "daily" | "lifetime";
-      amount: number;
-      currency: string;
-    };
-    targeting?: Record<string, unknown>;
-  } | null;
-  createdAt: string;
-  updatedAt: string;
-}
 
 interface TemplateListResponse {
   data: CampaignTemplate[];
@@ -32,23 +22,12 @@ interface TemplateListResponse {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
-const PLATFORM_LABELS: Record<string, string> = {
-  reddit: "Reddit",
-  google: "Google",
-  facebook: "Facebook",
-};
-
-const PLATFORM_COLORS: Record<string, string> = {
-  reddit: "#ff4500",
-  google: "#4285f4",
-  facebook: "#1877f2",
-};
-
 export default function TemplatesPage() {
   const [templates, setTemplates] = useState<CampaignTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [platformFilter, setPlatformFilter] = useState<Platform | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const fetchTemplates = useCallback(async () => {
     try {
@@ -71,7 +50,7 @@ export default function TemplatesPage() {
     fetchTemplates();
   }, [fetchTemplates]);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = useCallback(async (id: string) => {
     try {
       const response = await fetch(API_BASE + "/api/v1/templates/" + id, {
         method: "DELETE",
@@ -80,19 +59,68 @@ export default function TemplatesPage() {
         throw new Error("Failed to delete template");
       }
       setTemplates((prev) => prev.filter((t) => t.id !== id));
-      setDeleteConfirm(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete template");
+      setError(
+        err instanceof Error ? err.message : "Failed to delete template"
+      );
     }
-  };
+  }, []);
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
+  const handleDuplicate = useCallback(
+    async (id: string) => {
+      try {
+        const templateToDuplicate = templates.find((t) => t.id === id);
+        if (!templateToDuplicate) return;
+
+        const response = await fetch(API_BASE + "/api/v1/templates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: templateToDuplicate.name + " (Copy)",
+            platform: templateToDuplicate.platform,
+            structure: templateToDuplicate.structure,
+          }),
+        });
+        if (!response.ok) {
+          throw new Error("Failed to duplicate template");
+        }
+        const newTemplate = await response.json();
+        setTemplates((prev) => [newTemplate, ...prev]);
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : "Failed to duplicate template"
+        );
+      }
+    },
+    [templates]
+  );
+
+  const handleClearSearch = useCallback(() => {
+    setSearchQuery("");
+  }, []);
+
+  const platformCounts = useMemo((): PlatformCounts => {
+    return {
+      reddit: templates.filter((t) => t.platform === "reddit").length,
+      google: templates.filter((t) => t.platform === "google").length,
+      facebook: templates.filter((t) => t.platform === "facebook").length,
+    };
+  }, [templates]);
+
+  const filteredTemplates = useMemo(() => {
+    let result = templates;
+
+    if (platformFilter) {
+      result = result.filter((t) => t.platform === platformFilter);
+    }
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      result = result.filter((t) => t.name.toLowerCase().includes(query));
+    }
+
+    return result;
+  }, [templates, platformFilter, searchQuery]);
 
   if (loading) {
     return (
@@ -128,13 +156,14 @@ export default function TemplatesPage() {
             Create and manage your ad campaign templates
           </p>
         </div>
-        <Link href="/templates/editor" className={styles.createButton}>
+        <Link href="/templates/new" className={styles.createButton}>
           <svg
             width="20"
             height="20"
             viewBox="0 0 20 20"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
           >
             <path
               d="M10 4V16M4 10H16"
@@ -147,119 +176,26 @@ export default function TemplatesPage() {
         </Link>
       </header>
 
-      {templates.length === 0 ? (
-        <div className={styles.empty}>
-          <div className={styles.emptyIcon}>
-            <svg
-              width="48"
-              height="48"
-              viewBox="0 0 48 48"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <rect
-                x="8"
-                y="8"
-                width="32"
-                height="32"
-                rx="4"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeDasharray="4 4"
-              />
-              <path
-                d="M24 18V30M18 24H30"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-            </svg>
-          </div>
-          <h2>No templates yet</h2>
-          <p>Create your first campaign template to get started</p>
-          <Link href="/templates/editor" className={styles.emptyButton}>
-            Create Your First Template
-          </Link>
-        </div>
-      ) : (
-        <div className={styles.grid}>
-          {templates.map((template) => (
-            <article key={template.id} className={styles.card}>
-              <div className={styles.cardHeader}>
-                <span
-                  className={styles.platform}
-                  style={
-                    {
-                      "--platform-color": PLATFORM_COLORS[template.platform],
-                    } as React.CSSProperties
-                  }
-                >
-                  {PLATFORM_LABELS[template.platform]}
-                </span>
-                <span className={styles.date}>
-                  {formatDate(template.createdAt)}
-                </span>
-              </div>
-
-              <h2 className={styles.cardTitle}>{template.name}</h2>
-
-              {template.structure?.objective && (
-                <p className={styles.cardObjective}>
-                  Objective: {template.structure.objective}
-                </p>
-              )}
-
-              {template.structure?.budget && (
-                <p className={styles.cardBudget}>
-                  {template.structure.budget.type === "daily"
-                    ? "Daily"
-                    : "Lifetime"}{" "}
-                  Budget: {template.structure.budget.currency}{" "}
-                  {template.structure.budget.amount}
-                </p>
-              )}
-
-              <div className={styles.cardActions}>
-                <Link
-                  href={"/templates/editor/" + template.id}
-                  className={styles.actionButton}
-                >
-                  Edit
-                </Link>
-                <Link
-                  href={"/templates/" + template.id + "/preview"}
-                  className={styles.actionButton}
-                >
-                  Preview
-                </Link>
-                {deleteConfirm === template.id ? (
-                  <div className={styles.deleteConfirm}>
-                    <button
-                      onClick={() => handleDelete(template.id)}
-                      className={styles.deleteConfirmYes}
-                    >
-                      Confirm
-                    </button>
-                    <button
-                      onClick={() => setDeleteConfirm(null)}
-                      className={styles.deleteConfirmNo}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setDeleteConfirm(template.id)}
-                    className={styles.deleteButton}
-                  >
-                    Delete
-                  </button>
-                )}
-              </div>
-            </article>
-          ))}
+      {templates.length > 0 && (
+        <div className={styles.filterBar}>
+          <PlatformFilter
+            selected={platformFilter}
+            onChange={setPlatformFilter}
+            counts={platformCounts}
+          />
+          <SearchInput
+            value={searchQuery}
+            onChange={setSearchQuery}
+            onClear={handleClearSearch}
+          />
         </div>
       )}
+
+      <TemplateGrid
+        templates={filteredTemplates}
+        onDelete={handleDelete}
+        onDuplicate={handleDuplicate}
+      />
     </div>
   );
 }

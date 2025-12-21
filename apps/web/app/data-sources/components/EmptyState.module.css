@@ -1,0 +1,62 @@
+.container {
+  --gray-rgb: 0, 0, 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 24px;
+  text-align: center;
+  background: rgba(var(--gray-rgb), 0.02);
+  border: 2px dashed rgba(var(--gray-rgb), 0.1);
+  border-radius: 12px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .container {
+    --gray-rgb: 255, 255, 255;
+  }
+}
+
+.illustration {
+  color: rgba(var(--gray-rgb), 0.3);
+  margin-bottom: 24px;
+}
+
+.title {
+  font-family: var(--font-geist-sans);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0 0 8px;
+}
+
+.description {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  line-height: 1.6;
+  color: rgba(var(--gray-rgb), 0.6);
+  margin: 0 0 24px;
+  max-width: 400px;
+}
+
+.ctaButton {
+  padding: 12px 24px;
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--background);
+  background: var(--foreground);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.ctaButton:hover {
+  opacity: 0.9;
+}
+
+.ctaButton:focus {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}

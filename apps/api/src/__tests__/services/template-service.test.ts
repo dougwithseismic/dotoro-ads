@@ -195,9 +195,9 @@ describe("TemplateService", () => {
       );
 
       expect(ad.headline).toBe("Test");
-      expect(ad.description).toBeUndefined();
-      expect(ad.displayUrl).toBeUndefined();
-      expect(ad.finalUrl).toBeUndefined();
+      expect(ad.description).toBeNull();
+      expect(ad.displayUrl).toBeNull();
+      expect(ad.finalUrl).toBeNull();
     });
 
     it("should apply filters correctly", () => {

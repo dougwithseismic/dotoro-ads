@@ -140,6 +140,7 @@ export class RuleEngine {
         return !this.evaluateIsEmpty(fieldValue);
 
       default:
+        console.warn(`Unknown operator "${operator}" in rule condition - treating as non-match`);
         return false;
     }
   }
@@ -360,6 +361,7 @@ export class RuleEngine {
     // Validate regex safety
     const safetyCheck = this.isRegexSafe(conditionValue);
     if (!safetyCheck.safe) {
+      console.warn(`Regex pattern "${conditionValue}" rejected: ${safetyCheck.reason}`);
       return false;
     }
 
@@ -368,7 +370,9 @@ export class RuleEngine {
       const regex = new RegExp(conditionValue, flags);
       const strField = this.toString(fieldValue);
       return regex.test(strField);
-    } catch {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      console.warn(`Regex execution failed for pattern "${conditionValue}": ${message}`);
       return false;
     }
   }
