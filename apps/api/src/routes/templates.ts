@@ -8,10 +8,19 @@ import {
   templatePreviewRequestSchema,
   templatePreviewResponseSchema,
   previewAdSchema,
+  extractVariablesRequestSchema,
+  extractVariablesResponseSchema,
+  validateTemplateRequestSchema,
+  validateTemplateResponseSchema,
+  substituteVariablesRequestSchema,
+  substituteVariablesResponseSchema,
+  previewWithDataRequestSchema,
+  previewWithDataResponseSchema,
 } from "../schemas/templates.js";
 import { idParamSchema } from "../schemas/common.js";
 import { commonResponses, createPaginatedResponse } from "../lib/openapi.js";
 import { createNotFoundError, ApiException, ErrorCode } from "../lib/errors.js";
+import { templateService } from "../services/template-service.js";
 
 // In-memory mock data store
 export const mockTemplates = new Map<string, z.infer<typeof campaignTemplateSchema>>();
@@ -335,6 +344,165 @@ templatesApp.openapi(previewTemplateRoute, async (c) => {
     },
     200
   );
+});
+
+// ============================================================================
+// Variable Engine Routes
+// ============================================================================
+
+const extractVariablesRoute = createRoute({
+  method: "post",
+  path: "/api/v1/templates/variables/extract",
+  tags: ["Templates", "Variables"],
+  summary: "Extract variables from template",
+  description: "Extracts all variable placeholders from a template",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: extractVariablesRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "List of extracted variables",
+      content: {
+        "application/json": {
+          schema: extractVariablesResponseSchema,
+        },
+      },
+    },
+    ...commonResponses,
+  },
+});
+
+const validateTemplateRoute = createRoute({
+  method: "post",
+  path: "/api/v1/templates/validate",
+  tags: ["Templates", "Validation"],
+  summary: "Validate template",
+  description: "Validates a template against platform-specific rules with optional sample data",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: validateTemplateRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Validation result",
+      content: {
+        "application/json": {
+          schema: validateTemplateResponseSchema,
+        },
+      },
+    },
+    ...commonResponses,
+  },
+});
+
+const substituteVariablesRoute = createRoute({
+  method: "post",
+  path: "/api/v1/templates/variables/substitute",
+  tags: ["Templates", "Variables"],
+  summary: "Substitute variables in template",
+  description: "Substitutes variables in a template string with provided data",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: substituteVariablesRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Substitution result with details",
+      content: {
+        "application/json": {
+          schema: substituteVariablesResponseSchema,
+        },
+      },
+    },
+    ...commonResponses,
+  },
+});
+
+const previewWithDataRoute = createRoute({
+  method: "post",
+  path: "/api/v1/templates/preview",
+  tags: ["Templates", "Preview"],
+  summary: "Preview ads with sample data",
+  description: "Generates preview ads by substituting variables with provided data rows",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: previewWithDataRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Preview of generated ads",
+      content: {
+        "application/json": {
+          schema: previewWithDataResponseSchema,
+        },
+      },
+    },
+    ...commonResponses,
+  },
+});
+
+// Variable Engine Route Handlers
+
+templatesApp.openapi(extractVariablesRoute, async (c) => {
+  const body = c.req.valid("json");
+  const variables = templateService.extractVariables(body.template);
+  return c.json({ variables }, 200);
+});
+
+templatesApp.openapi(validateTemplateRoute, async (c) => {
+  const body = c.req.valid("json");
+  const result = templateService.validateTemplate(
+    body.template,
+    body.platform,
+    body.sampleData
+  );
+  return c.json(result, 200);
+});
+
+templatesApp.openapi(substituteVariablesRoute, async (c) => {
+  const body = c.req.valid("json");
+  const result = templateService.previewFieldSubstitution(body.template, body.data);
+  return c.json(
+    {
+      text: result.text,
+      success: result.success,
+      warnings: result.warnings,
+      substitutions: result.substitutions,
+    },
+    200
+  );
+});
+
+templatesApp.openapi(previewWithDataRoute, async (c) => {
+  const body = c.req.valid("json");
+  const result = templateService.previewAds(
+    body.template,
+    body.dataRows,
+    body.platform,
+    body.limit
+  );
+  return c.json(result, 200);
 });
 
 // Error handler for API exceptions

@@ -26,3 +26,17 @@ export {
   type RowError,
   type ValidationResult,
 } from "./data-validator.js";
+
+// Variable Engine
+export {
+  VariableEngine,
+  type Filter,
+  type ExtractedVariable,
+  type SubstitutionWarning,
+  type SubstitutionError,
+  type SubstitutionResult,
+  type ValidationResult as VariableValidationResult,
+  type SubstitutionDetail,
+  type PreviewResult,
+  type FilterFunction,
+} from "./variable-engine.js";
