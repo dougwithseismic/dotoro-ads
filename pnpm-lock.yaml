@@ -29,6 +29,9 @@ importers:
       '@hono/zod-openapi':
         specifier: ^0.18.0
         version: 0.18.4(hono@4.11.1)(zod@3.25.76)
+      '@repo/core':
+        specifier: workspace:^
+        version: link:../../packages/core
       '@repo/database':
         specifier: workspace:*
         version: link:../../packages/database

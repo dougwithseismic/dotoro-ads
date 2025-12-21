@@ -8,6 +8,19 @@ export const dataSourceTypeSchema = z.enum(["csv", "api", "manual"]);
 export type DataSourceType = z.infer<typeof dataSourceTypeSchema>;
 
 /**
+ * Column Type Enum - matches @repo/core ColumnType
+ */
+export const columnTypeSchema = z.enum([
+  "string",
+  "number",
+  "date",
+  "boolean",
+  "url",
+  "email",
+]);
+export type ColumnType = z.infer<typeof columnTypeSchema>;
+
+/**
  * Data Source Schema - full representation
  */
 export const dataSourceSchema = z.object({
@@ -80,7 +93,7 @@ export const columnMappingSchema = z.object({
 export type ColumnMapping = z.infer<typeof columnMappingSchema>;
 
 /**
- * Preview Request Schema
+ * Preview Request Schema - for existing data source preview
  */
 export const previewRequestSchema = z.object({
   limit: z.number().int().min(1).max(100).default(10),
@@ -89,15 +102,107 @@ export const previewRequestSchema = z.object({
 export type PreviewRequest = z.infer<typeof previewRequestSchema>;
 
 /**
- * Upload Response Schema
+ * CSV Preview Request Schema - for previewing CSV content before upload
+ */
+export const csvPreviewRequestSchema = z.object({
+  content: z.string().min(1),
+  rows: z.number().int().min(1).max(100).default(10),
+});
+
+export type CsvPreviewRequest = z.infer<typeof csvPreviewRequestSchema>;
+
+/**
+ * Column Analysis Schema - analysis result for a single column
+ */
+export const columnAnalysisSchema = z.object({
+  originalName: z.string(),
+  suggestedName: z.string(),
+  detectedType: columnTypeSchema,
+  sampleValues: z.array(z.string()),
+  nullCount: z.number().int().min(0),
+  uniqueCount: z.number().int().min(0),
+});
+
+export type ColumnAnalysisResponse = z.infer<typeof columnAnalysisSchema>;
+
+/**
+ * Upload Response Schema - returned after CSV processing
  */
 export const uploadResponseSchema = z.object({
-  message: z.string(),
-  rowsProcessed: z.number(),
-  columnMappings: z.array(columnMappingSchema),
+  dataSourceId: uuidSchema,
+  headers: z.array(z.string()),
+  columns: z.array(columnAnalysisSchema),
+  rowCount: z.number().int().min(0),
+  preview: z.array(z.record(z.unknown())),
 });
 
 export type UploadResponse = z.infer<typeof uploadResponseSchema>;
+
+/**
+ * CSV Preview Response Schema
+ */
+export const csvPreviewResponseSchema = z.object({
+  headers: z.array(z.string()),
+  preview: z.array(z.record(z.string())),
+});
+
+export type CsvPreviewResponse = z.infer<typeof csvPreviewResponseSchema>;
+
+/**
+ * Validation Rule Schema - for validating data rows
+ */
+export const validationRuleSchema = z.object({
+  field: z.string().min(1),
+  required: z.boolean().optional(),
+  type: columnTypeSchema.optional(),
+  minLength: z.number().int().min(0).optional(),
+  maxLength: z.number().int().min(0).optional(),
+  pattern: z.string().optional(),
+});
+
+export type ValidationRuleRequest = z.infer<typeof validationRuleSchema>;
+
+/**
+ * Validation Request Schema
+ */
+export const validateRequestSchema = z.object({
+  rules: z.array(validationRuleSchema).min(1),
+});
+
+export type ValidateRequest = z.infer<typeof validateRequestSchema>;
+
+/**
+ * Row Error Schema
+ */
+export const rowErrorSchema = z.object({
+  row: z.number().int().min(0),
+  field: z.string(),
+  value: z.unknown(),
+  message: z.string(),
+});
+
+export type RowError = z.infer<typeof rowErrorSchema>;
+
+/**
+ * Validation Response Schema
+ */
+export const validationResponseSchema = z.object({
+  valid: z.boolean(),
+  totalRows: z.number().int().min(0),
+  validRows: z.number().int().min(0),
+  invalidRows: z.number().int().min(0),
+  errors: z.array(rowErrorSchema),
+  errorsByField: z.record(z.array(rowErrorSchema)),
+});
+
+export type ValidationResponse = z.infer<typeof validationResponseSchema>;
+
+/**
+ * Analyze Response Schema
+ */
+export const analyzeResponseSchema = z.object({
+  columns: z.array(columnAnalysisSchema),
+});
 
 /**
  * Data Source List Response

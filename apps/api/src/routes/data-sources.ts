@@ -9,20 +9,45 @@ import {
   dataRowsQuerySchema,
   previewRequestSchema,
   uploadResponseSchema,
+  csvPreviewRequestSchema,
+  csvPreviewResponseSchema,
+  validateRequestSchema,
+  validationResponseSchema,
+  analyzeResponseSchema,
 } from "../schemas/data-sources.js";
 import { idParamSchema, paginationSchema } from "../schemas/common.js";
 import { commonResponses, createPaginatedResponse } from "../lib/openapi.js";
-import { createNotFoundError, ApiException, ErrorCode } from "../lib/errors.js";
+import {
+  createNotFoundError,
+  createValidationError,
+  ApiException,
+  ErrorCode,
+} from "../lib/errors.js";
+import {
+  processUploadedCsv,
+  getDataPreview,
+  validateData,
+  getStoredDataSource,
+  getStoredRows,
+  hasStoredData,
+  deleteStoredData,
+  clearAllStoredData,
+} from "../services/data-ingestion.js";
+import type { ValidationRule } from "@repo/core";
 
 // In-memory mock data store (will be replaced with actual database)
 // Export for testing purposes
-export const mockDataSources = new Map<string, z.infer<typeof dataSourceSchema>>();
+export const mockDataSources = new Map<
+  string,
+  z.infer<typeof dataSourceSchema>
+>();
 export const mockDataRows = new Map<string, z.infer<typeof dataRowSchema>[]>();
 
 // Function to reset and seed mock data
 export function seedMockData() {
   mockDataSources.clear();
   mockDataRows.clear();
+  clearAllStoredData();
 
   const seedId = "550e8400-e29b-41d4-a716-446655440000";
   mockDataSources.set(seedId, {
@@ -191,7 +216,8 @@ const getDataRowsRoute = createRoute({
   path: "/api/v1/data-sources/{id}/rows",
   tags: ["Data Sources"],
   summary: "Get data rows",
-  description: "Returns paginated data rows for a specific data source",
+  description:
+    "Returns paginated data rows for a specific data source. Returns data from uploaded CSV if available, otherwise falls back to mock data.",
   request: {
     params: idParamSchema,
     query: dataRowsQuerySchema,
@@ -248,7 +274,8 @@ const uploadDataSourceRoute = createRoute({
   path: "/api/v1/data-sources/{id}/upload",
   tags: ["Data Sources"],
   summary: "Upload CSV file",
-  description: "Uploads and processes a CSV file for the data source",
+  description:
+    "Uploads and processes a CSV file for the data source. The file should be sent as multipart/form-data with the field name 'file'. Returns column analysis and a preview of the normalized data.",
   request: {
     params: idParamSchema,
   },
@@ -258,6 +285,91 @@ const uploadDataSourceRoute = createRoute({
       content: {
         "application/json": {
           schema: uploadResponseSchema,
+        },
+      },
+    },
+    ...commonResponses,
+  },
+});
+
+// POST /api/v1/data-sources/preview-csv - Preview CSV content
+const previewCsvRoute = createRoute({
+  method: "post",
+  path: "/api/v1/data-sources/preview-csv",
+  tags: ["Data Sources"],
+  summary: "Preview CSV content",
+  description:
+    "Parses and previews CSV content without creating a data source. Useful for validating CSV format before upload.",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: csvPreviewRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "CSV preview",
+      content: {
+        "application/json": {
+          schema: csvPreviewResponseSchema,
+        },
+      },
+    },
+    ...commonResponses,
+  },
+});
+
+// POST /api/v1/data-sources/:id/validate - Validate data against rules
+const validateDataSourceRoute = createRoute({
+  method: "post",
+  path: "/api/v1/data-sources/{id}/validate",
+  tags: ["Data Sources"],
+  summary: "Validate data rows",
+  description:
+    "Validates all data rows against the provided validation rules. Returns validation results including any errors found.",
+  request: {
+    params: idParamSchema,
+    body: {
+      content: {
+        "application/json": {
+          schema: validateRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Validation results",
+      content: {
+        "application/json": {
+          schema: validationResponseSchema,
+        },
+      },
+    },
+    ...commonResponses,
+  },
+});
+
+// POST /api/v1/data-sources/:id/analyze - Analyze columns
+const analyzeDataSourceRoute = createRoute({
+  method: "post",
+  path: "/api/v1/data-sources/{id}/analyze",
+  tags: ["Data Sources"],
+  summary: "Analyze columns",
+  description:
+    "Analyzes the columns of uploaded data and returns type detection and normalization suggestions.",
+  request: {
+    params: idParamSchema,
+  },
+  responses: {
+    200: {
+      description: "Column analysis results",
+      content: {
+        "application/json": {
+          schema: analyzeResponseSchema,
         },
       },
     },
@@ -344,6 +456,7 @@ dataSourcesApp.openapi(deleteDataSourceRoute, async (c) => {
 
   mockDataSources.delete(id);
   mockDataRows.delete(id);
+  deleteStoredData(id);
 
   return c.body(null, 204);
 });
@@ -359,6 +472,21 @@ dataSourcesApp.openapi(getDataRowsRoute, async (c) => {
     throw createNotFoundError("Data source", id);
   }
 
+  // Try to get rows from stored data first (uploaded CSV data)
+  if (hasStoredData(id)) {
+    const { rows, total } = getStoredRows(id, page, limit);
+    // Convert to dataRow format
+    const data = rows.map((row, index) => ({
+      id: crypto.randomUUID(),
+      dataSourceId: id,
+      rowData: row,
+      rowIndex: (page - 1) * limit + index,
+      createdAt: new Date().toISOString(),
+    }));
+    return c.json(createPaginatedResponse(data, total, page, limit), 200);
+  }
+
+  // Fallback to mock data
   const rows = mockDataRows.get(id) ?? [];
   const total = rows.length;
   const start = (page - 1) * limit;
@@ -377,6 +505,20 @@ dataSourcesApp.openapi(previewDataSourceRoute, async (c) => {
     throw createNotFoundError("Data source", id);
   }
 
+  // Try to get preview from stored data first
+  if (hasStoredData(id)) {
+    const { rows, total } = getStoredRows(id, 1, limit);
+    const data = rows.map((row, index) => ({
+      id: crypto.randomUUID(),
+      dataSourceId: id,
+      rowData: row,
+      rowIndex: index,
+      createdAt: new Date().toISOString(),
+    }));
+    return c.json({ data, total }, 200);
+  }
+
+  // Fallback to mock data
   const rows = mockDataRows.get(id) ?? [];
   const data = rows.slice(0, limit);
 
@@ -391,15 +533,161 @@ dataSourcesApp.openapi(uploadDataSourceRoute, async (c) => {
     throw createNotFoundError("Data source", id);
   }
 
-  // Placeholder implementation - actual file upload will be implemented later
-  return c.json(
-    {
-      message: "File upload endpoint - implementation pending",
-      rowsProcessed: 0,
-      columnMappings: [],
-    },
-    201
-  );
+  // Handle multipart form data upload
+  const contentType = c.req.header("content-type") ?? "";
+
+  let fileContent: string;
+
+  if (contentType.includes("multipart/form-data")) {
+    const formData = await c.req.formData();
+    const file = formData.get("file");
+
+    if (!(file instanceof File)) {
+      throw createValidationError("No file provided", {
+        field: "file",
+        message: "A CSV file must be provided in the 'file' field",
+      });
+    }
+
+    // Validate file type - require .csv extension OR valid CSV MIME type
+    const isValidExtension = file.name.toLowerCase().endsWith(".csv");
+    const isValidMimeType =
+      file.type === "text/csv" ||
+      file.type === "text/plain" ||
+      file.type === "application/csv";
+
+    if (!isValidExtension && !isValidMimeType) {
+      throw createValidationError("Invalid file type", {
+        field: "file",
+        message:
+          "Only CSV files are accepted. Please upload a file with .csv extension.",
+        providedType: file.type,
+        providedName: file.name,
+      });
+    }
+
+    fileContent = await file.text();
+  } else if (
+    contentType.includes("text/csv") ||
+    contentType.includes("text/plain")
+  ) {
+    // Handle raw CSV content
+    fileContent = await c.req.text();
+  } else {
+    throw createValidationError("Invalid content type", {
+      message:
+        "Request must be multipart/form-data with a file, or text/csv content",
+      providedContentType: contentType,
+    });
+  }
+
+  if (!fileContent.trim()) {
+    throw createValidationError("Empty file", {
+      message: "The uploaded file is empty",
+    });
+  }
+
+  // Get parsing options from config
+  const config = dataSource.config as Record<string, unknown> | null;
+  const options = {
+    hasHeader: (config?.hasHeader as boolean) ?? true,
+    delimiter: config?.delimiter as string | undefined,
+  };
+
+  try {
+    const result = await processUploadedCsv(
+      id,
+      dataSource.name,
+      fileContent,
+      options
+    );
+
+    return c.json(result, 201);
+  } catch (error) {
+    if (error instanceof Error) {
+      throw createValidationError("CSV processing failed", {
+        message: error.message,
+      });
+    }
+    throw error;
+  }
+});
+
+dataSourcesApp.openapi(previewCsvRoute, async (c) => {
+  const body = c.req.valid("json");
+
+  try {
+    const result = await getDataPreview(body.content, body.rows);
+    return c.json(result, 200);
+  } catch (error) {
+    if (error instanceof Error) {
+      throw createValidationError("CSV preview failed", {
+        message: error.message,
+      });
+    }
+    throw error;
+  }
+});
+
+dataSourcesApp.openapi(validateDataSourceRoute, async (c) => {
+  const { id } = c.req.valid("param");
+  const body = c.req.valid("json");
+
+  const dataSource = mockDataSources.get(id);
+  if (!dataSource) {
+    throw createNotFoundError("Data source", id);
+  }
+
+  // Check if we have stored data
+  if (!hasStoredData(id)) {
+    throw createValidationError("No data to validate", {
+      message: "No data has been uploaded for this data source",
+      dataSourceId: id,
+    });
+  }
+
+  const storedData = getStoredDataSource(id);
+  if (!storedData) {
+    throw createNotFoundError("Stored data", id);
+  }
+
+  // Convert validation rules - handle pattern conversion from string to RegExp
+  const rules: ValidationRule[] = body.rules.map((rule) => ({
+    field: rule.field,
+    required: rule.required,
+    type: rule.type,
+    minLength: rule.minLength,
+    maxLength: rule.maxLength,
+    pattern: rule.pattern ? new RegExp(rule.pattern) : undefined,
+  }));
+
+  const result = validateData(storedData.rows, rules);
+
+  return c.json(result, 200);
+});
+
+dataSourcesApp.openapi(analyzeDataSourceRoute, async (c) => {
+  const { id } = c.req.valid("param");
+
+  const dataSource = mockDataSources.get(id);
+  if (!dataSource) {
+    throw createNotFoundError("Data source", id);
+  }
+
+  // Check if we have stored data
+  if (!hasStoredData(id)) {
+    throw createValidationError("No data to analyze", {
+      message: "No data has been uploaded for this data source",
+      dataSourceId: id,
+    });
+  }
+
+  const storedData = getStoredDataSource(id);
+  if (!storedData) {
+    throw createNotFoundError("Stored data", id);
+  }
+
+  return c.json({ columns: storedData.columns }, 200);
 });
 
 // Error handler for API exceptions
