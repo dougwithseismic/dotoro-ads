@@ -15,3 +15,6 @@ export * from "./campaigns.js";
 
 // Accounts schemas
 export * from "./accounts.js";
+
+// Creatives schemas
+export * from "./creatives.js";

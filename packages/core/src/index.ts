@@ -9,3 +9,6 @@ export * from "./rules/index.js";
 
 // Re-export sync engine
 export * from "./sync/index.js";
+
+// Re-export utilities
+export * from "./utils/index.js";

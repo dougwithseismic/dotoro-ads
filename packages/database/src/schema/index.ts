@@ -87,3 +87,26 @@ export type {
   OAuthToken,
   NewOAuthToken,
 } from "./ad-accounts.js";
+
+// Creatives
+export {
+  creatives,
+  creativeTags,
+  creativeTemplateLinks,
+  creativesRelations,
+  creativeTagsRelations,
+  creativeTemplateLinksRelations,
+  creativeTypeEnum,
+  creativeStatusEnum,
+} from "./creatives.js";
+export type {
+  Creative,
+  NewCreative,
+  CreativeTag,
+  NewCreativeTag,
+  CreativeTemplateLink,
+  NewCreativeTemplateLink,
+  CreativeDimensions,
+  CreativeMetadata,
+  CreativeSelectionCondition,
+} from "./creatives.js";

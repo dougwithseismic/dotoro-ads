@@ -40,3 +40,13 @@ export {
   type PreviewResult,
   type FilterFunction,
 } from "./variable-engine.js";
+
+// Creative Linker
+export {
+  CreativeLinker,
+  getCreativeLinker,
+  resetCreativeLinker,
+  type CreativeCondition,
+  type CreativeSelectionRule,
+  type CreativeMapping,
+} from "./creative-linker.js";

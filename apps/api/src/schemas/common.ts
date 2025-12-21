@@ -47,6 +47,13 @@ export const idParamSchema = z.object({
 
 export type IdParam = z.infer<typeof idParamSchema>;
 
+// Account ID query parameter for authorization
+export const accountIdQuerySchema = z.object({
+  accountId: z.string().min(1),
+});
+
+export type AccountIdQuery = z.infer<typeof accountIdQuerySchema>;
+
 // Timestamps (read-only, returned from server)
 export const timestampsSchema = z.object({
   createdAt: z.string().datetime(),
