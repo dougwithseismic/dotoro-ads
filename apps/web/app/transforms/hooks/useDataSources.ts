@@ -1,13 +1,51 @@
 import { useState, useEffect, useCallback } from "react";
-import type { DataSource, DataSourceListResponse } from "../types";
+import type { DataSource } from "../types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+/**
+ * Raw API response structure for data sources
+ */
+interface ApiDataSource {
+  id: string;
+  userId: string | null;
+  name: string;
+  type: string;
+  config: {
+    rowCount?: number;
+    [key: string]: unknown;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface ApiDataSourceListResponse {
+  data: ApiDataSource[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
 
 interface UseDataSourcesResult {
   dataSources: DataSource[];
   loading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
+}
+
+/**
+ * Map API data source to frontend DataSource type
+ */
+function mapApiDataSource(apiDs: ApiDataSource): DataSource {
+  return {
+    id: apiDs.id,
+    name: apiDs.name,
+    type: apiDs.type as DataSource["type"],
+    rowCount: apiDs.config?.rowCount ?? 0,
+    status: "ready", // Assume ready if returned from API
+    columns: undefined, // Will be fetched separately if needed
+  };
 }
 
 /**
@@ -32,10 +70,10 @@ export function useDataSources(): UseDataSourcesResult {
         throw new Error("Failed to fetch data sources");
       }
 
-      const data: DataSourceListResponse = await response.json();
-      // Filter only ready data sources
-      const readySources = data.data.filter((ds) => ds.status === "ready");
-      setDataSources(readySources);
+      const data: ApiDataSourceListResponse = await response.json();
+      // Map API response to frontend DataSource type
+      const mappedSources = data.data.map(mapApiDataSource);
+      setDataSources(mappedSources);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
