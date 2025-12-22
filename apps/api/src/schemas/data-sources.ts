@@ -21,6 +21,16 @@ export const columnTypeSchema = z.enum([
 export type ColumnType = z.infer<typeof columnTypeSchema>;
 
 /**
+ * Data Source Status Enum
+ * Represents the lifecycle state of a data source:
+ * - "processing": Reserved for future async data ingestion workflows
+ * - "ready": Data source is available for use (may have 0 or more rows)
+ * - "error": Data source encountered an error (check config.error for details)
+ */
+export const dataSourceStatusSchema = z.enum(["processing", "ready", "error"]);
+export type DataSourceStatus = z.infer<typeof dataSourceStatusSchema>;
+
+/**
  * Data Source Schema - full representation
  */
 export const dataSourceSchema = z.object({
@@ -29,6 +39,8 @@ export const dataSourceSchema = z.object({
   name: z.string().min(1).max(255),
   type: dataSourceTypeSchema,
   config: z.record(z.unknown()).nullable(),
+  rowCount: z.number().int().min(0),
+  status: dataSourceStatusSchema,
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });

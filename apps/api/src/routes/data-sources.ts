@@ -1,5 +1,5 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
-import { eq, count, asc } from "drizzle-orm";
+import { eq, count, asc, inArray } from "drizzle-orm";
 import {
   dataSourceSchema,
   createDataSourceSchema,
@@ -36,6 +36,105 @@ import {
 } from "../services/data-ingestion.js";
 import type { ValidationRule } from "@repo/core";
 import { db, dataSources, dataRows, transforms } from "../services/db.js";
+import type { DataSourceStatus } from "../schemas/data-sources.js";
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Compute row count for a data source.
+ * First checks in-memory store (for recently uploaded data),
+ * then falls back to database count.
+ */
+async function computeRowCount(dataSourceId: string): Promise<number> {
+  // Check in-memory store first (recent uploads)
+  if (hasStoredData(dataSourceId)) {
+    const { total } = getStoredRows(dataSourceId, 1, 1);
+    return total;
+  }
+
+  // Fall back to database count
+  try {
+    const [countResult] = await db
+      .select({ count: count() })
+      .from(dataRows)
+      .where(eq(dataRows.dataSourceId, dataSourceId));
+
+    return countResult?.count ?? 0;
+  } catch (error) {
+    console.error(`[computeRowCount] Database query failed for dataSourceId=${dataSourceId}:`, error);
+    throw error; // Let route handler deal with it
+  }
+}
+
+/**
+ * Batch compute row counts for multiple data sources.
+ * Uses a single database query instead of N individual queries.
+ */
+async function computeRowCountsBatch(sourceIds: string[]): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+
+  // Initialize all to 0
+  sourceIds.forEach(id => counts.set(id, 0));
+
+  // Check in-memory store first (use getStoredRows for consistency with computeRowCount)
+  for (const id of sourceIds) {
+    if (hasStoredData(id)) {
+      const { total } = getStoredRows(id, 1, 1);
+      counts.set(id, total);
+    }
+  }
+
+  // Get remaining from database in a single query
+  const idsWithoutMemoryData = sourceIds.filter(id => !hasStoredData(id));
+  if (idsWithoutMemoryData.length > 0) {
+    try {
+      const dbCounts = await db
+        .select({
+          dataSourceId: dataRows.dataSourceId,
+          count: count()
+        })
+        .from(dataRows)
+        .where(inArray(dataRows.dataSourceId, idsWithoutMemoryData))
+        .groupBy(dataRows.dataSourceId);
+
+      for (const row of dbCounts) {
+        counts.set(row.dataSourceId, row.count);
+      }
+    } catch (error) {
+      console.error(
+        `[computeRowCountsBatch] Database query failed for ${idsWithoutMemoryData.length} data sources:`,
+        error
+      );
+      throw error;
+    }
+  }
+
+  return counts;
+}
+
+/**
+ * Derive status for a data source based on its data and config.
+ */
+function deriveStatus(
+  rowCount: number,
+  config: Record<string, unknown> | null
+): DataSourceStatus {
+  // Check for error state stored in config
+  if (config?.error) {
+    return "error";
+  }
+
+  // If we have data, it's ready
+  if (rowCount > 0) {
+    return "ready";
+  }
+
+  // No data yet - return "ready" as the source exists but is empty
+  // Note: "processing" is reserved for future async ingestion workflows
+  return "ready";
+}
 
 // Create the OpenAPI Hono app
 export const dataSourcesApp = new OpenAPIHono();
@@ -382,16 +481,26 @@ dataSourcesApp.openapi(listDataSourcesRoute, async (c) => {
     .offset(offset)
     .orderBy(dataSources.createdAt);
 
-  // Convert to API format
-  const data = sources.map((source) => ({
-    id: source.id,
-    userId: source.userId,
-    name: source.name,
-    type: source.type,
-    config: source.config,
-    createdAt: source.createdAt.toISOString(),
-    updatedAt: source.updatedAt.toISOString(),
-  }));
+  // Get row counts in a single batch query (fixes N+1 performance issue)
+  const sourceIds = sources.map(s => s.id);
+  const rowCounts = await computeRowCountsBatch(sourceIds);
+
+  // Convert to API format with computed rowCount and status
+  const data = sources.map((source) => {
+    const rowCount = rowCounts.get(source.id) ?? 0;
+    const status = deriveStatus(rowCount, source.config);
+    return {
+      id: source.id,
+      userId: source.userId,
+      name: source.name,
+      type: source.type,
+      config: source.config,
+      rowCount,
+      status,
+      createdAt: source.createdAt.toISOString(),
+      updatedAt: source.updatedAt.toISOString(),
+    };
+  });
 
   return c.json(createPaginatedResponse(data, total, page, limit), 200);
 });
@@ -412,6 +521,10 @@ dataSourcesApp.openapi(createDataSourceRoute, async (c) => {
     throw new ApiException(500, ErrorCode.INTERNAL_ERROR, "Failed to create data source");
   }
 
+  // New data source has 0 rows
+  const rowCount = 0;
+  const status = deriveStatus(rowCount, newDataSource.config);
+
   return c.json(
     {
       id: newDataSource.id,
@@ -419,6 +532,8 @@ dataSourcesApp.openapi(createDataSourceRoute, async (c) => {
       name: newDataSource.name,
       type: newDataSource.type,
       config: newDataSource.config,
+      rowCount,
+      status,
       createdAt: newDataSource.createdAt.toISOString(),
       updatedAt: newDataSource.updatedAt.toISOString(),
     },
@@ -439,6 +554,9 @@ dataSourcesApp.openapi(getDataSourceRoute, async (c) => {
     throw createNotFoundError("Data source", id);
   }
 
+  const rowCount = await computeRowCount(id);
+  const status = deriveStatus(rowCount, dataSource.config);
+
   return c.json(
     {
       id: dataSource.id,
@@ -446,6 +564,8 @@ dataSourcesApp.openapi(getDataSourceRoute, async (c) => {
       name: dataSource.name,
       type: dataSource.type,
       config: dataSource.config,
+      rowCount,
+      status,
       createdAt: dataSource.createdAt.toISOString(),
       updatedAt: dataSource.updatedAt.toISOString(),
     },
@@ -495,6 +615,9 @@ dataSourcesApp.openapi(updateDataSourceRoute, async (c) => {
     throw createNotFoundError("Data source", id);
   }
 
+  const rowCount = await computeRowCount(id);
+  const status = deriveStatus(rowCount, updatedDataSource.config);
+
   return c.json(
     {
       id: updatedDataSource.id,
@@ -502,6 +625,8 @@ dataSourcesApp.openapi(updateDataSourceRoute, async (c) => {
       name: updatedDataSource.name,
       type: updatedDataSource.type,
       config: updatedDataSource.config,
+      rowCount,
+      status,
       createdAt: updatedDataSource.createdAt.toISOString(),
       updatedAt: updatedDataSource.updatedAt.toISOString(),
     },

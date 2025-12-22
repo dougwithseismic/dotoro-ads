@@ -289,7 +289,7 @@ export default function DataSourceDetailPage() {
                 {dataSource.type.toUpperCase()}
               </span>
               <span className={styles.metaItem}>
-                {dataSource.rowCount.toLocaleString()} rows
+                {(dataSource.rowCount ?? 0).toLocaleString()} rows
               </span>
               <span className={styles.metaItem}>
                 Updated {formatDate(dataSource.updatedAt)}
