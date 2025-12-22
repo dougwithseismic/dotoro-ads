@@ -35,7 +35,7 @@ import {
   clearAllStoredData,
 } from "../services/data-ingestion.js";
 import type { ValidationRule } from "@repo/core";
-import { db, dataSources, dataRows } from "../services/db.js";
+import { db, dataSources, dataRows, transforms } from "../services/db.js";
 
 // Create the OpenAPI Hono app
 export const dataSourcesApp = new OpenAPIHono();
@@ -149,19 +149,43 @@ const updateDataSourceRoute = createRoute({
   },
 });
 
+// Query schema for delete with force option
+const deleteQuerySchema = z.object({
+  force: z.enum(["true", "false"]).optional().default("false"),
+});
+
 // DELETE /api/v1/data-sources/:id - Delete a data source
 const deleteDataSourceRoute = createRoute({
   method: "delete",
   path: "/api/v1/data-sources/{id}",
   tags: ["Data Sources"],
   summary: "Delete a data source",
-  description: "Deletes a data source and all associated data rows",
+  description: "Deletes a data source and all associated data rows. If the data source is used as a source for transforms, deletion will fail unless force=true is specified.",
   request: {
     params: idParamSchema,
+    query: deleteQuerySchema,
   },
   responses: {
     204: {
       description: "Data source deleted successfully",
+    },
+    409: {
+      description: "Data source is used by transforms",
+      content: {
+        "application/json": {
+          schema: z.object({
+            error: z.string(),
+            code: z.string(),
+            details: z.object({
+              transformCount: z.number(),
+              transforms: z.array(z.object({
+                id: z.string(),
+                name: z.string(),
+              })),
+            }),
+          }),
+        },
+      },
     },
     ...commonResponses,
   },
@@ -487,6 +511,8 @@ dataSourcesApp.openapi(updateDataSourceRoute, async (c) => {
 
 dataSourcesApp.openapi(deleteDataSourceRoute, async (c) => {
   const { id } = c.req.valid("param");
+  const query = c.req.valid("query");
+  const force = query.force === "true";
 
   // Check if data source exists
   const [dataSource] = await db
@@ -499,7 +525,31 @@ dataSourcesApp.openapi(deleteDataSourceRoute, async (c) => {
     throw createNotFoundError("Data source", id);
   }
 
-  // Delete from database (cascade will delete data rows)
+  // Check if this data source is used as a source for any transforms
+  const dependentTransforms = await db
+    .select({ id: transforms.id, name: transforms.name })
+    .from(transforms)
+    .where(eq(transforms.sourceDataSourceId, id));
+
+  if (dependentTransforms.length > 0 && !force) {
+    // Return conflict error with transform details
+    return c.json(
+      {
+        error: "Data source is used by transforms",
+        code: ErrorCode.CONFLICT,
+        details: {
+          transformCount: dependentTransforms.length,
+          transforms: dependentTransforms.map((t) => ({
+            id: t.id,
+            name: t.name,
+          })),
+        },
+      },
+      409
+    );
+  }
+
+  // Delete from database (cascade will delete data rows and dependent transforms)
   await db.delete(dataSources).where(eq(dataSources.id, id));
 
   // Also delete from in-memory store

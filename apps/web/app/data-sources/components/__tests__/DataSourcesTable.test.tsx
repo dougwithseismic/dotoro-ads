@@ -35,6 +35,21 @@ const createMockDataSources = (): DataSource[] => [
   },
 ];
 
+const createMockVirtualDataSource = (): DataSource => ({
+  id: "4",
+  name: "Products by Brand (Output)",
+  type: "manual",
+  rowCount: 43,
+  createdAt: new Date("2024-01-22"),
+  updatedAt: new Date("2024-01-22"),
+  status: "ready",
+  config: {
+    isVirtual: true,
+    transformName: "Products by Brand",
+    sourceDataSourceId: "1",
+  },
+});
+
 describe("DataSourcesTable", () => {
   let mockDataSources: DataSource[];
 
@@ -295,6 +310,105 @@ describe("DataSourcesTable", () => {
 
       const typeHeader = screen.getByRole("columnheader", { name: /^type$/i });
       expect(typeHeader).not.toHaveAttribute("aria-sort");
+    });
+  });
+
+  describe("Virtual Data Sources", () => {
+    it("displays Virtual badge for virtual data sources", () => {
+      const virtualSource = createMockVirtualDataSource();
+      render(
+        <DataSourcesTable
+          dataSources={[virtualSource]}
+          onRowClick={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      );
+
+      expect(screen.getByText("Virtual")).toBeInTheDocument();
+    });
+
+    it("displays VIRTUAL type badge for virtual data sources", () => {
+      const virtualSource = createMockVirtualDataSource();
+      render(
+        <DataSourcesTable
+          dataSources={[virtualSource]}
+          onRowClick={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      );
+
+      expect(screen.getByText("VIRTUAL")).toBeInTheDocument();
+    });
+
+    it("shows Transform button for non-virtual data sources", () => {
+      render(
+        <DataSourcesTable
+          dataSources={mockDataSources}
+          onRowClick={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      );
+
+      const transformLinks = screen.getAllByRole("link", { name: /create transform/i });
+      expect(transformLinks.length).toBe(3); // All 3 non-virtual sources
+    });
+
+    it("Transform link has correct href with source ID", () => {
+      render(
+        <DataSourcesTable
+          dataSources={mockDataSources}
+          onRowClick={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      );
+
+      const transformLink = screen.getByRole("link", { name: /create transform from products csv/i });
+      expect(transformLink).toHaveAttribute("href", "/transforms/builder?sourceId=1");
+    });
+
+    it("shows View Transform link for virtual data sources", () => {
+      const virtualSource = createMockVirtualDataSource();
+      render(
+        <DataSourcesTable
+          dataSources={[virtualSource]}
+          onRowClick={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      );
+
+      const viewTransformLink = screen.getByRole("link", { name: /view transform/i });
+      expect(viewTransformLink).toHaveAttribute("href", "/transforms?outputId=4");
+    });
+
+    it("does not show Transform button for virtual data sources", () => {
+      const virtualSource = createMockVirtualDataSource();
+      render(
+        <DataSourcesTable
+          dataSources={[virtualSource]}
+          onRowClick={vi.fn()}
+          onDelete={vi.fn()}
+        />
+      );
+
+      expect(screen.queryByRole("link", { name: /create transform from/i })).not.toBeInTheDocument();
+    });
+
+    it("prevents row click when Transform link is clicked", async () => {
+      const onRowClick = vi.fn();
+      const user = userEvent.setup();
+
+      render(
+        <DataSourcesTable
+          dataSources={mockDataSources}
+          onRowClick={onRowClick}
+          onDelete={vi.fn()}
+        />
+      );
+
+      const transformLink = screen.getByRole("link", { name: /create transform from products csv/i });
+      await user.click(transformLink);
+
+      expect(onRowClick).not.toHaveBeenCalled();
     });
   });
 });

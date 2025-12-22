@@ -10,6 +10,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
+import { transforms } from "./transforms.js";
 
 /**
  * Data Source Type Enum
@@ -104,6 +105,8 @@ export const columnMappings = pgTable(
 export const dataSourcesRelations = relations(dataSources, ({ many }) => ({
   dataRows: many(dataRows),
   columnMappings: many(columnMappings),
+  sourceTransforms: many(transforms, { relationName: "sourceTransforms" }),
+  outputTransforms: many(transforms, { relationName: "outputTransforms" }),
 }));
 
 export const dataRowsRelations = relations(dataRows, ({ one }) => ({

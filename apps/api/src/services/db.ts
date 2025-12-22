@@ -37,6 +37,9 @@ export {
   creatives,
   creativeTags,
   creativeTemplateLinks,
+
+  // Transforms
+  transforms,
 } from "@repo/database";
 
 // Export types
@@ -91,4 +94,11 @@ export type {
   CreativeDimensions,
   CreativeMetadata,
   CreativeSelectionCondition,
+
+  // Transforms
+  Transform,
+  NewTransform,
+  TransformConfig,
+  AggregationConfig,
+  AggregationFunction,
 } from "@repo/database";

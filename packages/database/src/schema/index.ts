@@ -110,3 +110,13 @@ export type {
   CreativeMetadata,
   CreativeSelectionCondition,
 } from "./creatives.js";
+
+// Transforms
+export { transforms, transformsRelations } from "./transforms.js";
+export type {
+  Transform,
+  NewTransform,
+  TransformConfig,
+  AggregationConfig,
+  AggregationFunction,
+} from "./transforms.js";

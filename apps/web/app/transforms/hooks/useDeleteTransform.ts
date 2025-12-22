@@ -1,0 +1,43 @@
+import { useState, useCallback } from "react";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+interface UseDeleteTransformResult {
+  deleteTransform: (id: string) => Promise<void>;
+  loading: boolean;
+  error: string | null;
+}
+
+export function useDeleteTransform(): UseDeleteTransformResult {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const deleteTransform = useCallback(async (id: string): Promise<void> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const response = await fetch(`${API_BASE}/api/v1/transforms/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to delete transform");
+      }
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to delete transform";
+      setError(message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return {
+    deleteTransform,
+    loading,
+    error,
+  };
+}

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   Home,
   Database,
+  Shuffle,
   Layout,
   Filter,
   Megaphone,
@@ -23,6 +24,7 @@ const mainNavItems: NavItem[] = [
 
 const dataNavItems: NavItem[] = [
   { label: "Data Sources", href: "/data-sources", icon: Database },
+  { label: "Transforms", href: "/transforms", icon: Shuffle },
   { label: "Templates", href: "/templates", icon: Layout },
   { label: "Rules", href: "/rules", icon: Filter },
 ];

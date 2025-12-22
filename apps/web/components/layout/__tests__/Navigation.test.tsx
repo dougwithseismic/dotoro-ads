@@ -23,6 +23,7 @@ describe("Navigation", () => {
 
     expect(screen.getByRole("link", { name: /dashboard/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /data sources/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /transforms/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /templates/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /rules/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /campaigns/i })).toBeInTheDocument();
@@ -34,6 +35,7 @@ describe("Navigation", () => {
 
     expect(screen.getByRole("link", { name: /dashboard/i })).toHaveAttribute("href", "/");
     expect(screen.getByRole("link", { name: /data sources/i })).toHaveAttribute("href", "/data-sources");
+    expect(screen.getByRole("link", { name: /transforms/i })).toHaveAttribute("href", "/transforms");
     expect(screen.getByRole("link", { name: /templates/i })).toHaveAttribute("href", "/templates");
     expect(screen.getByRole("link", { name: /rules/i })).toHaveAttribute("href", "/rules");
     expect(screen.getByRole("link", { name: /campaigns/i })).toHaveAttribute("href", "/campaigns");
@@ -66,8 +68,8 @@ describe("Navigation", () => {
   it("renders icons for each navigation item", () => {
     const { container } = render(<Navigation />);
 
-    // Each nav item should have an SVG icon
+    // Each nav item should have an SVG icon (7 items total: dashboard, data sources, transforms, templates, rules, campaigns, accounts)
     const svgIcons = container.querySelectorAll("svg");
-    expect(svgIcons.length).toBeGreaterThanOrEqual(6);
+    expect(svgIcons.length).toBeGreaterThanOrEqual(7);
   });
 });

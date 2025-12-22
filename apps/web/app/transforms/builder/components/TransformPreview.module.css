@@ -1,0 +1,257 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  background: var(--background);
+  border: 1px solid rgba(var(--gray-rgb), 0.1);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid rgba(var(--gray-rgb), 0.1);
+}
+
+.title {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0;
+}
+
+.stats {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stat {
+  font-family: var(--font-geist-mono);
+  font-size: 11px;
+  padding: 4px 8px;
+  background: rgba(var(--gray-rgb), 0.05);
+  border-radius: 4px;
+  color: rgba(var(--gray-rgb), 0.7);
+}
+
+.statArrow {
+  color: rgba(var(--gray-rgb), 0.4);
+  font-family: var(--font-geist-mono);
+  font-size: 11px;
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 48px 24px;
+  color: rgba(var(--gray-rgb), 0.6);
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(var(--gray-rgb), 0.1);
+  border-top-color: var(--foreground);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.error {
+  padding: 16px;
+  background: rgba(220, 38, 38, 0.05);
+  border-bottom: 1px solid rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+}
+
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+}
+
+.empty p {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  color: rgba(var(--gray-rgb), 0.5);
+  margin: 0;
+}
+
+.warnings {
+  padding: 12px 16px;
+  background: rgba(234, 179, 8, 0.05);
+  border-bottom: 1px solid rgba(234, 179, 8, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  color: #b45309;
+}
+
+.warning svg {
+  flex-shrink: 0;
+  color: #eab308;
+}
+
+.noData {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+}
+
+.noData p {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  color: rgba(var(--gray-rgb), 0.5);
+  margin: 0;
+}
+
+.tableWrapper {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+}
+
+.table th {
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: rgba(var(--gray-rgb), 0.7);
+  background: rgba(var(--gray-rgb), 0.03);
+  border-bottom: 1px solid rgba(var(--gray-rgb), 0.1);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(var(--gray-rgb), 0.06);
+  color: var(--foreground);
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.table tr:hover td {
+  background: rgba(var(--gray-rgb), 0.02);
+}
+
+.nullValue {
+  color: rgba(var(--gray-rgb), 0.4);
+  font-style: italic;
+}
+
+.emptyArray {
+  color: rgba(var(--gray-rgb), 0.4);
+  font-family: var(--font-geist-mono);
+  font-size: 12px;
+}
+
+.arrayValue {
+  color: #2563eb;
+  font-family: var(--font-geist-mono);
+  font-size: 12px;
+  cursor: help;
+}
+
+.objectValue {
+  color: #7c3aed;
+  font-family: var(--font-geist-mono);
+  font-size: 12px;
+  cursor: help;
+}
+
+.numberValue {
+  color: #059669;
+  font-family: var(--font-geist-mono);
+  font-size: 13px;
+}
+
+.booleanValue {
+  color: #dc2626;
+  font-family: var(--font-geist-mono);
+  font-size: 12px;
+}
+
+.truncatedValue {
+  cursor: help;
+}
+
+.footer {
+  padding: 12px 16px;
+  border-top: 1px solid rgba(var(--gray-rgb), 0.1);
+  background: rgba(var(--gray-rgb), 0.02);
+}
+
+.footerNote {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  color: rgba(var(--gray-rgb), 0.5);
+}
+
+@media (prefers-color-scheme: dark) {
+  .error {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+  }
+
+  .warnings {
+    background: rgba(250, 204, 21, 0.1);
+    border-color: rgba(250, 204, 21, 0.2);
+  }
+
+  .warning {
+    color: #fbbf24;
+  }
+
+  .warning svg {
+    color: #facc15;
+  }
+
+  .arrayValue {
+    color: #3b82f6;
+  }
+
+  .objectValue {
+    color: #8b5cf6;
+  }
+
+  .numberValue {
+    color: #10b981;
+  }
+
+  .booleanValue {
+    color: #ef4444;
+  }
+}

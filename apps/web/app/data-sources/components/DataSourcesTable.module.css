@@ -72,6 +72,25 @@
   font-weight: 500;
 }
 
+.nameContent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.virtualBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.1);
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
 .rowCountCell {
   font-family: var(--font-geist-mono);
   font-size: 13px;
@@ -103,6 +122,16 @@
 .api {
   color: #6366f1;
   background: rgba(99, 102, 241, 0.1);
+}
+
+.manual {
+  color: #6b7280;
+  background: rgba(107, 114, 128, 0.1);
+}
+
+.virtual {
+  color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.1);
 }
 
 /* Status badge */
@@ -139,6 +168,36 @@
   text-align: right;
 }
 
+.transformButton,
+.viewTransformButton {
+  padding: 6px 12px;
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: #6366f1;
+  background: transparent;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-decoration: none;
+  margin-right: 8px;
+}
+
+.transformButton:hover,
+.viewTransformButton:hover {
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.viewTransformButton {
+  color: #8b5cf6;
+  border-color: rgba(139, 92, 246, 0.2);
+}
+
+.viewTransformButton:hover {
+  background: rgba(139, 92, 246, 0.05);
+}
+
 .deleteButton {
   padding: 6px 12px;
   font-family: var(--font-geist-sans);
@@ -173,6 +232,26 @@
 
 /* Dark mode */
 @media (prefers-color-scheme: dark) {
+  .transformButton,
+  .viewTransformButton {
+    color: #818cf8;
+    border-color: rgba(129, 140, 248, 0.3);
+  }
+
+  .transformButton:hover,
+  .viewTransformButton:hover {
+    background: rgba(129, 140, 248, 0.1);
+  }
+
+  .viewTransformButton {
+    color: #a78bfa;
+    border-color: rgba(167, 139, 250, 0.3);
+  }
+
+  .viewTransformButton:hover {
+    background: rgba(167, 139, 250, 0.1);
+  }
+
   .deleteButton {
     color: #ef4444;
     border-color: rgba(239, 68, 68, 0.3);
@@ -185,5 +264,15 @@
   .status-error {
     color: #ef4444;
     background: rgba(239, 68, 68, 0.1);
+  }
+
+  .virtualBadge {
+    color: #a78bfa;
+    background: rgba(167, 139, 250, 0.15);
+  }
+
+  .virtual {
+    color: #a78bfa;
+    background: rgba(167, 139, 250, 0.15);
   }
 }

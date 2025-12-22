@@ -15,3 +15,6 @@ export * from "./generation/index.js";
 
 // Re-export utilities
 export * from "./utils/index.js";
+
+// Re-export transform engine
+export * from "./transforms/index.js";

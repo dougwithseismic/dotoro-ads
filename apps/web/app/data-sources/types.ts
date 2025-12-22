@@ -1,13 +1,22 @@
 export interface DataSource {
   id: string;
   name: string;
-  type: "csv" | "api";
+  type: "csv" | "api" | "manual";
   rowCount: number;
   createdAt: Date;
   updatedAt: Date;
   status: "processing" | "ready" | "error";
   columns?: string[];
   errorMessage?: string;
+  /** Configuration object - may contain isVirtual flag for transform outputs */
+  config?: {
+    isVirtual?: boolean;
+    transformName?: string;
+    sourceDataSourceId?: string;
+    [key: string]: unknown;
+  } | null;
+  /** ID of the transform that created this data source (for virtual sources) */
+  transformId?: string;
 }
 
 export interface ColumnMapping {

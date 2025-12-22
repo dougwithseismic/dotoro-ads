@@ -36,6 +36,10 @@ export const openApiConfig = {
       description: "Rule engine for data transformation and filtering",
     },
     {
+      name: "Transforms",
+      description: "Data aggregation and grouping transforms",
+    },
+    {
       name: "Campaigns",
       description: "Generated campaigns and platform sync",
     },
