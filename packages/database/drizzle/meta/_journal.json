@@ -1,26 +1,12 @@
 {
-  "version": "7",
+  "version": "6",
   "dialect": "postgresql",
   "entries": [
     {
       "idx": 0,
       "version": "7",
-      "when": 1766316767423,
-      "tag": "0000_chunky_thor",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1766317277044,
-      "tag": "0001_lazy_reaper",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1766317775816,
-      "tag": "0002_magenta_sentry",
+      "when": 1766390622536,
+      "tag": "0000_oval_puff_adder",
       "breakpoints": true
     }
   ]
