@@ -7,6 +7,7 @@ interface AccountsListProps {
   onDisconnect: (id: string) => void;
   onRefresh: (id: string) => void;
   onReconnect: (id: string) => void;
+  onViewHistory?: (id: string) => void;
 }
 
 export function AccountsList({
@@ -14,6 +15,7 @@ export function AccountsList({
   onDisconnect,
   onRefresh,
   onReconnect,
+  onViewHistory,
 }: AccountsListProps) {
   if (accounts.length === 0) {
     return (
@@ -71,6 +73,7 @@ export function AccountsList({
             onDisconnect={onDisconnect}
             onRefresh={onRefresh}
             onReconnect={onReconnect}
+            onViewHistory={onViewHistory}
           />
         ))}
       </div>

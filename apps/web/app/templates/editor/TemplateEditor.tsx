@@ -81,6 +81,24 @@ const PLATFORM_LIMITS: { [key in Platform]: { headline: number; description: num
   facebook: { headline: 40, description: 125 },
 };
 
+function getValidationMessage(
+  status: string,
+  isValidating: boolean,
+  validation: ValidationResult | null
+): string {
+  if (isValidating) return "Validating...";
+  switch (status) {
+    case "valid":
+      return "All fields valid";
+    case "invalid":
+      return `${validation?.errors?.length ?? 0} error(s)`;
+    case "warning":
+      return `${validation?.warnings?.length ?? 0} warning(s)`;
+    default:
+      return "Enter content to validate";
+  }
+}
+
 // Sample data for preview and variable extraction
 const SAMPLE_DATA: Record<string, unknown> = {
   product_name: "Premium Widget",
@@ -362,17 +380,7 @@ export function TemplateEditor({ templateId, initialData }: TemplateEditorProps)
             <h2 className={styles.sectionTitle}>Ad Content</h2>
             <ValidationBadge
               status={isValidating ? "pending" : validationStatus}
-              message={
-                isValidating
-                  ? "Validating..."
-                  : validationStatus === "valid"
-                    ? "All fields valid"
-                    : validationStatus === "invalid"
-                      ? (validation?.errors?.length ?? 0) + " error(s)"
-                      : validationStatus === "warning"
-                        ? (validation?.warnings?.length ?? 0) + " warning(s)"
-                        : "Enter content to validate"
-              }
+              message={getValidationMessage(validationStatus, isValidating, validation)}
             />
           </div>
 

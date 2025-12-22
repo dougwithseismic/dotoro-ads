@@ -39,6 +39,10 @@
   background: rgba(59, 130, 246, 0.05);
 }
 
+.table tbody tr.paused {
+  opacity: 0.7;
+}
+
 .checkboxCell {
   width: 40px;
   text-align: center;
@@ -49,6 +53,39 @@
   height: 16px;
   cursor: pointer;
   accent-color: var(--foreground);
+}
+
+.expandCell {
+  width: 32px;
+  padding: 0 8px;
+}
+
+.expandButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: rgba(var(--gray-rgb, 0, 0, 0), 0.5);
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s;
+}
+
+.expandButton:hover {
+  background: rgba(var(--gray-rgb, 0, 0, 0), 0.05);
+  color: var(--foreground);
+}
+
+.expandButton svg {
+  transition: transform 0.2s ease;
+}
+
+.expandButton svg.expanded {
+  transform: rotate(90deg);
 }
 
 .nameCell {
@@ -70,6 +107,23 @@
   margin-top: 2px;
 }
 
+.pausedBadge {
+  display: inline-block;
+  padding: 2px 6px;
+  margin-top: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: rgba(107, 114, 128, 0.1);
+  color: #6b7280;
+  border-radius: 4px;
+}
+
+.platformCell {
+  min-width: 100px;
+}
+
 .templateCell {
   min-width: 150px;
 }
@@ -77,6 +131,27 @@
 .templateName {
   font-size: 13px;
   color: rgba(var(--gray-rgb, 0, 0, 0), 0.8);
+}
+
+.adCountCell {
+  min-width: 80px;
+  text-align: center;
+}
+
+.adCount {
+  display: block;
+  font-family: var(--font-geist-mono);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.adCountLabel {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(var(--gray-rgb, 0, 0, 0), 0.5);
 }
 
 .statusCell {
@@ -87,21 +162,28 @@
   min-width: 120px;
 }
 
-.date {
+.relativeTime {
   display: block;
   font-size: 13px;
-  color: rgba(var(--gray-rgb, 0, 0, 0), 0.7);
+  font-weight: 500;
+  color: var(--foreground);
 }
 
-.syncDate {
+.date {
   display: block;
   font-size: 11px;
   color: rgba(var(--gray-rgb, 0, 0, 0), 0.5);
   margin-top: 2px;
 }
 
+.neverSynced {
+  font-size: 13px;
+  color: rgba(var(--gray-rgb, 0, 0, 0), 0.4);
+  font-style: italic;
+}
+
 .actionsHeader {
-  width: 80px;
+  width: 100px;
   text-align: center;
 }
 
@@ -109,21 +191,54 @@
   text-align: center;
 }
 
-.viewLink {
-  display: inline-flex;
-  padding: 6px 12px;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--foreground);
-  background: rgba(var(--gray-rgb, 0, 0, 0), 0.05);
-  border: 1px solid rgba(var(--gray-rgb, 0, 0, 0), 0.1);
-  border-radius: 4px;
-  text-decoration: none;
-  transition: background 0.2s;
+/* Expanded row */
+.expandedRow {
+  background: rgba(var(--gray-rgb, 0, 0, 0), 0.02);
 }
 
-.viewLink:hover {
-  background: rgba(var(--gray-rgb, 0, 0, 0), 0.1);
+.expandedRow td {
+  padding: 0;
+}
+
+.adGroupsContainer {
+  padding: 16px 24px 16px 72px;
+}
+
+.adGroupsHeader {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(var(--gray-rgb, 0, 0, 0), 0.5);
+  margin-bottom: 12px;
+}
+
+.adGroupsList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.adGroupItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--background);
+  border: 1px solid rgba(var(--gray-rgb, 0, 0, 0), 0.08);
+  border-radius: 6px;
+}
+
+.adGroupName {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.adGroupCount {
+  font-family: var(--font-geist-mono);
+  font-size: 12px;
+  color: rgba(var(--gray-rgb, 0, 0, 0), 0.6);
 }
 
 /* Empty state */
@@ -156,7 +271,28 @@
   font-family: var(--font-geist-sans);
   font-size: 14px;
   color: rgba(var(--gray-rgb, 0, 0, 0), 0.6);
-  margin: 0;
+  margin: 0 0 24px;
+}
+
+.ctaButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--background);
+  background: var(--foreground);
+  border: none;
+  border-radius: 8px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.ctaButton:hover {
+  opacity: 0.9;
 }
 
 /* Dark mode */
@@ -176,20 +312,43 @@
   .table tbody tr.selected {
     background: rgba(96, 165, 250, 0.1);
   }
+
+  .expandedRow {
+    background: rgba(var(--gray-rgb, 255, 255, 255), 0.02);
+  }
+
+  .adGroupItem {
+    border-color: rgba(var(--gray-rgb, 255, 255, 255), 0.1);
+  }
+
+  .pausedBadge {
+    background: rgba(156, 163, 175, 0.15);
+    color: #9ca3af;
+  }
 }
 
 /* Responsive */
+@media (max-width: 1024px) {
+  .templateCell {
+    display: none;
+  }
+}
+
 @media (max-width: 768px) {
   .table th,
   .table td {
     padding: 10px 12px;
   }
 
-  .templateCell {
+  .dateCell {
     display: none;
   }
 
-  .dateCell {
+  .adCountCell {
     display: none;
+  }
+
+  .adGroupsContainer {
+    padding-left: 48px;
   }
 }

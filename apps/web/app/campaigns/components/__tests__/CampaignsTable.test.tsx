@@ -5,6 +5,11 @@ import type { GeneratedCampaign } from "../../types";
 
 describe("CampaignsTable", () => {
   const mockOnSelectionChange = vi.fn();
+  const mockOnSync = vi.fn();
+  const mockOnPause = vi.fn();
+  const mockOnResume = vi.fn();
+  const mockOnViewDiff = vi.fn();
+  const mockOnDelete = vi.fn();
 
   const mockCampaigns: GeneratedCampaign[] = [
     {
@@ -13,7 +18,14 @@ describe("CampaignsTable", () => {
       templateName: "Summer Sale Template",
       dataRowId: "d1",
       name: "Summer Sale - Product A",
+      platform: "reddit",
       status: "synced",
+      paused: false,
+      adCount: 12,
+      adGroups: [
+        { id: "ag1", name: "Interest Targeting", adCount: 6 },
+        { id: "ag2", name: "Retargeting", adCount: 6 },
+      ],
       platformId: "ext-123",
       lastSyncedAt: new Date("2024-01-15T10:00:00Z"),
       createdAt: new Date("2024-01-10T09:00:00Z"),
@@ -24,7 +36,10 @@ describe("CampaignsTable", () => {
       templateName: "Summer Sale Template",
       dataRowId: "d2",
       name: "Summer Sale - Product B",
+      platform: "google",
       status: "pending_sync",
+      paused: false,
+      adCount: 8,
       createdAt: new Date("2024-01-11T09:00:00Z"),
     },
     {
@@ -33,7 +48,10 @@ describe("CampaignsTable", () => {
       templateName: "Winter Campaign",
       dataRowId: "d3",
       name: "Winter Campaign - Region X",
+      platform: "facebook",
       status: "sync_error",
+      paused: false,
+      adCount: 15,
       errorMessage: "API rate limit exceeded",
       createdAt: new Date("2024-01-12T09:00:00Z"),
     },
@@ -43,13 +61,21 @@ describe("CampaignsTable", () => {
       templateName: "Winter Campaign",
       dataRowId: "d4",
       name: "Draft Campaign",
+      platform: "reddit",
       status: "draft",
+      paused: false,
+      adCount: 5,
       createdAt: new Date("2024-01-13T09:00:00Z"),
     },
   ];
 
   beforeEach(() => {
     mockOnSelectionChange.mockClear();
+    mockOnSync.mockClear();
+    mockOnPause.mockClear();
+    mockOnResume.mockClear();
+    mockOnViewDiff.mockClear();
+    mockOnDelete.mockClear();
   });
 
   it("renders table headers correctly", () => {
@@ -62,9 +88,11 @@ describe("CampaignsTable", () => {
     );
 
     expect(screen.getByRole("columnheader", { name: /name/i })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /platform/i })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: /template/i })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /ad count/i })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: /status/i })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: /created/i })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /last synced/i })).toBeInTheDocument();
   });
 
   it("renders campaign rows correctly", () => {
@@ -82,7 +110,7 @@ describe("CampaignsTable", () => {
     expect(screen.getByText("Draft Campaign")).toBeInTheDocument();
   });
 
-  it("displays template names in rows", () => {
+  it("displays platform badges", () => {
     render(
       <CampaignsTable
         campaigns={mockCampaigns}
@@ -91,8 +119,24 @@ describe("CampaignsTable", () => {
       />
     );
 
-    expect(screen.getAllByText("Summer Sale Template")).toHaveLength(2);
-    expect(screen.getAllByText("Winter Campaign")).toHaveLength(2);
+    expect(screen.getAllByText("Reddit")).toHaveLength(2);
+    expect(screen.getByText("Google")).toBeInTheDocument();
+    expect(screen.getByText("Facebook")).toBeInTheDocument();
+  });
+
+  it("displays ad counts", () => {
+    render(
+      <CampaignsTable
+        campaigns={mockCampaigns}
+        selectedIds={[]}
+        onSelectionChange={mockOnSelectionChange}
+      />
+    );
+
+    expect(screen.getByText("12")).toBeInTheDocument();
+    expect(screen.getByText("8")).toBeInTheDocument();
+    expect(screen.getByText("15")).toBeInTheDocument();
+    expect(screen.getByText("5")).toBeInTheDocument();
   });
 
   it("displays status badges for each campaign", () => {
@@ -212,20 +256,6 @@ describe("CampaignsTable", () => {
     expect(viewLinks[0]).toHaveAttribute("href", "/campaigns/c1");
   });
 
-  it("shows error tooltip for campaigns with sync errors", () => {
-    render(
-      <CampaignsTable
-        campaigns={mockCampaigns}
-        selectedIds={[]}
-        onSelectionChange={mockOnSelectionChange}
-      />
-    );
-
-    // The error message should be available as a title attribute
-    const errorRow = screen.getByText("Sync Error").closest("tr");
-    expect(errorRow).toHaveAttribute("title", "API rate limit exceeded");
-  });
-
   it("renders empty state when no campaigns", () => {
     render(
       <CampaignsTable
@@ -236,5 +266,64 @@ describe("CampaignsTable", () => {
     );
 
     expect(screen.getByText(/no campaigns found/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /go to templates/i })).toHaveAttribute("href", "/templates");
+  });
+
+  it("shows expand button for campaigns with ad groups", () => {
+    render(
+      <CampaignsTable
+        campaigns={mockCampaigns}
+        selectedIds={[]}
+        onSelectionChange={mockOnSelectionChange}
+      />
+    );
+
+    // Only the first campaign has ad groups in our mock data
+    const expandButtons = screen.getAllByRole("button", { name: /expand/i });
+    expect(expandButtons.length).toBeGreaterThan(0);
+  });
+
+  it("expands ad groups when expand button is clicked", () => {
+    render(
+      <CampaignsTable
+        campaigns={mockCampaigns}
+        selectedIds={[]}
+        onSelectionChange={mockOnSelectionChange}
+      />
+    );
+
+    const expandButton = screen.getByRole("button", { name: /expand ad groups/i });
+    fireEvent.click(expandButton);
+
+    expect(screen.getByText("Interest Targeting")).toBeInTheDocument();
+    expect(screen.getByText("Retargeting")).toBeInTheDocument();
+    // Both ad groups have 6 ads each
+    expect(screen.getAllByText("6 ads")).toHaveLength(2);
+  });
+
+  it("shows never synced for campaigns without lastSyncedAt", () => {
+    render(
+      <CampaignsTable
+        campaigns={mockCampaigns}
+        selectedIds={[]}
+        onSelectionChange={mockOnSelectionChange}
+      />
+    );
+
+    const neverSyncedElements = screen.getAllByText(/never synced/i);
+    expect(neverSyncedElements.length).toBeGreaterThan(0);
+  });
+
+  it("renders actions menu for each campaign", () => {
+    render(
+      <CampaignsTable
+        campaigns={mockCampaigns}
+        selectedIds={[]}
+        onSelectionChange={mockOnSelectionChange}
+      />
+    );
+
+    const actionButtons = screen.getAllByRole("button", { name: /campaign actions/i });
+    expect(actionButtons).toHaveLength(4);
   });
 });

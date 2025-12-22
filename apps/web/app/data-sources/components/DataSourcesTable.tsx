@@ -20,8 +20,8 @@ const STATUS_LABELS: Record<DataSource["status"], string> = {
   error: "Error",
 };
 
-function formatRowCount(count: number): string {
-  return count.toLocaleString();
+function formatRowCount(count: number | undefined): string {
+  return count?.toLocaleString() ?? "0";
 }
 
 function formatDate(date: Date): string {

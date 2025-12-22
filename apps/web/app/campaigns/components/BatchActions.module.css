@@ -15,6 +15,12 @@
   font-weight: 500;
 }
 
+.pendingInfo {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  font-weight: 500;
+}
+
 .actions {
   display: flex;
   gap: 8px;
@@ -22,7 +28,8 @@
 }
 
 .syncButton,
-.deleteButton,
+.syncAllButton,
+.moreButton,
 .clearButton {
   display: inline-flex;
   align-items: center;
@@ -36,34 +43,45 @@
   transition: opacity 0.2s, background 0.2s;
 }
 
-.syncButton {
+.syncButton,
+.syncAllButton {
   color: var(--foreground);
   background: var(--background);
   border: none;
 }
 
-.syncButton:hover:not(:disabled) {
+.syncButton:hover:not(:disabled),
+.syncAllButton:hover:not(:disabled) {
   opacity: 0.9;
 }
 
-.syncButton:disabled {
+.syncButton:disabled,
+.syncAllButton:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.deleteButton {
-  color: #dc2626;
-  background: rgba(220, 38, 38, 0.1);
-  border: 1px solid rgba(220, 38, 38, 0.2);
+.moreButton {
+  color: var(--background);
+  background: rgba(var(--gray-rgb, 255, 255, 255), 0.1);
+  border: 1px solid rgba(var(--gray-rgb, 255, 255, 255), 0.2);
 }
 
-.deleteButton:hover:not(:disabled) {
-  background: rgba(220, 38, 38, 0.15);
+.moreButton:hover:not(:disabled) {
+  background: rgba(var(--gray-rgb, 255, 255, 255), 0.15);
 }
 
-.deleteButton:disabled {
+.moreButton:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.moreButton svg:last-child {
+  transition: transform 0.2s ease;
+}
+
+.moreButton svg.rotated {
+  transform: rotate(180deg);
 }
 
 .clearButton {
@@ -76,6 +94,60 @@
   background: rgba(var(--gray-rgb, 255, 255, 255), 0.1);
 }
 
+.dropdownContainer {
+  position: relative;
+}
+
+.dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 100;
+  min-width: 180px;
+  padding: 6px;
+  background: var(--background);
+  border: 1px solid rgba(var(--gray-rgb, 0, 0, 0), 0.1);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  animation: slideDown 0.15s ease-out;
+}
+
+.dropdownItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--foreground);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-align: left;
+}
+
+.dropdownItem:hover {
+  background: rgba(var(--gray-rgb, 0, 0, 0), 0.05);
+}
+
+.dropdownItem.danger {
+  color: #dc2626;
+}
+
+.dropdownItem.danger:hover {
+  background: rgba(220, 38, 38, 0.1);
+}
+
+.dropdownDivider {
+  height: 1px;
+  margin: 6px 0;
+  background: rgba(var(--gray-rgb, 0, 0, 0), 0.1);
+}
+
 .spinner {
   animation: spin 1s linear infinite;
 }
@@ -86,6 +158,33 @@
   }
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .dropdown {
+    border-color: rgba(var(--gray-rgb, 255, 255, 255), 0.15);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  }
+
+  .dropdownItem.danger {
+    color: #ef4444;
+  }
+
+  .dropdownItem.danger:hover {
+    background: rgba(239, 68, 68, 0.15);
   }
 }
 
@@ -103,7 +202,8 @@
   }
 
   .syncButton,
-  .deleteButton,
+  .syncAllButton,
+  .moreButton,
   .clearButton {
     flex: 1;
     justify-content: center;

@@ -3,8 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import styles from "./TemplateCard.module.css";
-
-type Platform = "reddit" | "google" | "facebook";
+import type { Platform } from "@/types/platform";
 
 interface TemplateStructure {
   objective?: string;
@@ -135,20 +134,29 @@ export function TemplateCard({
         {showDeleteConfirm ? (
           <div className={styles.deleteConfirm}>
             <button
+              type="button"
               onClick={handleConfirmDelete}
               className={styles.deleteConfirmYes}
+              aria-label={`Confirm delete template ${template.name}`}
             >
               Confirm
             </button>
             <button
+              type="button"
               onClick={handleCancelDelete}
               className={styles.deleteConfirmNo}
+              aria-label="Cancel delete"
             >
               Cancel
             </button>
           </div>
         ) : (
-          <button onClick={handleDeleteClick} className={styles.deleteButton}>
+          <button
+            type="button"
+            onClick={handleDeleteClick}
+            className={styles.deleteButton}
+            aria-label={`Delete template ${template.name}`}
+          >
             Delete
           </button>
         )}

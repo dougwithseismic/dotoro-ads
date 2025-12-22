@@ -72,6 +72,82 @@
   color: rgba(var(--gray-rgb), 0.5);
 }
 
+.email {
+  display: block;
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  color: rgba(var(--gray-rgb), 0.5);
+  margin-top: 2px;
+}
+
+.statusContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.healthIndicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-family: var(--font-geist-sans);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--health-color);
+  background: color-mix(in srgb, var(--health-color) 10%, transparent);
+  border-radius: 4px;
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 16px 0 0;
+  padding: 12px;
+  background: rgba(var(--gray-rgb), 0.03);
+  border-radius: 8px;
+}
+
+.detailRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.detailLabel {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  color: rgba(var(--gray-rgb), 0.5);
+}
+
+.detailValue {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.errorDetails {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.05);
+  border: 1px solid rgba(220, 38, 38, 0.1);
+  border-radius: 6px;
+}
+
+.errorDetails svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
 .synced {
   font-family: var(--font-geist-sans);
   font-size: 12px;
@@ -111,6 +187,16 @@
 }
 
 .refreshButton:hover {
+  background: rgba(var(--gray-rgb), 0.1);
+}
+
+.historyButton {
+  color: var(--foreground);
+  background: rgba(var(--gray-rgb), 0.05);
+  border: 1px solid rgba(var(--gray-rgb), 0.1);
+}
+
+.historyButton:hover {
   background: rgba(var(--gray-rgb), 0.1);
 }
 

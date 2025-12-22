@@ -5,6 +5,7 @@ import styles from "./ConnectButton.module.css";
 interface ConnectButtonProps {
   config: PlatformConfig;
   onClick?: () => void;
+  isLoading?: boolean;
 }
 
 function PlatformIcon({ platform }: { platform: PlatformConfig["platform"] }) {
@@ -76,27 +77,52 @@ function PlatformIcon({ platform }: { platform: PlatformConfig["platform"] }) {
   );
 }
 
-export function ConnectButton({ config, onClick }: ConnectButtonProps) {
+function LoadingSpinner() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 18 18"
+      fill="none"
+      className={styles.spinner}
+    >
+      <circle
+        cx="9"
+        cy="9"
+        r="7"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeDasharray="32"
+        strokeDashoffset="8"
+      />
+    </svg>
+  );
+}
+
+export function ConnectButton({ config, onClick, isLoading = false }: ConnectButtonProps) {
   const { platform, name, available } = config;
+  const isDisabled = !available || isLoading;
 
   return (
     <button
       className={styles.button}
       data-platform={platform}
       data-available={available}
-      disabled={!available}
-      onClick={available ? onClick : undefined}
+      data-loading={isLoading}
+      disabled={isDisabled}
+      onClick={available && !isLoading ? onClick : undefined}
       style={
         {
           "--platform-color": PLATFORM_COLORS[platform],
         } as React.CSSProperties
       }
     >
-      <PlatformIcon platform={platform} />
+      {isLoading ? <LoadingSpinner /> : <PlatformIcon platform={platform} />}
       <span className={styles.text}>
-        {available ? `Connect ${name}` : name}
+        {isLoading ? "Connecting..." : available ? `Connect ${name}` : name}
       </span>
-      {!available && <span className={styles.badge}>Coming Soon</span>}
+      {!available && !isLoading && <span className={styles.badge}>Coming Soon</span>}
     </button>
   );
 }

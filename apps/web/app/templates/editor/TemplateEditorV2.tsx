@@ -14,8 +14,7 @@ import {
 } from "./components/VariablePickerPanel";
 import { LivePreviewPanel, type AdPreview } from "./components/LivePreviewPanel";
 import styles from "./TemplateEditorV2.module.css";
-
-type Platform = "reddit" | "google" | "facebook";
+import type { Platform } from "@/types/platform";
 
 export interface EditorState {
   name: string;
@@ -388,6 +387,26 @@ export function TemplateEditorV2({
     setShowDiscardDialog(false);
   }, []);
 
+  // Ref for the Keep Editing button to focus when dialog opens
+  const keepEditingButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Focus the Keep Editing button when dialog opens and handle Escape key
+  useEffect(() => {
+    if (showDiscardDialog) {
+      // Focus the Keep Editing button when dialog opens
+      keepEditingButtonRef.current?.focus();
+
+      // Handle Escape key to close dialog
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape") {
+          setShowDiscardDialog(false);
+        }
+      };
+      document.addEventListener("keydown", handleKeyDown);
+      return () => document.removeEventListener("keydown", handleKeyDown);
+    }
+  }, [showDiscardDialog]);
+
   // Auto-save draft
   useEffect(() => {
     if (!hasUnsavedChanges) {
@@ -410,8 +429,9 @@ export function TemplateEditorV2({
           JSON.stringify(editorState)
         );
         setDraftStatus("saved");
-      } catch {
-        // Ignore localStorage errors
+      } catch (err) {
+        console.error("Failed to save draft to localStorage:", err);
+        setDraftStatus("unsaved");
       }
     }, 2000);
 
@@ -544,14 +564,22 @@ export function TemplateEditorV2({
 
       {/* Discard Dialog */}
       {showDiscardDialog && (
-        <div className={styles.dialogOverlay} role="dialog" aria-modal="true">
+        <div
+          className={styles.dialogOverlay}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="discard-dialog-title"
+        >
           <div className={styles.dialog}>
-            <h2 className={styles.dialogTitle}>Unsaved Changes</h2>
+            <h2 id="discard-dialog-title" className={styles.dialogTitle}>
+              Unsaved Changes
+            </h2>
             <p className={styles.dialogMessage}>
               You have unsaved changes. Are you sure you want to leave?
             </p>
             <div className={styles.dialogActions}>
               <button
+                ref={keepEditingButtonRef}
                 type="button"
                 onClick={handleKeepEditing}
                 className={styles.keepEditingButton}

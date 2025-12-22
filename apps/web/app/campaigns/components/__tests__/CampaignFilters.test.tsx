@@ -24,6 +24,7 @@ describe("CampaignFilters", () => {
     );
 
     expect(screen.getByLabelText("Status")).toBeInTheDocument();
+    expect(screen.getByLabelText("Platform")).toBeInTheDocument();
     expect(screen.getByLabelText("Template")).toBeInTheDocument();
     expect(screen.getByLabelText("Start Date")).toBeInTheDocument();
     expect(screen.getByLabelText("End Date")).toBeInTheDocument();
@@ -43,6 +44,23 @@ describe("CampaignFilters", () => {
 
     expect(mockOnChange).toHaveBeenCalledWith(
       expect.objectContaining({ status: ["synced"] })
+    );
+  });
+
+  it("calls onChange when platform filter changes", () => {
+    render(
+      <CampaignFilters
+        filters={{}}
+        templates={defaultTemplates}
+        onChange={mockOnChange}
+      />
+    );
+
+    const platformSelect = screen.getByLabelText("Platform");
+    fireEvent.change(platformSelect, { target: { value: "reddit" } });
+
+    expect(mockOnChange).toHaveBeenCalledWith(
+      expect.objectContaining({ platform: "reddit" })
     );
   });
 
@@ -114,6 +132,21 @@ describe("CampaignFilters", () => {
     expect(screen.getByRole("option", { name: "Sync Error" })).toBeInTheDocument();
   });
 
+  it("displays platform options correctly", () => {
+    render(
+      <CampaignFilters
+        filters={{}}
+        templates={defaultTemplates}
+        onChange={mockOnChange}
+      />
+    );
+
+    expect(screen.getByRole("option", { name: "All Platforms" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Reddit" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Google" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Facebook" })).toBeInTheDocument();
+  });
+
   it("shows clear button when filters are active", () => {
     render(
       <CampaignFilters
@@ -126,10 +159,22 @@ describe("CampaignFilters", () => {
     expect(screen.getByRole("button", { name: /clear/i })).toBeInTheDocument();
   });
 
+  it("shows clear button when platform filter is active", () => {
+    render(
+      <CampaignFilters
+        filters={{ platform: "reddit" }}
+        templates={defaultTemplates}
+        onChange={mockOnChange}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: /clear/i })).toBeInTheDocument();
+  });
+
   it("clears all filters when clear button is clicked", () => {
     render(
       <CampaignFilters
-        filters={{ status: ["synced"], templateId: "t1" }}
+        filters={{ status: ["synced"], templateId: "t1", platform: "google" }}
         templates={defaultTemplates}
         onChange={mockOnChange}
       />
@@ -143,7 +188,7 @@ describe("CampaignFilters", () => {
   it("reflects current filter values in inputs", () => {
     render(
       <CampaignFilters
-        filters={{ status: ["synced"], templateId: "t1" }}
+        filters={{ status: ["synced"], templateId: "t1", platform: "facebook" }}
         templates={defaultTemplates}
         onChange={mockOnChange}
       />
@@ -151,5 +196,21 @@ describe("CampaignFilters", () => {
 
     expect(screen.getByLabelText("Status")).toHaveValue("synced");
     expect(screen.getByLabelText("Template")).toHaveValue("t1");
+    expect(screen.getByLabelText("Platform")).toHaveValue("facebook");
+  });
+
+  it("clears platform filter when selecting empty option", () => {
+    render(
+      <CampaignFilters
+        filters={{ platform: "reddit" }}
+        templates={defaultTemplates}
+        onChange={mockOnChange}
+      />
+    );
+
+    const platformSelect = screen.getByLabelText("Platform");
+    fireEvent.change(platformSelect, { target: { value: "" } });
+
+    expect(mockOnChange).toHaveBeenCalledWith({});
   });
 });

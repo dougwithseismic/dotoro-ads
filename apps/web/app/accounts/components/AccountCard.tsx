@@ -1,5 +1,5 @@
 import type { AdAccount } from "../types";
-import { PLATFORM_COLORS } from "../types";
+import { PLATFORM_COLORS, HEALTH_CONFIG } from "../types";
 import { AccountStatus } from "./AccountStatus";
 import styles from "./AccountCard.module.css";
 
@@ -8,6 +8,7 @@ interface AccountCardProps {
   onDisconnect: (id: string) => void;
   onRefresh?: (id: string) => void;
   onReconnect?: (id: string) => void;
+  onViewHistory?: (id: string) => void;
 }
 
 const PLATFORM_LABELS: Record<AdAccount["platform"], string> = {
@@ -32,6 +33,59 @@ function formatLastSynced(date: Date): string {
     month: "short",
     day: "numeric",
   });
+}
+
+function formatConnectionDate(date: Date): string {
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function HealthIndicator({ status }: { status: AdAccount["healthStatus"] }) {
+  const config = HEALTH_CONFIG[status];
+
+  return (
+    <span
+      className={styles.healthIndicator}
+      data-health={status}
+      style={{ "--health-color": config.color } as React.CSSProperties}
+    >
+      {config.icon === "check" && (
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path
+            d="M2.5 6L5 8.5L9.5 3.5"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      )}
+      {config.icon === "warning" && (
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path
+            d="M6 3.5V6.5M6 8.5V8.51"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+        </svg>
+      )}
+      {config.icon === "error" && (
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+          <path
+            d="M3.5 3.5L8.5 8.5M8.5 3.5L3.5 8.5"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+        </svg>
+      )}
+      <span>{config.label}</span>
+    </span>
+  );
 }
 
 function PlatformIcon({ platform }: { platform: AdAccount["platform"] }) {
@@ -108,9 +162,25 @@ export function AccountCard({
   onDisconnect,
   onRefresh,
   onReconnect,
+  onViewHistory,
 }: AccountCardProps) {
-  const { id, platform, accountId, accountName, status, lastSyncedAt } = account;
+  const {
+    id,
+    platform,
+    accountId,
+    accountName,
+    email,
+    status,
+    healthStatus,
+    lastSyncedAt,
+    createdAt,
+    campaignCount,
+    errorDetails,
+    syncHistory,
+  } = account;
   const showReconnect = status === "token_expired" || status === "error";
+  const campaignLabel = campaignCount === 1 ? "campaign" : "campaigns";
+  const hasSyncHistory = syncHistory && syncHistory.length > 0;
 
   return (
     <article
@@ -130,14 +200,39 @@ export function AccountCard({
           <span className={styles.platform}>{PLATFORM_LABELS[platform]}</span>
           <h3 className={styles.name}>{accountName}</h3>
           <span className={styles.accountId}>{accountId}</span>
+          {email && <span className={styles.email}>{email}</span>}
         </div>
-        <AccountStatus status={status} />
+        <div className={styles.statusContainer}>
+          <AccountStatus status={status} />
+          <HealthIndicator status={healthStatus} />
+        </div>
       </div>
 
-      {lastSyncedAt && (
-        <p className={styles.synced}>
-          Last synced: {formatLastSynced(lastSyncedAt)}
-        </p>
+      <div className={styles.details}>
+        <div className={styles.detailRow}>
+          <span className={styles.detailLabel}>Connected</span>
+          <span className={styles.detailValue}>{formatConnectionDate(createdAt)}</span>
+        </div>
+        <div className={styles.detailRow}>
+          <span className={styles.detailLabel}>Campaigns</span>
+          <span className={styles.detailValue}>{campaignCount} {campaignLabel}</span>
+        </div>
+        {lastSyncedAt && (
+          <div className={styles.detailRow}>
+            <span className={styles.detailLabel}>Last synced</span>
+            <span className={styles.detailValue}>{formatLastSynced(lastSyncedAt)}</span>
+          </div>
+        )}
+      </div>
+
+      {errorDetails && (
+        <div className={styles.errorDetails}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M7 4V7.5M7 9.5V9.51" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+          <span>{errorDetails}</span>
+        </div>
       )}
 
       <div className={styles.actions}>
@@ -164,6 +259,21 @@ export function AccountCard({
               />
             </svg>
             Refresh
+          </button>
+        )}
+
+        {hasSyncHistory && onViewHistory && (
+          <button
+            type="button"
+            className={styles.historyButton}
+            onClick={() => onViewHistory(id)}
+            aria-label="View history"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
+              <path d="M8 5V8L10 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+            View History
           </button>
         )}
 

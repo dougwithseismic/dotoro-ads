@@ -1,6 +1,6 @@
 "use client";
 
-import type { CampaignFilters as CampaignFiltersType, CampaignSyncStatus } from "../types";
+import type { CampaignFilters as CampaignFiltersType, CampaignSyncStatus, Platform } from "../types";
 import styles from "./CampaignFilters.module.css";
 
 interface TemplateOption {
@@ -21,6 +21,12 @@ const STATUS_OPTIONS: { value: CampaignSyncStatus; label: string }[] = [
   { value: "sync_error", label: "Sync Error" },
 ];
 
+const PLATFORM_OPTIONS: { value: Platform; label: string }[] = [
+  { value: "reddit", label: "Reddit" },
+  { value: "google", label: "Google" },
+  { value: "facebook", label: "Facebook" },
+];
+
 export function CampaignFilters({
   filters,
   templates,
@@ -28,6 +34,7 @@ export function CampaignFilters({
 }: CampaignFiltersProps) {
   const hasActiveFilters =
     (filters.status && filters.status.length > 0) ||
+    filters.platform ||
     filters.templateId ||
     filters.dateRange;
 
@@ -37,6 +44,15 @@ export function CampaignFilters({
       onChange(rest);
     } else {
       onChange({ ...filters, status: [value as CampaignSyncStatus] });
+    }
+  };
+
+  const handlePlatformChange = (value: string) => {
+    if (value === "") {
+      const { platform: _, ...rest } = filters;
+      onChange(rest);
+    } else {
+      onChange({ ...filters, platform: value as Platform });
     }
   };
 
@@ -97,6 +113,25 @@ export function CampaignFilters({
         >
           <option value="">All Statuses</option>
           {STATUS_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className={styles.filterGroup}>
+        <label htmlFor="platform-filter" className={styles.label}>
+          Platform
+        </label>
+        <select
+          id="platform-filter"
+          className={styles.select}
+          value={filters.platform || ""}
+          onChange={(e) => handlePlatformChange(e.target.value)}
+        >
+          <option value="">All Platforms</option>
+          {PLATFORM_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
               {opt.label}
             </option>

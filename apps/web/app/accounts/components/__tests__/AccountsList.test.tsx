@@ -9,17 +9,23 @@ const mockAccounts: AdAccount[] = [
     platform: "reddit",
     accountId: "reddit-123",
     accountName: "Reddit Account 1",
+    email: "reddit@test.com",
     status: "connected",
+    healthStatus: "healthy",
     lastSyncedAt: new Date("2024-01-15T10:30:00Z"),
     createdAt: new Date("2024-01-01T00:00:00Z"),
+    campaignCount: 5,
   },
   {
     id: "acc-2",
     platform: "google",
     accountId: "google-456",
     accountName: "Google Account 1",
+    email: "google@test.com",
     status: "token_expired",
+    healthStatus: "warning",
     createdAt: new Date("2024-01-02T00:00:00Z"),
+    campaignCount: 3,
   },
 ];
 

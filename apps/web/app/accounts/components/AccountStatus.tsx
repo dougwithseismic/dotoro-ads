@@ -66,7 +66,10 @@ function StatusIcon({ status }: { status: AdAccount["status"] }) {
 }
 
 export function AccountStatus({ status }: AccountStatusProps) {
-  const config = STATUS_CONFIG[status];
+  const config = STATUS_CONFIG[status] ?? {
+    label: status,
+    color: "var(--color-gray-500)",
+  };
 
   return (
     <span

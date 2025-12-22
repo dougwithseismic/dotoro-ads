@@ -44,6 +44,21 @@
   border-radius: 4px;
 }
 
+.spinner {
+  animation: spin 1s linear infinite;
+  color: var(--platform-color);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.button[data-loading="true"] {
+  opacity: 0.8;
+}
+
 @media (prefers-color-scheme: dark) {
   .button {
     --gray-rgb: 255, 255, 255;

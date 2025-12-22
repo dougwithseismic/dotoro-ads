@@ -1,8 +1,9 @@
 "use client";
 
 import styles from "./PlatformFilter.module.css";
+import type { Platform } from "@/types/platform";
 
-export type Platform = "reddit" | "google" | "facebook";
+export type { Platform };
 
 export interface PlatformCounts {
   reddit: number;

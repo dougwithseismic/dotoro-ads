@@ -77,4 +77,25 @@ describe("ConnectButton", () => {
 
     expect(container.firstChild).toHaveAttribute("data-platform", "reddit");
   });
+
+  it("shows loading state when isLoading is true", () => {
+    render(<ConnectButton config={availablePlatform} isLoading={true} />);
+
+    expect(screen.getByText(/connecting/i)).toBeInTheDocument();
+  });
+
+  it("disables button when loading", () => {
+    render(<ConnectButton config={availablePlatform} isLoading={true} />);
+
+    const button = screen.getByRole("button");
+    expect(button).toBeDisabled();
+  });
+
+  it("shows spinner when loading", () => {
+    const { container } = render(
+      <ConnectButton config={availablePlatform} isLoading={true} />
+    );
+
+    expect(container.querySelector('[data-loading="true"]')).toBeInTheDocument();
+  });
 });
