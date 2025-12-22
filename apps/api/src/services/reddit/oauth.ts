@@ -1,5 +1,10 @@
 import { RedditOAuth, type RedditOAuthConfig, type OAuthTokens } from "@repo/reddit-ads";
 import { encrypt, decrypt, type EncryptedData } from "../../lib/encryption.js";
+import { db, adAccounts, oauthTokens } from "../../services/db.js";
+import { eq } from "drizzle-orm";
+
+// Type for database operations that works with both db and transactions
+type DbOrTransaction = Pick<typeof db, "insert" | "select" | "update" | "delete">;
 
 // ============================================================================
 // Types
@@ -13,49 +18,17 @@ export interface RedditOAuthSession {
   createdAt: Date;
 }
 
-export interface StoredTokens {
-  accountId: string;
-  redditAccountId: string;
-  accessToken: string;
-  refreshToken: string;
-  expiresAt: Date;
-  scope: string[];
-}
-
-interface EncryptedTokens {
-  accountId: string;
-  redditAccountId: string;
-  encryptedAccessToken: EncryptedData;
-  encryptedRefreshToken: EncryptedData;
-  expiresAt: string; // ISO string for serialization
-  scope: string[];
-}
-
 // ============================================================================
-// In-memory stores (replace with database in production)
+// In-memory stores for OAuth sessions (temporary, short-lived)
 //
-// TODO: PRODUCTION REQUIREMENT - Replace Map storage with Redis/database
-// for multi-instance deployments.
+// NOTE: OAuth sessions are kept in-memory since they are short-lived (~10 min)
+// and only needed during the OAuth flow. For multi-instance deployments,
+// consider using Redis for session storage.
 //
-// CRITICAL ISSUES with current in-memory storage:
-// 1. OAuth failures when load-balanced across multiple instances
-//    - User may start OAuth on instance A but callback hits instance B
-//    - The oauthSessions Map won't have the state on instance B
-// 2. All tokens lost on server restart
-// 3. No horizontal scaling support
-// 4. Memory growth with many concurrent users
-//
-// RECOMMENDED SOLUTIONS:
-// - Redis for oauthSessions (short TTL, ~10 min)
-// - PostgreSQL/Redis for storedTokens (encrypted, persistent)
-//
-// Example Redis implementation:
-//   await redis.setex(`oauth:session:${state}`, 600, JSON.stringify(session));
-//   const session = await redis.get(`oauth:session:${state}`);
+// Token storage has been moved to the database (PostgreSQL) for persistence.
 // ============================================================================
 
 const oauthSessions = new Map<string, RedditOAuthSession>();
-const storedTokens = new Map<string, EncryptedTokens>();
 
 // ============================================================================
 // OAuth Service
@@ -125,12 +98,11 @@ export class RedditOAuthService {
         session.codeVerifier
       );
 
-      // Store tokens for later use
-      await this.storeTokens(session.accountId, tokens);
-
       // Clean up session
       oauthSessions.delete(state);
 
+      // Return tokens and accountId - caller is responsible for storing
+      // after creating the adAccount record in the database
       return { tokens, accountId: session.accountId };
     } catch (error) {
       oauthSessions.delete(state);
@@ -141,46 +113,59 @@ export class RedditOAuthService {
   /**
    * Get valid tokens for an account, refreshing if needed
    */
-  async getValidTokens(accountId: string): Promise<OAuthTokens | null> {
-    const stored = storedTokens.get(accountId);
+  async getValidTokens(adAccountId: string): Promise<OAuthTokens | null> {
+    // Query tokens from database
+    const [storedToken] = await db
+      .select()
+      .from(oauthTokens)
+      .where(eq(oauthTokens.adAccountId, adAccountId))
+      .limit(1);
 
-    if (!stored) {
+    if (!storedToken) {
       return null;
     }
 
-    // Decrypt tokens
+    // Decrypt tokens - catch both JSON.parse and decrypt errors
     let accessToken: string;
     let refreshToken: string;
     try {
-      accessToken = decrypt(stored.encryptedAccessToken);
-      refreshToken = decrypt(stored.encryptedRefreshToken);
+      const encryptedAccessToken = JSON.parse(storedToken.accessToken) as EncryptedData;
+      accessToken = decrypt(encryptedAccessToken);
+
+      if (storedToken.refreshToken) {
+        const encryptedRefreshToken = JSON.parse(storedToken.refreshToken) as EncryptedData;
+        refreshToken = decrypt(encryptedRefreshToken);
+      } else {
+        refreshToken = "";
+      }
     } catch (error) {
-      // Decryption failed - tokens are corrupted or key changed
+      // Parse or decryption failed - tokens are corrupted, malformed, or key changed
       console.error(
-        `[Reddit OAuth] Token decryption failed for account ${accountId}:`,
+        `[Reddit OAuth] Token parse/decrypt failed for account ${adAccountId}:`,
         error instanceof Error ? error.message : String(error)
       );
-      storedTokens.delete(accountId);
+      await this.deleteTokens(adAccountId);
       return null;
     }
 
-    const expiresAt = new Date(stored.expiresAt);
+    const expiresAt = storedToken.expiresAt ?? new Date(0);
     const expiresIn = Math.floor((expiresAt.getTime() - Date.now()) / 1000);
+    const scopes = storedToken.scopes?.split(",") ?? [];
 
     // Check if tokens are already expired (negative expiresIn)
     if (expiresIn < 0) {
       // Token is expired, attempt refresh
       try {
         const refreshedTokens = await this.oauth.refreshAccessToken(refreshToken);
-        await this.storeTokens(accountId, refreshedTokens);
+        await this.storeTokens(adAccountId, refreshedTokens);
         return refreshedTokens;
       } catch (error) {
         // Token refresh failed, clear stored tokens
         console.error(
-          `[Reddit OAuth] Token refresh failed for account ${accountId} (expired token):`,
+          `[Reddit OAuth] Token refresh failed for account ${adAccountId} (expired token):`,
           error instanceof Error ? error.message : String(error)
         );
-        storedTokens.delete(accountId);
+        await this.deleteTokens(adAccountId);
         return null;
       }
     }
@@ -191,7 +176,7 @@ export class RedditOAuthService {
       tokenType: "bearer",
       expiresIn,
       expiresAt,
-      scope: stored.scope as ("ads_read" | "ads_write" | "account")[],
+      scope: scopes as ("adsread" | "adsconversions" | "history" | "adsedit" | "read")[],
     };
 
     // Check if token needs refresh (using the library's check which includes buffer)
@@ -200,15 +185,15 @@ export class RedditOAuthService {
         const refreshedTokens = await this.oauth.refreshAccessToken(
           tokens.refreshToken
         );
-        await this.storeTokens(accountId, refreshedTokens);
+        await this.storeTokens(adAccountId, refreshedTokens);
         return refreshedTokens;
       } catch (error) {
         // Token refresh failed, clear stored tokens
         console.error(
-          `[Reddit OAuth] Token refresh failed for account ${accountId} (expiring token):`,
+          `[Reddit OAuth] Token refresh failed for account ${adAccountId} (expiring token):`,
           error instanceof Error ? error.message : String(error)
         );
-        storedTokens.delete(accountId);
+        await this.deleteTokens(adAccountId);
         return null;
       }
     }
@@ -219,54 +204,112 @@ export class RedditOAuthService {
   /**
    * Revoke tokens for an account
    */
-  async revokeTokens(accountId: string): Promise<void> {
-    const stored = storedTokens.get(accountId);
+  async revokeTokens(adAccountId: string): Promise<void> {
+    // Query tokens from database
+    const [storedToken] = await db
+      .select()
+      .from(oauthTokens)
+      .where(eq(oauthTokens.adAccountId, adAccountId))
+      .limit(1);
 
-    if (stored) {
+    if (storedToken) {
       try {
-        // Decrypt tokens for revocation
-        const accessToken = decrypt(stored.encryptedAccessToken);
-        const refreshToken = decrypt(stored.encryptedRefreshToken);
+        // Decrypt tokens for revocation - catch both JSON.parse and decrypt errors
+        const encryptedAccessToken = JSON.parse(storedToken.accessToken) as EncryptedData;
+        const accessToken = decrypt(encryptedAccessToken);
+
+        if (storedToken.refreshToken) {
+          const encryptedRefreshToken = JSON.parse(storedToken.refreshToken) as EncryptedData;
+          const refreshToken = decrypt(encryptedRefreshToken);
+          await this.oauth.revokeToken(refreshToken, "refresh_token");
+        }
 
         await this.oauth.revokeToken(accessToken, "access_token");
-        await this.oauth.revokeToken(refreshToken, "refresh_token");
+      } catch (error) {
+        // Parse or decryption failed - log but continue with cleanup
+        console.error(
+          `[Reddit OAuth] Token parse/decrypt failed during revocation for account ${adAccountId}:`,
+          error instanceof Error ? error.message : String(error)
+        );
       } finally {
-        storedTokens.delete(accountId);
+        // Always delete tokens from database and update status
+        await this.deleteTokens(adAccountId);
+
+        // Update adAccount status to revoked
+        await db
+          .update(adAccounts)
+          .set({ status: "revoked" })
+          .where(eq(adAccounts.id, adAccountId));
       }
     }
   }
 
   /**
    * Check if account has valid tokens
+   * Returns true if access token is not expired OR if a refresh token exists (can be refreshed)
    */
-  hasValidTokens(accountId: string): boolean {
-    const stored = storedTokens.get(accountId);
-    if (!stored) return false;
+  async hasValidTokens(adAccountId: string): Promise<boolean> {
+    // Query tokens from database
+    const [storedToken] = await db
+      .select()
+      .from(oauthTokens)
+      .where(eq(oauthTokens.adAccountId, adAccountId))
+      .limit(1);
 
-    const expiresAt = new Date(stored.expiresAt);
-    return expiresAt.getTime() > Date.now();
+    if (!storedToken) return false;
+
+    const expiresAt = storedToken.expiresAt ?? new Date(0);
+    // Valid if access token not expired OR has refresh token (can be refreshed)
+    return expiresAt.getTime() > Date.now() || !!storedToken.refreshToken;
   }
 
   /**
-   * Store tokens with encryption
-   * In production, save to database instead of in-memory Map
+   * Store tokens with encryption in the database
+   * Public method to allow storing tokens from callback handler
+   * @param adAccountId - The ad account ID to store tokens for
+   * @param tokens - The OAuth tokens to store
+   * @param tx - Optional database transaction to use (for atomic operations)
    */
-  private async storeTokens(
-    accountId: string,
-    tokens: OAuthTokens
+  async storeTokens(
+    adAccountId: string,
+    tokens: OAuthTokens,
+    tx?: DbOrTransaction
   ): Promise<void> {
+    // Use transaction if provided, otherwise use default db
+    const database = tx ?? db;
+
     // Encrypt sensitive tokens before storage
     const encryptedAccessToken = encrypt(tokens.accessToken);
     const encryptedRefreshToken = encrypt(tokens.refreshToken);
 
-    storedTokens.set(accountId, {
-      accountId,
-      redditAccountId: "", // Would be fetched from Reddit API
-      encryptedAccessToken,
-      encryptedRefreshToken,
-      expiresAt: tokens.expiresAt.toISOString(),
-      scope: tokens.scope,
-    });
+    // Upsert oauth tokens - insert or update if exists
+    await database
+      .insert(oauthTokens)
+      .values({
+        adAccountId,
+        accessToken: JSON.stringify(encryptedAccessToken),
+        refreshToken: JSON.stringify(encryptedRefreshToken),
+        expiresAt: tokens.expiresAt,
+        scopes: tokens.scope.join(","),
+      })
+      .onConflictDoUpdate({
+        target: oauthTokens.adAccountId,
+        set: {
+          accessToken: JSON.stringify(encryptedAccessToken),
+          refreshToken: JSON.stringify(encryptedRefreshToken),
+          expiresAt: tokens.expiresAt,
+          scopes: tokens.scope.join(","),
+        },
+      });
+  }
+
+  /**
+   * Delete tokens from database
+   */
+  private async deleteTokens(adAccountId: string): Promise<void> {
+    await db
+      .delete(oauthTokens)
+      .where(eq(oauthTokens.adAccountId, adAccountId));
   }
 
   /**
@@ -307,7 +350,7 @@ export function getRedditOAuthService(): RedditOAuthService {
       clientId,
       clientSecret,
       redirectUri,
-      scopes: ["ads_read", "ads_write", "account"],
+      scopes: ["adsread", "adsconversions", "history", "adsedit", "read"],
     });
   }
 
@@ -321,5 +364,4 @@ export function getRedditOAuthService(): RedditOAuthService {
 export function resetOAuthServiceForTesting(): void {
   oauthServiceInstance = null;
   oauthSessions.clear();
-  storedTokens.clear();
 }

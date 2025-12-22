@@ -1,4 +1,5 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+import { eq, and } from "drizzle-orm";
 import {
   redditOAuthCallbackSchema,
   redditOAuthInitSchema,
@@ -14,6 +15,7 @@ import {
 import { commonResponses } from "../lib/openapi.js";
 import { createNotFoundError, ApiException, ErrorCode } from "../lib/errors.js";
 import { getRedditOAuthService } from "../services/reddit/oauth.js";
+import { db, adAccounts } from "../services/db.js";
 
 // ============================================================================
 // Mock data stores
@@ -105,22 +107,13 @@ const oauthCallbackRoute = createRoute({
   path: "/api/v1/reddit/auth/callback",
   tags: ["Reddit OAuth"],
   summary: "OAuth callback handler",
-  description: "Handles the OAuth callback from Reddit and exchanges code for tokens",
+  description: "Handles the OAuth callback from Reddit, exchanges code for tokens, and redirects to frontend",
   request: {
     query: redditOAuthCallbackSchema,
   },
   responses: {
-    200: {
-      description: "Tokens obtained successfully",
-      content: {
-        "application/json": {
-          schema: z.object({
-            success: z.boolean(),
-            accountId: z.string(),
-            message: z.string(),
-          }),
-        },
-      },
+    302: {
+      description: "Redirects to frontend with oauth status",
     },
     ...commonResponses,
   },
@@ -307,45 +300,68 @@ redditApp.openapi(initOAuthRoute, async (c) => {
 });
 
 redditApp.openapi(oauthCallbackRoute, async (c) => {
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+
   try {
     const query = c.req.valid("query");
     const oauthService = getRedditOAuthService();
-    const result = await oauthService.handleCallback(query.code, query.state);
+    const { tokens, accountId } = await oauthService.handleCallback(query.code, query.state);
 
-    return c.json(
-      {
-        success: true,
-        accountId: result.accountId,
-        message: "Reddit account connected successfully",
-      },
-      200
-    );
+    // Wrap account creation and token storage in a transaction for atomicity
+    await db.transaction(async (tx) => {
+      // Check if this Reddit account already exists
+      const [existingAccount] = await tx
+        .select()
+        .from(adAccounts)
+        .where(
+          and(
+            eq(adAccounts.platform, "reddit"),
+            eq(adAccounts.accountId, accountId)
+          )
+        )
+        .limit(1);
+
+      let adAccountId: string;
+
+      if (existingAccount) {
+        // Update existing account status to active
+        await tx
+          .update(adAccounts)
+          .set({ status: "active" })
+          .where(eq(adAccounts.id, existingAccount.id));
+        adAccountId = existingAccount.id;
+      } else {
+        // Create new ad account record
+        const result = await tx
+          .insert(adAccounts)
+          .values({
+            platform: "reddit",
+            accountId: accountId,
+            accountName: `Reddit Account ${accountId}`,
+            status: "active",
+          })
+          .returning();
+
+        if (!result[0]) {
+          throw new Error("Failed to create ad account");
+        }
+        adAccountId = result[0].id;
+      }
+
+      // Store tokens within the same transaction
+      await oauthService.storeTokens(adAccountId, tokens, tx);
+    });
+
+    // Redirect to frontend with success
+    return c.redirect(`${frontendUrl}/accounts?oauth=success&platform=reddit`);
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "OAuth callback failed";
+    // Log detailed error for debugging, but show generic message to user
+    const internalError = error instanceof Error ? error.message : "OAuth callback failed";
+    console.error("[Reddit OAuth] Callback error:", internalError);
 
-    // Categorize OAuth errors appropriately
-    if (errorMessage.includes("expired")) {
-      throw new ApiException(
-        401,
-        ErrorCode.TOKEN_EXPIRED,
-        "OAuth session expired. Please restart the authorization flow."
-      );
-    }
-
-    if (errorMessage.includes("Invalid") || errorMessage.includes("invalid")) {
-      throw new ApiException(
-        400,
-        ErrorCode.INVALID_REQUEST,
-        "Invalid OAuth state or code. Please restart the authorization flow."
-      );
-    }
-
-    // Log the actual error for debugging but don't expose internal details
-    console.error("[Reddit OAuth] Callback error:", errorMessage);
-    throw new ApiException(
-      400,
-      ErrorCode.INVALID_REQUEST,
-      "OAuth callback failed. Please try again."
+    // Redirect to frontend with generic error (internal details already logged)
+    return c.redirect(
+      `${frontendUrl}/accounts?oauth=error&message=${encodeURIComponent("Failed to connect Reddit account. Please try again.")}`
     );
   }
 });

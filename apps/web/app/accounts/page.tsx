@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import type { AdAccount, SyncHistoryEntry } from "./types";
 import { PLATFORM_CONFIGS } from "./types";
 import { AccountsList } from "./components/AccountsList";
@@ -82,9 +83,12 @@ function transformAccount(account: AccountApiItem): AdAccount {
 }
 
 export default function AccountsPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [accounts, setAccounts] = useState<AdAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [connectingPlatform, setConnectingPlatform] = useState<string | null>(null);
   const [disconnectDialog, setDisconnectDialog] = useState<{
     isOpen: boolean;
@@ -107,6 +111,24 @@ export default function AccountsPage() {
     history: [],
   });
 
+  // Handle OAuth callback query params
+  useEffect(() => {
+    const oauthStatus = searchParams.get("oauth");
+    const errorMessage = searchParams.get("message");
+
+    if (oauthStatus === "success") {
+      setSuccessMessage("Reddit account connected successfully!");
+      // Clear query params from URL
+      router.replace("/accounts", { scroll: false });
+      // Clear success message after 5 seconds
+      setTimeout(() => setSuccessMessage(null), 5000);
+    } else if (oauthStatus === "error") {
+      setError(errorMessage || "Failed to connect Reddit account");
+      // Clear query params from URL
+      router.replace("/accounts", { scroll: false });
+    }
+  }, [searchParams, router]);
+
   const fetchAccounts = useCallback(async () => {
     try {
       setLoading(true);
@@ -128,12 +150,32 @@ export default function AccountsPage() {
 
   const handleConnect = async (platform: string) => {
     const config = PLATFORM_CONFIGS.find((c) => c.platform === platform);
-    if (!config?.oauthUrl || !config.available) return;
+    if (!config?.available) return;
 
     try {
       setConnectingPlatform(platform);
-      // Redirect to OAuth flow
-      window.location.href = `${API_BASE_URL}${config.oauthUrl}`;
+
+      // Generate a UUID for the new account
+      const tempAccountId = crypto.randomUUID();
+
+      // Call the OAuth init endpoint (API uses its configured redirect URI)
+      const response = await fetch(`${API_BASE_URL}/api/v1/reddit/auth/init`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          accountId: tempAccountId,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to initialize OAuth");
+      }
+
+      const data = await response.json();
+
+      // Redirect to Reddit authorization URL
+      window.location.href = data.authorizationUrl;
     } catch (err) {
       setError(
         err instanceof Error ? err.message : `Failed to connect to ${config.name}`
@@ -232,6 +274,12 @@ export default function AccountsPage() {
           </p>
         </div>
       </header>
+
+      {successMessage && (
+        <div className={styles.success}>
+          <p>{successMessage}</p>
+        </div>
+      )}
 
       {error && (
         <div className={styles.error}>

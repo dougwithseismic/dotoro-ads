@@ -4,7 +4,14 @@ import { z } from "zod";
 // OAuth Types
 // ============================================================================
 
-export const OAuthScopesSchema = z.enum(["ads_read", "ads_write", "account"]);
+// Reddit Ads API scopes
+export const OAuthScopesSchema = z.enum([
+  "adsread",
+  "adsconversions",
+  "history",
+  "adsedit",
+  "read",
+]);
 export type OAuthScope = z.infer<typeof OAuthScopesSchema>;
 
 export const OAuthTokensSchema = z.object({
