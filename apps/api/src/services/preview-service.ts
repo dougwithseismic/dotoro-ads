@@ -24,7 +24,7 @@ import type {
 } from "../schemas/campaigns.js";
 
 /**
- * Template data structure (from mock store)
+ * Template data structure (from database)
  */
 export interface TemplateData {
   id: string;
@@ -70,13 +70,13 @@ export interface RuleData {
 }
 
 /**
- * Dependencies for the preview service
+ * Dependencies for the preview service (supports async callbacks)
  */
 export interface PreviewServiceDependencies {
-  getTemplate: (id: string) => TemplateData | undefined;
-  getDataSource: (id: string) => DataSourceData | undefined;
-  getDataRows: (dataSourceId: string) => Record<string, unknown>[];
-  getRule: (id: string) => RuleData | undefined;
+  getTemplate: (id: string) => TemplateData | undefined | Promise<TemplateData | undefined>;
+  getDataSource: (id: string) => DataSourceData | undefined | Promise<DataSourceData | undefined>;
+  getDataRows: (dataSourceId: string) => Record<string, unknown>[] | Promise<Record<string, unknown>[]>;
+  getRule: (id: string) => RuleData | undefined | Promise<RuleData | undefined>;
 }
 
 export class PreviewService {
@@ -91,17 +91,17 @@ export class PreviewService {
   /**
    * Generate a campaign preview
    */
-  generatePreview(request: PreviewRequest): PreviewResponse {
+  async generatePreview(request: PreviewRequest): Promise<PreviewResponse> {
     const { template_id, data_source_id, rules: ruleIds, limit } = request;
 
     // Fetch template
-    const template = this.deps.getTemplate(template_id);
+    const template = await this.deps.getTemplate(template_id);
     if (!template) {
       throw new PreviewError("TEMPLATE_NOT_FOUND", `Template with id '${template_id}' not found`);
     }
 
     // Fetch data source
-    const dataSource = this.deps.getDataSource(data_source_id);
+    const dataSource = await this.deps.getDataSource(data_source_id);
     if (!dataSource) {
       throw new PreviewError(
         "DATA_SOURCE_NOT_FOUND",
@@ -110,7 +110,7 @@ export class PreviewService {
     }
 
     // Fetch data rows
-    const dataRows = this.deps.getDataRows(data_source_id);
+    const dataRows = await this.deps.getDataRows(data_source_id);
     if (dataRows.length === 0) {
       // Return empty preview for empty data source
       return {
@@ -128,7 +128,7 @@ export class PreviewService {
     }
 
     // Fetch and convert rules
-    const { rules, missingRuleIds } = this.fetchAndConvertRules(ruleIds || []);
+    const { rules, missingRuleIds } = await this.fetchAndConvertRules(ruleIds || []);
 
     // Convert template to orchestrator format
     const campaignTemplate = this.convertToCampaignTemplate(template);
@@ -189,15 +189,15 @@ export class PreviewService {
    * Fetch rules by IDs and convert to core Rule format
    * Returns both the converted rules and any rule IDs that were not found
    */
-  private fetchAndConvertRules(ruleIds: string[]): {
+  private async fetchAndConvertRules(ruleIds: string[]): Promise<{
     rules: Rule[];
     missingRuleIds: string[];
-  } {
+  }> {
     const rules: Rule[] = [];
     const missingRuleIds: string[] = [];
 
     for (const ruleId of ruleIds) {
-      const ruleData = this.deps.getRule(ruleId);
+      const ruleData = await this.deps.getRule(ruleId);
       if (!ruleData) {
         missingRuleIds.push(ruleId);
       } else if (ruleData.enabled) {

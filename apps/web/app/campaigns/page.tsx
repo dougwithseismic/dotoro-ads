@@ -5,14 +5,36 @@ import type { GeneratedCampaign, CampaignFilters as CampaignFiltersType, Platfor
 import { CampaignsTable } from "./components/CampaignsTable";
 import { CampaignFilters } from "./components/CampaignFilters";
 import { BatchActions } from "./components/BatchActions";
+import { api, buildQueryString } from "@/lib/api-client";
 import styles from "./CampaignsList.module.css";
 
 interface CampaignsResponse {
-  data: GeneratedCampaign[];
+  data: CampaignApiItem[];
   total: number;
   page: number;
   limit: number;
   totalPages: number;
+}
+
+interface CampaignApiItem {
+  id: string;
+  templateId: string;
+  templateName: string;
+  dataRowId: string;
+  name: string;
+  platform: string;
+  status: string;
+  paused: boolean;
+  adCount: number;
+  adGroups?: Array<{
+    id: string;
+    name: string;
+    adCount: number;
+  }>;
+  platformId?: string;
+  lastSyncedAt?: string;
+  errorMessage?: string;
+  createdAt: string;
 }
 
 interface TemplateOption {
@@ -20,106 +42,24 @@ interface TemplateOption {
   name: string;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+interface TemplatesResponse {
+  data: Array<{ id: string; name: string; [key: string]: unknown }>;
+}
 
-// Mock data for development
-const MOCK_CAMPAIGNS: GeneratedCampaign[] = [
-  {
-    id: "c1",
-    templateId: "t1",
-    templateName: "Summer Sale Template",
-    dataRowId: "d1",
-    name: "Summer Sale - Product A",
-    platform: "reddit",
-    status: "synced",
-    paused: false,
-    adCount: 12,
-    adGroups: [
-      { id: "ag1", name: "Interest Targeting", adCount: 6 },
-      { id: "ag2", name: "Retargeting", adCount: 6 },
-    ],
-    platformId: "ext-123",
-    lastSyncedAt: new Date(Date.now() - 5 * 60 * 1000), // 5 minutes ago
-    createdAt: new Date("2024-01-10T09:00:00Z"),
-  },
-  {
-    id: "c2",
-    templateId: "t1",
-    templateName: "Summer Sale Template",
-    dataRowId: "d2",
-    name: "Summer Sale - Product B",
-    platform: "google",
-    status: "pending_sync",
-    paused: false,
-    adCount: 8,
-    adGroups: [
-      { id: "ag3", name: "Search Ads", adCount: 4 },
-      { id: "ag4", name: "Display Ads", adCount: 4 },
-    ],
-    createdAt: new Date("2024-01-11T09:00:00Z"),
-  },
-  {
-    id: "c3",
-    templateId: "t2",
-    templateName: "Winter Campaign",
-    dataRowId: "d3",
-    name: "Winter Campaign - Region X",
-    platform: "facebook",
-    status: "sync_error",
-    paused: false,
-    adCount: 15,
-    errorMessage: "API rate limit exceeded. Please wait 5 minutes before retrying.",
-    createdAt: new Date("2024-01-12T09:00:00Z"),
-  },
-  {
-    id: "c4",
-    templateId: "t2",
-    templateName: "Winter Campaign",
-    dataRowId: "d4",
-    name: "Draft Campaign",
-    platform: "reddit",
-    status: "draft",
-    paused: false,
-    adCount: 5,
-    createdAt: new Date("2024-01-13T09:00:00Z"),
-  },
-  {
-    id: "c5",
-    templateId: "t1",
-    templateName: "Summer Sale Template",
-    dataRowId: "d5",
-    name: "Paused Campaign",
-    platform: "google",
-    status: "synced",
-    paused: true,
-    adCount: 10,
-    platformId: "ext-456",
-    lastSyncedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
-    createdAt: new Date("2024-01-08T09:00:00Z"),
-  },
-  {
-    id: "c6",
-    templateId: "t3",
-    templateName: "Holiday Promo",
-    dataRowId: "d6",
-    name: "Holiday Promo - Midwest",
-    platform: "facebook",
-    status: "pending_sync",
-    paused: false,
-    adCount: 20,
-    adGroups: [
-      { id: "ag5", name: "Lookalike Audience", adCount: 10 },
-      { id: "ag6", name: "Custom Audience", adCount: 10 },
-    ],
-    createdAt: new Date("2024-01-14T09:00:00Z"),
-  },
-];
-
-const MOCK_TEMPLATES: TemplateOption[] = [
-  { id: "t1", name: "Summer Sale Template" },
-  { id: "t2", name: "Winter Campaign" },
-  { id: "t3", name: "Holiday Promo" },
-];
+/**
+ * Transform API response dates to Date objects
+ */
+function transformCampaign(campaign: CampaignApiItem): GeneratedCampaign {
+  return {
+    ...campaign,
+    platform: campaign.platform as Platform,
+    status: campaign.status as GeneratedCampaign["status"],
+    createdAt: new Date(campaign.createdAt),
+    lastSyncedAt: campaign.lastSyncedAt
+      ? new Date(campaign.lastSyncedAt)
+      : undefined,
+  };
+}
 
 export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<GeneratedCampaign[]>([]);
@@ -136,63 +76,40 @@ export default function CampaignsPage() {
       setLoading(true);
       setError(null);
 
-      // Use mock data for now
-      await new Promise((resolve) => setTimeout(resolve, 500)); // Simulate API delay
-      setCampaigns(MOCK_CAMPAIGNS);
-      setTemplates(MOCK_TEMPLATES);
-
-      /* Real API implementation:
-      const params = new URLSearchParams();
+      const params: Record<string, string | undefined> = {};
       if (filters.status && filters.status.length > 0) {
-        params.set("status", filters.status.join(","));
+        params.status = filters.status.join(",");
       }
       if (filters.platform) {
-        params.set("platform", filters.platform);
+        params.platform = filters.platform;
       }
       if (filters.templateId) {
-        params.set("templateId", filters.templateId);
+        params.templateId = filters.templateId;
       }
       if (filters.dateRange?.start) {
-        params.set("startDate", filters.dateRange.start.toISOString());
+        params.startDate = filters.dateRange.start.toISOString();
       }
       if (filters.dateRange?.end) {
-        params.set("endDate", filters.dateRange.end.toISOString());
+        params.endDate = filters.dateRange.end.toISOString();
       }
 
-      const queryString = params.toString();
-      const url = `${API_BASE}/api/v1/campaigns${queryString ? `?${queryString}` : ""}`;
-
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error("Failed to fetch campaigns");
-      }
-      const data: CampaignsResponse = await response.json();
-      setCampaigns(
-        data.data.map((c) => ({
-          ...c,
-          createdAt: new Date(c.createdAt),
-          lastSyncedAt: c.lastSyncedAt ? new Date(c.lastSyncedAt) : undefined,
-        }))
+      const queryString = buildQueryString(params);
+      const response = await api.get<CampaignsResponse>(
+        `/api/v1/campaigns${queryString}`
       );
-      */
+      setCampaigns(response.data.map(transformCampaign));
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filters]);
 
   const fetchTemplates = useCallback(async () => {
-    // Using mock data
-    /* Real API implementation:
     try {
-      const response = await fetch(`${API_BASE}/api/v1/templates`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch templates");
-      }
-      const data = await response.json();
+      const response = await api.get<TemplatesResponse>("/api/v1/templates");
       setTemplates(
-        data.data.map((t: { id: string; name: string }) => ({
+        response.data.map((t) => ({
           id: t.id,
           name: t.name,
         }))
@@ -200,7 +117,6 @@ export default function CampaignsPage() {
     } catch {
       // Silently fail for templates - they're optional for filtering
     }
-    */
   }, []);
 
   useEffect(() => {
@@ -218,20 +134,7 @@ export default function CampaignsPage() {
       setIsSyncing(true);
       setSyncingIds(selectedIds);
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      /* Real API implementation:
-      const response = await fetch(`${API_BASE}/api/v1/campaigns/sync`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: selectedIds }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to sync campaigns");
-      }
-      */
+      await api.post("/api/v1/campaigns/sync", { ids: selectedIds });
 
       setSelectedIds([]);
       await fetchCampaigns();
@@ -254,8 +157,7 @@ export default function CampaignsPage() {
       setIsSyncing(true);
       setSyncingIds(pendingIds);
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await api.post("/api/v1/campaigns/sync", { ids: pendingIds });
 
       await fetchCampaigns();
     } catch (err) {
@@ -270,8 +172,7 @@ export default function CampaignsPage() {
     try {
       setSyncingIds([id]);
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await api.post(`/api/v1/campaigns/${id}/sync`);
 
       await fetchCampaigns();
     } catch (err) {
@@ -284,8 +185,7 @@ export default function CampaignsPage() {
   const handlePauseSelected = async () => {
     if (selectedIds.length === 0) return;
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await api.post("/api/v1/campaigns/pause", { ids: selectedIds });
       setSelectedIds([]);
       await fetchCampaigns();
     } catch (err) {
@@ -296,8 +196,7 @@ export default function CampaignsPage() {
   const handleResumeSelected = async () => {
     if (selectedIds.length === 0) return;
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await api.post("/api/v1/campaigns/resume", { ids: selectedIds });
       setSelectedIds([]);
       await fetchCampaigns();
     } catch (err) {
@@ -307,8 +206,7 @@ export default function CampaignsPage() {
 
   const handlePauseSingle = async (id: string) => {
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await api.post(`/api/v1/campaigns/${id}/pause`);
       await fetchCampaigns();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to pause campaign");
@@ -317,8 +215,7 @@ export default function CampaignsPage() {
 
   const handleResumeSingle = async (id: string) => {
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await api.post(`/api/v1/campaigns/${id}/resume`);
       await fetchCampaigns();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to resume campaign");
@@ -338,20 +235,10 @@ export default function CampaignsPage() {
     }
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      /* Real API implementation:
-      const response = await fetch(`${API_BASE}/api/v1/campaigns`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: selectedIds }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to delete campaigns");
-      }
-      */
+      // Delete each campaign individually since bulk delete might not be available
+      await Promise.all(
+        selectedIds.map((id) => api.delete(`/api/v1/campaigns/${id}`))
+      );
 
       setSelectedIds([]);
       await fetchCampaigns();
@@ -366,8 +253,7 @@ export default function CampaignsPage() {
     }
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await api.delete(`/api/v1/campaigns/${id}`);
       await fetchCampaigns();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete campaign");

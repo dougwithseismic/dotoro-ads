@@ -27,8 +27,8 @@ export function Sidebar({ collapsed: controlledCollapsed, onCollapsedChange }: S
   return (
     <aside
       className={`
-        relative flex flex-col h-full bg-white dark:bg-gray-900
-        border-r border-gray-200 dark:border-gray-700
+        relative flex flex-col h-full bg-zinc-950
+        border-r border-zinc-800/50
         transition-all duration-300 ease-in-out
         ${collapsed ? "w-16" : "w-64"}
       `}
@@ -38,11 +38,13 @@ export function Sidebar({ collapsed: controlledCollapsed, onCollapsedChange }: S
       data-collapsed={collapsed ? "true" : undefined}
     >
       {/* Logo/Brand */}
-      <div className="flex items-center h-16 px-4 border-b border-gray-200 dark:border-gray-700">
-        <div className="flex items-center gap-2 overflow-hidden">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg shrink-0" />
+      <div className="flex items-center h-14 px-4 border-b border-zinc-800/50">
+        <div className="flex items-center gap-3 overflow-hidden">
+          <div className="w-7 h-7 bg-white rounded-md flex items-center justify-center shrink-0">
+            <span className="text-black font-bold text-sm">D</span>
+          </div>
           {!collapsed && (
-            <span className="text-lg font-semibold text-gray-900 dark:text-white whitespace-nowrap">
+            <span className="text-[15px] font-medium text-zinc-100 whitespace-nowrap tracking-tight">
               Dotoro
             </span>
           )}
@@ -50,7 +52,7 @@ export function Sidebar({ collapsed: controlledCollapsed, onCollapsedChange }: S
       </div>
 
       {/* Navigation */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto px-3 py-4">
         <Navigation collapsed={collapsed} />
       </div>
 
@@ -58,20 +60,19 @@ export function Sidebar({ collapsed: controlledCollapsed, onCollapsedChange }: S
       <button
         onClick={handleToggle}
         className={`
-          absolute -right-3 top-20 z-10
+          absolute -right-3 top-16 z-10
           w-6 h-6 flex items-center justify-center
-          bg-white dark:bg-gray-800
-          border border-gray-200 dark:border-gray-600
-          rounded-full shadow-sm
-          hover:bg-gray-50 dark:hover:bg-gray-700
+          bg-zinc-900 border border-zinc-700
+          rounded-full
+          hover:bg-zinc-800 hover:border-zinc-600
           transition-colors
         `}
         aria-label="Toggle sidebar"
       >
         {collapsed ? (
-          <ChevronRight className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+          <ChevronRight className="w-3.5 h-3.5 text-zinc-400" />
         ) : (
-          <ChevronLeft className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+          <ChevronLeft className="w-3.5 h-3.5 text-zinc-400" />
         )}
       </button>
     </aside>

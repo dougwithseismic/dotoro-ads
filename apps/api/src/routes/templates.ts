@@ -1,4 +1,5 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+import { eq, count, asc } from "drizzle-orm";
 import {
   campaignTemplateSchema,
   createCampaignTemplateSchema,
@@ -21,54 +22,8 @@ import { idParamSchema } from "../schemas/common.js";
 import { commonResponses, createPaginatedResponse } from "../lib/openapi.js";
 import { createNotFoundError, ApiException, ErrorCode } from "../lib/errors.js";
 import { templateService } from "../services/template-service.js";
-
-// In-memory mock data store
-export const mockTemplates = new Map<string, z.infer<typeof campaignTemplateSchema>>();
-
-// Function to reset and seed mock data
-export function seedMockTemplates() {
-  mockTemplates.clear();
-
-  const seedId = "660e8400-e29b-41d4-a716-446655440000";
-  mockTemplates.set(seedId, {
-    id: seedId,
-    userId: null,
-    name: "Reddit Product Ads",
-    platform: "reddit",
-    structure: {
-      objective: "CONVERSIONS",
-      budget: {
-        type: "daily",
-        amount: 50,
-        currency: "USD",
-      },
-      targeting: { subreddits: ["technology", "gadgets"] },
-    },
-    createdAt: "2025-01-01T00:00:00.000Z",
-    updatedAt: "2025-01-01T00:00:00.000Z",
-  });
-
-  const seedId2 = "660e8400-e29b-41d4-a716-446655440001";
-  mockTemplates.set(seedId2, {
-    id: seedId2,
-    userId: null,
-    name: "Google Search Ads",
-    platform: "google",
-    structure: {
-      objective: "AWARENESS",
-      budget: {
-        type: "lifetime",
-        amount: 1000,
-        currency: "USD",
-      },
-    },
-    createdAt: "2025-01-02T00:00:00.000Z",
-    updatedAt: "2025-01-02T00:00:00.000Z",
-  });
-}
-
-// Initial seed
-seedMockTemplates();
+import { db, campaignTemplates, dataRows } from "../services/db.js";
+import { hasStoredData, getStoredRows } from "../services/data-ingestion.js";
 
 // Create the OpenAPI Hono app
 export const templatesApp = new OpenAPIHono();
@@ -232,17 +187,44 @@ templatesApp.openapi(listTemplatesRoute, async (c) => {
   const query = c.req.valid("query");
   const page = query.page ?? 1;
   const limit = query.limit ?? 20;
+  const offset = (page - 1) * limit;
 
-  let templates = Array.from(mockTemplates.values());
-
-  // Filter by platform if provided
+  // Build where conditions
+  const conditions = [];
   if (query.platform) {
-    templates = templates.filter((t) => t.platform === query.platform);
+    conditions.push(eq(campaignTemplates.platform, query.platform));
   }
 
-  const total = templates.length;
-  const start = (page - 1) * limit;
-  const data = templates.slice(start, start + limit);
+  const whereClause = conditions.length > 0 ? conditions[0] : undefined;
+
+  // Get total count
+  const countQuery = db.select({ count: count() }).from(campaignTemplates);
+  if (whereClause) {
+    countQuery.where(whereClause);
+  }
+  const [countResult] = await countQuery;
+  const total = countResult?.count ?? 0;
+
+  // Get paginated data
+  const selectQuery = db.select().from(campaignTemplates);
+  if (whereClause) {
+    selectQuery.where(whereClause);
+  }
+  const templates = await selectQuery
+    .limit(limit)
+    .offset(offset)
+    .orderBy(campaignTemplates.createdAt);
+
+  // Convert to API format
+  const data = templates.map((template) => ({
+    id: template.id,
+    userId: template.userId,
+    name: template.name,
+    platform: template.platform,
+    structure: template.structure,
+    createdAt: template.createdAt.toISOString(),
+    updatedAt: template.updatedAt.toISOString(),
+  }));
 
   return c.json(createPaginatedResponse(data, total, page, limit), 200);
 });
@@ -250,63 +232,132 @@ templatesApp.openapi(listTemplatesRoute, async (c) => {
 templatesApp.openapi(createTemplateRoute, async (c) => {
   const body = c.req.valid("json");
 
-  const newTemplate: z.infer<typeof campaignTemplateSchema> = {
-    id: crypto.randomUUID(),
-    userId: null,
-    name: body.name,
-    platform: body.platform,
-    structure: body.structure ?? null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
+  const [newTemplate] = await db
+    .insert(campaignTemplates)
+    .values({
+      name: body.name,
+      platform: body.platform,
+      structure: body.structure ?? null,
+    })
+    .returning();
 
-  mockTemplates.set(newTemplate.id, newTemplate);
+  if (!newTemplate) {
+    throw new ApiException(500, ErrorCode.INTERNAL_ERROR, "Failed to create template");
+  }
 
-  return c.json(newTemplate, 201);
+  return c.json(
+    {
+      id: newTemplate.id,
+      userId: newTemplate.userId,
+      name: newTemplate.name,
+      platform: newTemplate.platform,
+      structure: newTemplate.structure,
+      createdAt: newTemplate.createdAt.toISOString(),
+      updatedAt: newTemplate.updatedAt.toISOString(),
+    },
+    201
+  );
 });
 
 templatesApp.openapi(getTemplateRoute, async (c) => {
   const { id } = c.req.valid("param");
 
-  const template = mockTemplates.get(id);
+  const [template] = await db
+    .select()
+    .from(campaignTemplates)
+    .where(eq(campaignTemplates.id, id))
+    .limit(1);
+
   if (!template) {
     throw createNotFoundError("Template", id);
   }
 
-  return c.json(template, 200);
+  return c.json(
+    {
+      id: template.id,
+      userId: template.userId,
+      name: template.name,
+      platform: template.platform,
+      structure: template.structure,
+      createdAt: template.createdAt.toISOString(),
+      updatedAt: template.updatedAt.toISOString(),
+    },
+    200
+  );
 });
 
 templatesApp.openapi(updateTemplateRoute, async (c) => {
   const { id } = c.req.valid("param");
   const body = c.req.valid("json");
 
-  const template = mockTemplates.get(id);
-  if (!template) {
+  // Check if template exists
+  const [existing] = await db
+    .select()
+    .from(campaignTemplates)
+    .where(eq(campaignTemplates.id, id))
+    .limit(1);
+
+  if (!existing) {
     throw createNotFoundError("Template", id);
   }
 
-  const updatedTemplate: z.infer<typeof campaignTemplateSchema> = {
-    ...template,
-    ...(body.name && { name: body.name }),
-    ...(body.platform && { platform: body.platform }),
-    ...(body.structure !== undefined && { structure: body.structure ?? null }),
-    updatedAt: new Date().toISOString(),
-  };
+  // Build update object
+  const updates: Partial<{
+    name: string;
+    platform: "reddit" | "google" | "facebook";
+    structure: Record<string, unknown> | null;
+  }> = {};
 
-  mockTemplates.set(id, updatedTemplate);
+  if (body.name !== undefined) {
+    updates.name = body.name;
+  }
+  if (body.platform !== undefined) {
+    updates.platform = body.platform;
+  }
+  if (body.structure !== undefined) {
+    updates.structure = body.structure ?? null;
+  }
 
-  return c.json(updatedTemplate, 200);
+  const [updatedTemplate] = await db
+    .update(campaignTemplates)
+    .set(updates)
+    .where(eq(campaignTemplates.id, id))
+    .returning();
+
+  if (!updatedTemplate) {
+    throw createNotFoundError("Template", id);
+  }
+
+  return c.json(
+    {
+      id: updatedTemplate.id,
+      userId: updatedTemplate.userId,
+      name: updatedTemplate.name,
+      platform: updatedTemplate.platform,
+      structure: updatedTemplate.structure,
+      createdAt: updatedTemplate.createdAt.toISOString(),
+      updatedAt: updatedTemplate.updatedAt.toISOString(),
+    },
+    200
+  );
 });
 
 templatesApp.openapi(deleteTemplateRoute, async (c) => {
   const { id } = c.req.valid("param");
 
-  const template = mockTemplates.get(id);
+  // Check if template exists
+  const [template] = await db
+    .select()
+    .from(campaignTemplates)
+    .where(eq(campaignTemplates.id, id))
+    .limit(1);
+
   if (!template) {
     throw createNotFoundError("Template", id);
   }
 
-  mockTemplates.delete(id);
+  // Delete from database (cascade will delete related records)
+  await db.delete(campaignTemplates).where(eq(campaignTemplates.id, id));
 
   return c.body(null, 204);
 });
@@ -315,31 +366,56 @@ templatesApp.openapi(previewTemplateRoute, async (c) => {
   const { id } = c.req.valid("param");
   const body = c.req.valid("json");
 
-  const template = mockTemplates.get(id);
+  // Get template from database
+  const [template] = await db
+    .select()
+    .from(campaignTemplates)
+    .where(eq(campaignTemplates.id, id))
+    .limit(1);
+
   if (!template) {
     throw createNotFoundError("Template", id);
   }
 
-  // Mock preview generation
-  const previewAds: z.infer<typeof previewAdSchema>[] = [
-    {
-      headline: `${template.name} - Preview Ad 1`,
-      description: "This is a preview of how the ad would look",
-      sourceRow: { product_name: "Sample Product", price: 99.99 },
-    },
-    {
-      headline: `${template.name} - Preview Ad 2`,
-      description: "Another preview variation",
-      sourceRow: { product_name: "Another Product", price: 149.99 },
-    },
-  ].slice(0, body.limit);
+  // Get data rows for preview - first try in-memory, then database
+  let previewRows: Record<string, unknown>[] = [];
+  let totalRows = 0;
+
+  if (hasStoredData(body.dataSourceId)) {
+    const { rows, total } = getStoredRows(body.dataSourceId, 1, body.limit ?? 10);
+    previewRows = rows;
+    totalRows = total;
+  } else {
+    // Get from database
+    const rows = await db
+      .select()
+      .from(dataRows)
+      .where(eq(dataRows.dataSourceId, body.dataSourceId))
+      .orderBy(asc(dataRows.rowIndex))
+      .limit(body.limit ?? 10);
+
+    const [countResult] = await db
+      .select({ count: count() })
+      .from(dataRows)
+      .where(eq(dataRows.dataSourceId, body.dataSourceId));
+
+    previewRows = rows.map((r) => r.rowData as Record<string, unknown>);
+    totalRows = countResult?.count ?? 0;
+  }
+
+  // Generate preview ads
+  const previewAds: z.infer<typeof previewAdSchema>[] = previewRows.map((row) => ({
+    headline: `${template.name} - ${row.product_name ?? "Preview"}`,
+    description: row.description as string ?? "Preview description",
+    sourceRow: row,
+  })).slice(0, body.limit ?? 10);
 
   return c.json(
     {
       templateId: id,
       dataSourceId: body.dataSourceId,
       previewAds,
-      totalRows: 100, // Mock total
+      totalRows,
       warnings: [],
     },
     200

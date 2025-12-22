@@ -19,11 +19,11 @@ export function AppLayout({ children, breadcrumbs }: AppLayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="flex h-screen bg-black">
       {/* Mobile sidebar overlay */}
       {mobileMenuOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm lg:hidden"
           onClick={() => setMobileMenuOpen(false)}
           aria-hidden="true"
         />
@@ -49,7 +49,7 @@ export function AppLayout({ children, breadcrumbs }: AppLayoutProps) {
       </div>
 
       {/* Main content area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-zinc-950">
         <TopBar
           breadcrumbs={breadcrumbs}
           onMobileMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)}

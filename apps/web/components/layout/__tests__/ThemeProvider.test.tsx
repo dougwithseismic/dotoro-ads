@@ -28,76 +28,11 @@ describe("ThemeProvider", () => {
 });
 
 describe("ThemeToggle", () => {
-  const mockSetTheme = vi.fn();
-  const mockUseTheme = useNextTheme as ReturnType<typeof vi.fn>;
-
-  beforeEach(() => {
-    mockSetTheme.mockClear();
-    mockUseTheme.mockReturnValue({
-      theme: "light",
-      setTheme: mockSetTheme,
-      resolvedTheme: "light",
-      themes: ["light", "dark", "system"],
-    });
-  });
-
-  it("renders toggle button", () => {
-    render(<ThemeToggle />);
-
-    const button = screen.getByRole("button", { name: /toggle theme/i });
-    expect(button).toBeInTheDocument();
-  });
-
-  it("shows sun icon in light mode", () => {
-    mockUseTheme.mockReturnValue({
-      theme: "light",
-      setTheme: mockSetTheme,
-      resolvedTheme: "light",
-      themes: ["light", "dark", "system"],
-    });
-
+  // ThemeToggle is currently disabled (returns null) because theme is forced to dark.
+  // These tests verify the component behaves correctly in its disabled state.
+  it("renders nothing when theme toggle is disabled", () => {
     const { container } = render(<ThemeToggle />);
-    // Should have sun icon visible
-    expect(container.querySelector("svg")).toBeInTheDocument();
-  });
-
-  it("toggles to dark mode when clicked in light mode", () => {
-    mockUseTheme.mockReturnValue({
-      theme: "light",
-      setTheme: mockSetTheme,
-      resolvedTheme: "light",
-      themes: ["light", "dark", "system"],
-    });
-
-    render(<ThemeToggle />);
-
-    const button = screen.getByRole("button", { name: /toggle theme/i });
-    fireEvent.click(button);
-
-    expect(mockSetTheme).toHaveBeenCalledWith("dark");
-  });
-
-  it("toggles to light mode when clicked in dark mode", () => {
-    mockUseTheme.mockReturnValue({
-      theme: "dark",
-      setTheme: mockSetTheme,
-      resolvedTheme: "dark",
-      themes: ["light", "dark", "system"],
-    });
-
-    render(<ThemeToggle />);
-
-    const button = screen.getByRole("button", { name: /toggle theme/i });
-    fireEvent.click(button);
-
-    expect(mockSetTheme).toHaveBeenCalledWith("light");
-  });
-
-  it("has proper accessibility label", () => {
-    render(<ThemeToggle />);
-
-    const button = screen.getByRole("button", { name: /toggle theme/i });
-    expect(button).toHaveAttribute("aria-label");
+    expect(container.firstChild).toBeNull();
   });
 });
 

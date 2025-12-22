@@ -1,4 +1,5 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+import { eq, count, asc } from "drizzle-orm";
 import {
   dataSourceSchema,
   createDataSourceSchema,
@@ -34,51 +35,7 @@ import {
   clearAllStoredData,
 } from "../services/data-ingestion.js";
 import type { ValidationRule } from "@repo/core";
-
-// In-memory mock data store (will be replaced with actual database)
-// Export for testing purposes
-export const mockDataSources = new Map<
-  string,
-  z.infer<typeof dataSourceSchema>
->();
-export const mockDataRows = new Map<string, z.infer<typeof dataRowSchema>[]>();
-
-// Function to reset and seed mock data
-export function seedMockData() {
-  mockDataSources.clear();
-  mockDataRows.clear();
-  clearAllStoredData();
-
-  const seedId = "550e8400-e29b-41d4-a716-446655440000";
-  mockDataSources.set(seedId, {
-    id: seedId,
-    userId: null,
-    name: "Test CSV Source",
-    type: "csv",
-    config: { delimiter: "," },
-    createdAt: "2025-01-01T00:00:00.000Z",
-    updatedAt: "2025-01-01T00:00:00.000Z",
-  });
-  mockDataRows.set(seedId, [
-    {
-      id: "550e8400-e29b-41d4-a716-446655440001",
-      dataSourceId: seedId,
-      rowData: { product_name: "Test Product 1", price: 99.99 },
-      rowIndex: 0,
-      createdAt: "2025-01-01T00:00:00.000Z",
-    },
-    {
-      id: "550e8400-e29b-41d4-a716-446655440002",
-      dataSourceId: seedId,
-      rowData: { product_name: "Test Product 2", price: 149.99 },
-      rowIndex: 1,
-      createdAt: "2025-01-01T00:00:00.000Z",
-    },
-  ]);
-}
-
-// Initial seed
-seedMockData();
+import { db, dataSources, dataRows } from "../services/db.js";
 
 // Create the OpenAPI Hono app
 export const dataSourcesApp = new OpenAPIHono();
@@ -217,7 +174,7 @@ const getDataRowsRoute = createRoute({
   tags: ["Data Sources"],
   summary: "Get data rows",
   description:
-    "Returns paginated data rows for a specific data source. Returns data from uploaded CSV if available, otherwise falls back to mock data.",
+    "Returns paginated data rows for a specific data source. Returns data from uploaded CSV if available, otherwise falls back to database rows.",
   request: {
     params: idParamSchema,
     query: dataRowsQuerySchema,
@@ -385,11 +342,32 @@ dataSourcesApp.openapi(listDataSourcesRoute, async (c) => {
   const query = c.req.valid("query");
   const page = query.page ?? 1;
   const limit = query.limit ?? 20;
+  const offset = (page - 1) * limit;
 
-  const allSources = Array.from(mockDataSources.values());
-  const total = allSources.length;
-  const start = (page - 1) * limit;
-  const data = allSources.slice(start, start + limit);
+  // Get total count
+  const [countResult] = await db
+    .select({ count: count() })
+    .from(dataSources);
+  const total = countResult?.count ?? 0;
+
+  // Get paginated data
+  const sources = await db
+    .select()
+    .from(dataSources)
+    .limit(limit)
+    .offset(offset)
+    .orderBy(dataSources.createdAt);
+
+  // Convert to API format
+  const data = sources.map((source) => ({
+    id: source.id,
+    userId: source.userId,
+    name: source.name,
+    type: source.type,
+    config: source.config,
+    createdAt: source.createdAt.toISOString(),
+    updatedAt: source.updatedAt.toISOString(),
+  }));
 
   return c.json(createPaginatedResponse(data, total, page, limit), 200);
 });
@@ -397,65 +375,134 @@ dataSourcesApp.openapi(listDataSourcesRoute, async (c) => {
 dataSourcesApp.openapi(createDataSourceRoute, async (c) => {
   const body = c.req.valid("json");
 
-  const newDataSource: z.infer<typeof dataSourceSchema> = {
-    id: crypto.randomUUID(),
-    userId: null,
-    name: body.name,
-    type: body.type,
-    config: body.config ?? null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
+  const [newDataSource] = await db
+    .insert(dataSources)
+    .values({
+      name: body.name,
+      type: body.type,
+      config: body.config ?? null,
+    })
+    .returning();
 
-  mockDataSources.set(newDataSource.id, newDataSource);
-  mockDataRows.set(newDataSource.id, []);
+  if (!newDataSource) {
+    throw new ApiException(500, ErrorCode.INTERNAL_ERROR, "Failed to create data source");
+  }
 
-  return c.json(newDataSource, 201);
+  return c.json(
+    {
+      id: newDataSource.id,
+      userId: newDataSource.userId,
+      name: newDataSource.name,
+      type: newDataSource.type,
+      config: newDataSource.config,
+      createdAt: newDataSource.createdAt.toISOString(),
+      updatedAt: newDataSource.updatedAt.toISOString(),
+    },
+    201
+  );
 });
 
 dataSourcesApp.openapi(getDataSourceRoute, async (c) => {
   const { id } = c.req.valid("param");
 
-  const dataSource = mockDataSources.get(id);
+  const [dataSource] = await db
+    .select()
+    .from(dataSources)
+    .where(eq(dataSources.id, id))
+    .limit(1);
+
   if (!dataSource) {
     throw createNotFoundError("Data source", id);
   }
 
-  return c.json(dataSource, 200);
+  return c.json(
+    {
+      id: dataSource.id,
+      userId: dataSource.userId,
+      name: dataSource.name,
+      type: dataSource.type,
+      config: dataSource.config,
+      createdAt: dataSource.createdAt.toISOString(),
+      updatedAt: dataSource.updatedAt.toISOString(),
+    },
+    200
+  );
 });
 
 dataSourcesApp.openapi(updateDataSourceRoute, async (c) => {
   const { id } = c.req.valid("param");
   const body = c.req.valid("json");
 
-  const dataSource = mockDataSources.get(id);
-  if (!dataSource) {
+  // Check if data source exists
+  const [existing] = await db
+    .select()
+    .from(dataSources)
+    .where(eq(dataSources.id, id))
+    .limit(1);
+
+  if (!existing) {
     throw createNotFoundError("Data source", id);
   }
 
-  const updatedDataSource: z.infer<typeof dataSourceSchema> = {
-    ...dataSource,
-    ...(body.name && { name: body.name }),
-    ...(body.type && { type: body.type }),
-    ...(body.config !== undefined && { config: body.config ?? null }),
-    updatedAt: new Date().toISOString(),
-  };
+  // Build update object
+  const updates: Partial<{
+    name: string;
+    type: "csv" | "api" | "manual";
+    config: Record<string, unknown> | null;
+  }> = {};
 
-  mockDataSources.set(id, updatedDataSource);
+  if (body.name !== undefined) {
+    updates.name = body.name;
+  }
+  if (body.type !== undefined) {
+    updates.type = body.type;
+  }
+  if (body.config !== undefined) {
+    updates.config = body.config ?? null;
+  }
 
-  return c.json(updatedDataSource, 200);
+  const [updatedDataSource] = await db
+    .update(dataSources)
+    .set(updates)
+    .where(eq(dataSources.id, id))
+    .returning();
+
+  if (!updatedDataSource) {
+    throw createNotFoundError("Data source", id);
+  }
+
+  return c.json(
+    {
+      id: updatedDataSource.id,
+      userId: updatedDataSource.userId,
+      name: updatedDataSource.name,
+      type: updatedDataSource.type,
+      config: updatedDataSource.config,
+      createdAt: updatedDataSource.createdAt.toISOString(),
+      updatedAt: updatedDataSource.updatedAt.toISOString(),
+    },
+    200
+  );
 });
 
 dataSourcesApp.openapi(deleteDataSourceRoute, async (c) => {
   const { id } = c.req.valid("param");
 
-  const dataSource = mockDataSources.get(id);
+  // Check if data source exists
+  const [dataSource] = await db
+    .select()
+    .from(dataSources)
+    .where(eq(dataSources.id, id))
+    .limit(1);
+
   if (!dataSource) {
     throw createNotFoundError("Data source", id);
   }
 
-  mockDataSources.delete(id);
-  mockDataRows.delete(id);
+  // Delete from database (cascade will delete data rows)
+  await db.delete(dataSources).where(eq(dataSources.id, id));
+
+  // Also delete from in-memory store
   deleteStoredData(id);
 
   return c.body(null, 204);
@@ -466,16 +513,22 @@ dataSourcesApp.openapi(getDataRowsRoute, async (c) => {
   const query = c.req.valid("query");
   const page = query.page ?? 1;
   const limit = query.limit ?? 20;
+  const offset = (page - 1) * limit;
 
-  const dataSource = mockDataSources.get(id);
+  // Check if data source exists
+  const [dataSource] = await db
+    .select()
+    .from(dataSources)
+    .where(eq(dataSources.id, id))
+    .limit(1);
+
   if (!dataSource) {
     throw createNotFoundError("Data source", id);
   }
 
-  // Try to get rows from stored data first (uploaded CSV data)
+  // Try to get rows from stored data first (uploaded CSV data that hasn't been persisted yet)
   if (hasStoredData(id)) {
     const { rows, total } = getStoredRows(id, page, limit);
-    // Convert to dataRow format
     const data = rows.map((row, index) => ({
       id: crypto.randomUUID(),
       dataSourceId: id,
@@ -486,11 +539,28 @@ dataSourcesApp.openapi(getDataRowsRoute, async (c) => {
     return c.json(createPaginatedResponse(data, total, page, limit), 200);
   }
 
-  // Fallback to mock data
-  const rows = mockDataRows.get(id) ?? [];
-  const total = rows.length;
-  const start = (page - 1) * limit;
-  const data = rows.slice(start, start + limit);
+  // Get from database
+  const [countResult] = await db
+    .select({ count: count() })
+    .from(dataRows)
+    .where(eq(dataRows.dataSourceId, id));
+  const total = countResult?.count ?? 0;
+
+  const rows = await db
+    .select()
+    .from(dataRows)
+    .where(eq(dataRows.dataSourceId, id))
+    .orderBy(asc(dataRows.rowIndex))
+    .limit(limit)
+    .offset(offset);
+
+  const data = rows.map((row) => ({
+    id: row.id,
+    dataSourceId: row.dataSourceId,
+    rowData: row.rowData,
+    rowIndex: row.rowIndex,
+    createdAt: row.createdAt.toISOString(),
+  }));
 
   return c.json(createPaginatedResponse(data, total, page, limit), 200);
 });
@@ -500,7 +570,13 @@ dataSourcesApp.openapi(previewDataSourceRoute, async (c) => {
   const body = c.req.valid("json");
   const limit = body.limit ?? 10;
 
-  const dataSource = mockDataSources.get(id);
+  // Check if data source exists
+  const [dataSource] = await db
+    .select()
+    .from(dataSources)
+    .where(eq(dataSources.id, id))
+    .limit(1);
+
   if (!dataSource) {
     throw createNotFoundError("Data source", id);
   }
@@ -518,17 +594,41 @@ dataSourcesApp.openapi(previewDataSourceRoute, async (c) => {
     return c.json({ data, total }, 200);
   }
 
-  // Fallback to mock data
-  const rows = mockDataRows.get(id) ?? [];
-  const data = rows.slice(0, limit);
+  // Get from database
+  const [countResult] = await db
+    .select({ count: count() })
+    .from(dataRows)
+    .where(eq(dataRows.dataSourceId, id));
+  const total = countResult?.count ?? 0;
 
-  return c.json({ data, total: rows.length }, 200);
+  const rows = await db
+    .select()
+    .from(dataRows)
+    .where(eq(dataRows.dataSourceId, id))
+    .orderBy(asc(dataRows.rowIndex))
+    .limit(limit);
+
+  const data = rows.map((row) => ({
+    id: row.id,
+    dataSourceId: row.dataSourceId,
+    rowData: row.rowData,
+    rowIndex: row.rowIndex,
+    createdAt: row.createdAt.toISOString(),
+  }));
+
+  return c.json({ data, total }, 200);
 });
 
 dataSourcesApp.openapi(uploadDataSourceRoute, async (c) => {
   const { id } = c.req.valid("param");
 
-  const dataSource = mockDataSources.get(id);
+  // Check if data source exists
+  const [dataSource] = await db
+    .select()
+    .from(dataSources)
+    .where(eq(dataSources.id, id))
+    .limit(1);
+
   if (!dataSource) {
     throw createNotFoundError("Data source", id);
   }
@@ -602,6 +702,24 @@ dataSourcesApp.openapi(uploadDataSourceRoute, async (c) => {
       options
     );
 
+    // Persist rows to database
+    const storedData = getStoredDataSource(id);
+    if (storedData && storedData.rows.length > 0) {
+      // Delete existing rows first
+      await db.delete(dataRows).where(eq(dataRows.dataSourceId, id));
+
+      // Insert new rows in batches
+      const batchSize = 100;
+      for (let i = 0; i < storedData.rows.length; i += batchSize) {
+        const batch = storedData.rows.slice(i, i + batchSize).map((row, index) => ({
+          dataSourceId: id,
+          rowData: row,
+          rowIndex: i + index,
+        }));
+        await db.insert(dataRows).values(batch);
+      }
+    }
+
     return c.json(result, 201);
   } catch (error) {
     if (error instanceof Error) {
@@ -633,17 +751,46 @@ dataSourcesApp.openapi(validateDataSourceRoute, async (c) => {
   const { id } = c.req.valid("param");
   const body = c.req.valid("json");
 
-  const dataSource = mockDataSources.get(id);
+  // Check if data source exists
+  const [dataSource] = await db
+    .select()
+    .from(dataSources)
+    .where(eq(dataSources.id, id))
+    .limit(1);
+
   if (!dataSource) {
     throw createNotFoundError("Data source", id);
   }
 
-  // Check if we have stored data
+  // Check if we have stored data (in-memory from recent upload)
   if (!hasStoredData(id)) {
-    throw createValidationError("No data to validate", {
-      message: "No data has been uploaded for this data source",
-      dataSourceId: id,
-    });
+    // Try to get from database
+    const rows = await db
+      .select()
+      .from(dataRows)
+      .where(eq(dataRows.dataSourceId, id))
+      .orderBy(asc(dataRows.rowIndex));
+
+    if (rows.length === 0) {
+      throw createValidationError("No data to validate", {
+        message: "No data has been uploaded for this data source",
+        dataSourceId: id,
+      });
+    }
+
+    // Convert validation rules
+    const rules: ValidationRule[] = body.rules.map((rule) => ({
+      field: rule.field,
+      required: rule.required,
+      type: rule.type,
+      minLength: rule.minLength,
+      maxLength: rule.maxLength,
+      pattern: rule.pattern ? new RegExp(rule.pattern) : undefined,
+    }));
+
+    const rowData = rows.map((r) => r.rowData as Record<string, unknown>);
+    const result = validateData(rowData, rules);
+    return c.json(result, 200);
   }
 
   const storedData = getStoredDataSource(id);
@@ -651,7 +798,7 @@ dataSourcesApp.openapi(validateDataSourceRoute, async (c) => {
     throw createNotFoundError("Stored data", id);
   }
 
-  // Convert validation rules - handle pattern conversion from string to RegExp
+  // Convert validation rules
   const rules: ValidationRule[] = body.rules.map((rule) => ({
     field: rule.field,
     required: rule.required,
@@ -662,14 +809,19 @@ dataSourcesApp.openapi(validateDataSourceRoute, async (c) => {
   }));
 
   const result = validateData(storedData.rows, rules);
-
   return c.json(result, 200);
 });
 
 dataSourcesApp.openapi(analyzeDataSourceRoute, async (c) => {
   const { id } = c.req.valid("param");
 
-  const dataSource = mockDataSources.get(id);
+  // Check if data source exists
+  const [dataSource] = await db
+    .select()
+    .from(dataSources)
+    .where(eq(dataSources.id, id))
+    .limit(1);
+
   if (!dataSource) {
     throw createNotFoundError("Data source", id);
   }

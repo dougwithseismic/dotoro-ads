@@ -1,4 +1,5 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+import { eq, and, count } from "drizzle-orm";
 import {
   adAccountSchema,
   accountListResponseSchema,
@@ -11,41 +12,7 @@ import {
 import { idParamSchema } from "../schemas/common.js";
 import { commonResponses, createPaginatedResponse } from "../lib/openapi.js";
 import { createNotFoundError, ApiException, ErrorCode } from "../lib/errors.js";
-
-// In-memory mock data store
-export const mockAccounts = new Map<string, z.infer<typeof adAccountSchema>>();
-
-// Function to reset and seed mock data
-export function seedMockAccounts() {
-  mockAccounts.clear();
-
-  const seedId = "990e8400-e29b-41d4-a716-446655440000";
-  mockAccounts.set(seedId, {
-    id: seedId,
-    userId: null,
-    platform: "reddit",
-    accountId: "reddit_acc_12345",
-    accountName: "My Reddit Ads Account",
-    status: "active",
-    createdAt: "2025-01-01T00:00:00.000Z",
-    updatedAt: "2025-01-01T00:00:00.000Z",
-  });
-
-  const seedId2 = "990e8400-e29b-41d4-a716-446655440001";
-  mockAccounts.set(seedId2, {
-    id: seedId2,
-    userId: null,
-    platform: "google",
-    accountId: "google_acc_67890",
-    accountName: "My Google Ads Account",
-    status: "inactive",
-    createdAt: "2025-01-02T00:00:00.000Z",
-    updatedAt: "2025-01-02T00:00:00.000Z",
-  });
-}
-
-// Initial seed
-seedMockAccounts();
+import { db, adAccounts, oauthTokens } from "../services/db.js";
 
 // Create the OpenAPI Hono app
 export const accountsApp = new OpenAPIHono();
@@ -151,22 +118,46 @@ accountsApp.openapi(listAccountsRoute, async (c) => {
   const query = c.req.valid("query");
   const page = query.page ?? 1;
   const limit = query.limit ?? 20;
+  const offset = (page - 1) * limit;
 
-  let accounts = Array.from(mockAccounts.values());
-
-  // Filter by platform if provided
+  // Build where conditions
+  const conditions = [];
   if (query.platform) {
-    accounts = accounts.filter((a) => a.platform === query.platform);
+    conditions.push(eq(adAccounts.platform, query.platform));
   }
-
-  // Filter by status if provided
   if (query.status) {
-    accounts = accounts.filter((a) => a.status === query.status);
+    conditions.push(eq(adAccounts.status, query.status));
   }
 
-  const total = accounts.length;
-  const start = (page - 1) * limit;
-  const data = accounts.slice(start, start + limit);
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+  // Get total count
+  const [countResult] = await db
+    .select({ count: count() })
+    .from(adAccounts)
+    .where(whereClause);
+  const total = countResult?.count ?? 0;
+
+  // Get paginated data
+  const accounts = await db
+    .select()
+    .from(adAccounts)
+    .where(whereClause)
+    .limit(limit)
+    .offset(offset)
+    .orderBy(adAccounts.createdAt);
+
+  // Convert to API format
+  const data = accounts.map((account) => ({
+    id: account.id,
+    userId: account.userId,
+    platform: account.platform as "reddit" | "google" | "facebook",
+    accountId: account.accountId,
+    accountName: account.accountName,
+    status: account.status,
+    createdAt: account.createdAt.toISOString(),
+    updatedAt: account.updatedAt.toISOString(),
+  }));
 
   return c.json(createPaginatedResponse(data, total, page, limit), 200);
 });
@@ -190,12 +181,19 @@ accountsApp.openapi(connectAccountRoute, async (c) => {
 accountsApp.openapi(disconnectAccountRoute, async (c) => {
   const { id } = c.req.valid("param");
 
-  const account = mockAccounts.get(id);
+  // Check if account exists
+  const [account] = await db
+    .select()
+    .from(adAccounts)
+    .where(eq(adAccounts.id, id))
+    .limit(1);
+
   if (!account) {
     throw createNotFoundError("Account", id);
   }
 
-  mockAccounts.delete(id);
+  // Delete the account (cascade will delete oauth tokens)
+  await db.delete(adAccounts).where(eq(adAccounts.id, id));
 
   return c.body(null, 204);
 });
@@ -203,20 +201,33 @@ accountsApp.openapi(disconnectAccountRoute, async (c) => {
 accountsApp.openapi(accountStatusRoute, async (c) => {
   const { id } = c.req.valid("param");
 
-  const account = mockAccounts.get(id);
+  // Get account with oauth token
+  const [account] = await db
+    .select()
+    .from(adAccounts)
+    .where(eq(adAccounts.id, id))
+    .limit(1);
+
   if (!account) {
     throw createNotFoundError("Account", id);
   }
 
+  // Get oauth token if exists
+  const [token] = await db
+    .select()
+    .from(oauthTokens)
+    .where(eq(oauthTokens.adAccountId, id))
+    .limit(1);
+
   return c.json(
     {
       accountId: id,
-      platform: account.platform,
+      platform: account.platform as "reddit" | "google" | "facebook",
       status: account.status,
       isConnected: account.status === "active",
-      tokenExpiresAt: new Date(Date.now() + 3600000).toISOString(), // Mock expiry
+      tokenExpiresAt: token?.expiresAt?.toISOString() ?? null,
       lastChecked: new Date().toISOString(),
-      error: null,
+      error: account.status === "error" ? "Account has an error" : null,
     },
     200
   );

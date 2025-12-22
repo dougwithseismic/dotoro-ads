@@ -1,11 +1,12 @@
 /**
  * Creative Library Service
  *
- * Manages creative assets in local storage with tagging and filtering capabilities.
- * Uses in-memory storage as a placeholder until database integration.
+ * Manages creative assets in the database with tagging and filtering capabilities.
  */
 
 import { z } from "zod";
+import { eq, and, or, count, asc, desc, inArray, sql } from "drizzle-orm";
+import { db, creatives, creativeTags } from "./db.js";
 
 /**
  * Creative types
@@ -158,45 +159,91 @@ export const creativeFiltersSchema = z.object({
 });
 
 /**
+ * Convert database creative to API format
+ */
+async function toApiCreative(dbCreative: typeof creatives.$inferSelect): Promise<Creative> {
+  // Get tags for this creative
+  const tags = await db
+    .select({ tag: creativeTags.tag })
+    .from(creativeTags)
+    .where(eq(creativeTags.creativeId, dbCreative.id));
+
+  return {
+    id: dbCreative.id,
+    accountId: dbCreative.accountId,
+    name: dbCreative.name,
+    type: dbCreative.type as CreativeType,
+    mimeType: dbCreative.mimeType,
+    fileSize: dbCreative.fileSize,
+    dimensions: dbCreative.dimensions as CreativeDimensions | undefined,
+    storageKey: dbCreative.storageKey,
+    cdnUrl: dbCreative.cdnUrl ?? undefined,
+    thumbnailKey: dbCreative.thumbnailKey ?? undefined,
+    status: dbCreative.status as CreativeStatus,
+    metadata: dbCreative.metadata as CreativeMetadata | undefined,
+    tags: tags.map(t => t.tag),
+    createdAt: dbCreative.createdAt.toISOString(),
+    updatedAt: dbCreative.updatedAt.toISOString(),
+  };
+}
+
+/**
  * Creative Library Service
  */
 export class CreativeLibraryService {
-  private creatives: Map<string, Creative> = new Map();
-
   /**
    * Register a new creative
    */
   async registerCreative(input: RegisterCreativeInput): Promise<Creative> {
-    const id = crypto.randomUUID();
-    const now = new Date().toISOString();
+    const [newCreative] = await db
+      .insert(creatives)
+      .values({
+        accountId: input.accountId,
+        name: input.name,
+        type: input.type,
+        mimeType: input.mimeType,
+        fileSize: input.fileSize,
+        dimensions: input.dimensions ?? null,
+        storageKey: input.key,
+        cdnUrl: input.cdnUrl ?? null,
+        thumbnailKey: input.thumbnailKey ?? null,
+        status: "UPLOADED",
+        metadata: input.metadata ?? null,
+      })
+      .returning();
 
-    const creative: Creative = {
-      id,
-      accountId: input.accountId,
-      name: input.name,
-      type: input.type,
-      mimeType: input.mimeType,
-      fileSize: input.fileSize,
-      dimensions: input.dimensions,
-      storageKey: input.key,
-      cdnUrl: input.cdnUrl,
-      thumbnailKey: input.thumbnailKey,
-      status: "UPLOADED",
-      metadata: input.metadata,
-      tags: input.tags ?? [],
-      createdAt: now,
-      updatedAt: now,
-    };
+    // Add tags if provided
+    if (newCreative && input.tags && input.tags.length > 0) {
+      await db.insert(creativeTags).values(
+        input.tags.map(tagName => ({
+          creativeId: newCreative.id,
+          tag: tagName,
+        }))
+      );
+    }
 
-    this.creatives.set(id, creative);
-    return creative;
+    if (!newCreative) {
+      throw new Error("Failed to create creative");
+    }
+
+    return toApiCreative(newCreative);
   }
 
   /**
    * Get a creative by ID
    */
   async getCreative(id: string): Promise<Creative | null> {
-    return this.creatives.get(id) ?? null;
+    const [creative] = await db
+      .select()
+      .from(creatives)
+      .where(eq(creatives.id, id))
+      .limit(1);
+
+    if (!creative) {
+      return null;
+    }
+
+    return toApiCreative(creative);
   }
 
   /**
@@ -207,53 +254,79 @@ export class CreativeLibraryService {
   ): Promise<PaginatedResult<Creative>> {
     const page = filters.page ?? 1;
     const limit = filters.limit ?? 20;
+    const offset = (page - 1) * limit;
     const sortBy = filters.sortBy ?? "createdAt";
     const sortOrder = filters.sortOrder ?? "desc";
 
-    // Filter creatives
-    let creatives = Array.from(this.creatives.values()).filter(
-      (c) => c.accountId === filters.accountId
-    );
+    // Build conditions
+    const conditions = [eq(creatives.accountId, filters.accountId)];
 
     if (filters.type) {
-      creatives = creatives.filter((c) => c.type === filters.type);
+      conditions.push(eq(creatives.type, filters.type));
     }
 
     if (filters.status) {
-      creatives = creatives.filter((c) => c.status === filters.status);
+      conditions.push(eq(creatives.status, filters.status));
     }
 
+    const whereClause = and(...conditions);
+
+    // Get total count
+    const [countResult] = await db
+      .select({ count: count() })
+      .from(creatives)
+      .where(whereClause);
+    const total = countResult?.count ?? 0;
+
+    // Build sort
+    const sortColumn = sortBy === "name"
+      ? creatives.name
+      : sortBy === "fileSize"
+        ? creatives.fileSize
+        : creatives.createdAt;
+    const orderBy = sortOrder === "asc" ? asc(sortColumn) : desc(sortColumn);
+
+    // Get paginated data
+    const dbCreatives = await db
+      .select()
+      .from(creatives)
+      .where(whereClause)
+      .orderBy(orderBy)
+      .limit(limit)
+      .offset(offset);
+
+    // If filtering by tags, we need to filter after fetching
+    // Use batch query to avoid N+1 problem
+    let filteredCreatives = dbCreatives;
     if (filters.tags && filters.tags.length > 0) {
-      creatives = creatives.filter((c) =>
-        filters.tags!.some((tag) => c.tags.includes(tag))
-      );
-    }
+      // Get all creative IDs first
+      const creativeIds = dbCreatives.map(c => c.id);
 
-    // Sort creatives
-    creatives.sort((a, b) => {
-      let comparison = 0;
+      // Batch fetch all tags in one query
+      const allTags = await db
+        .select()
+        .from(creativeTags)
+        .where(inArray(creativeTags.creativeId, creativeIds));
 
-      switch (sortBy) {
-        case "name":
-          comparison = a.name.localeCompare(b.name);
-          break;
-        case "fileSize":
-          comparison = a.fileSize - b.fileSize;
-          break;
-        case "createdAt":
-        default:
-          comparison =
-            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-          break;
+      // Group tags by creative ID
+      const tagsByCreativeId = new Map<string, string[]>();
+      for (const tag of allTags) {
+        const existing = tagsByCreativeId.get(tag.creativeId) ?? [];
+        existing.push(tag.tag);
+        tagsByCreativeId.set(tag.creativeId, existing);
       }
 
-      return sortOrder === "asc" ? comparison : -comparison;
-    });
+      // Filter creatives that have at least one of the requested tags
+      filteredCreatives = dbCreatives.filter(c => {
+        const creativeTags = tagsByCreativeId.get(c.id) ?? [];
+        return filters.tags!.some(tag => creativeTags.includes(tag));
+      });
+    }
 
-    const total = creatives.length;
+    // Convert to API format
+    const data = await Promise.all(filteredCreatives.map(toApiCreative));
+
     const totalPages = Math.ceil(total / limit);
-    const start = (page - 1) * limit;
-    const data = creatives.slice(start, start + limit);
 
     return {
       data,
@@ -271,67 +344,90 @@ export class CreativeLibraryService {
     id: string,
     input: UpdateCreativeInput
   ): Promise<Creative> {
-    const creative = this.creatives.get(id);
-    if (!creative) {
+    const updates: Partial<{
+      name: string;
+      metadata: Record<string, unknown> | null;
+      status: CreativeStatus;
+      cdnUrl: string | null;
+      thumbnailKey: string | null;
+    }> = {};
+
+    if (input.name !== undefined) {
+      updates.name = input.name;
+    }
+    if (input.metadata !== undefined) {
+      updates.metadata = input.metadata;
+    }
+    if (input.status !== undefined) {
+      updates.status = input.status;
+    }
+    if (input.cdnUrl !== undefined) {
+      updates.cdnUrl = input.cdnUrl ?? null;
+    }
+    if (input.thumbnailKey !== undefined) {
+      updates.thumbnailKey = input.thumbnailKey ?? null;
+    }
+
+    const [updated] = await db
+      .update(creatives)
+      .set(updates)
+      .where(eq(creatives.id, id))
+      .returning();
+
+    if (!updated) {
       throw new Error(`Creative with id "${id}" not found`);
     }
 
-    const updated: Creative = {
-      ...creative,
-      ...(input.name !== undefined && { name: input.name }),
-      ...(input.metadata !== undefined && { metadata: input.metadata }),
-      ...(input.status !== undefined && { status: input.status }),
-      ...(input.cdnUrl !== undefined && { cdnUrl: input.cdnUrl ?? undefined }),
-      ...(input.thumbnailKey !== undefined && {
-        thumbnailKey: input.thumbnailKey ?? undefined,
-      }),
-      updatedAt: new Date().toISOString(),
-    };
-
-    this.creatives.set(id, updated);
-    return updated;
+    return toApiCreative(updated);
   }
 
   /**
    * Delete a creative
    */
   async deleteCreative(id: string): Promise<void> {
-    this.creatives.delete(id);
+    // Tags will be cascade deleted
+    await db.delete(creatives).where(eq(creatives.id, id));
   }
 
   /**
    * Add tags to a creative
    */
   async addTags(id: string, tags: string[]): Promise<void> {
-    const creative = this.creatives.get(id);
-    if (!creative) {
-      throw new Error(`Creative with id "${id}" not found`);
-    }
+    // Get existing tags
+    const existingTags = await db
+      .select({ tag: creativeTags.tag })
+      .from(creativeTags)
+      .where(eq(creativeTags.creativeId, id));
 
-    // Add only unique tags
-    const existingTags = new Set(creative.tags);
-    for (const tag of tags) {
-      existingTags.add(tag);
-    }
+    const existingTagNames = new Set(existingTags.map(t => t.tag));
 
-    creative.tags = Array.from(existingTags);
-    creative.updatedAt = new Date().toISOString();
-    this.creatives.set(id, creative);
+    // Only add new tags
+    const newTags = tags.filter(tag => !existingTagNames.has(tag));
+
+    if (newTags.length > 0) {
+      await db.insert(creativeTags).values(
+        newTags.map(tagName => ({
+          creativeId: id,
+          tag: tagName,
+        }))
+      );
+    }
   }
 
   /**
    * Remove tags from a creative
    */
   async removeTags(id: string, tags: string[]): Promise<void> {
-    const creative = this.creatives.get(id);
-    if (!creative) {
-      throw new Error(`Creative with id "${id}" not found`);
+    if (tags.length > 0) {
+      await db
+        .delete(creativeTags)
+        .where(
+          and(
+            eq(creativeTags.creativeId, id),
+            inArray(creativeTags.tag, tags)
+          )
+        );
     }
-
-    const tagsToRemove = new Set(tags);
-    creative.tags = creative.tags.filter((t) => !tagsToRemove.has(t));
-    creative.updatedAt = new Date().toISOString();
-    this.creatives.set(id, creative);
   }
 
   /**
@@ -342,32 +438,48 @@ export class CreativeLibraryService {
     tags: string[],
     matchAll: boolean = false
   ): Promise<Creative[]> {
-    // First filter by accountId for security
-    const creatives = Array.from(this.creatives.values()).filter(
-      (c) => c.accountId === accountId
+    // Get all creatives for this account
+    const accountCreatives = await db
+      .select()
+      .from(creatives)
+      .where(eq(creatives.accountId, accountId));
+
+    // Get tags for each creative and filter
+    const creativesWithTags = await Promise.all(
+      accountCreatives.map(async (c) => {
+        const creativeTags_ = await db
+          .select({ tag: creativeTags.tag })
+          .from(creativeTags)
+          .where(eq(creativeTags.creativeId, c.id));
+        return { creative: c, tags: creativeTags_.map(t => t.tag) };
+      })
     );
 
-    if (matchAll) {
-      // All tags must be present
-      return creatives.filter((c) => tags.every((tag) => c.tags.includes(tag)));
-    } else {
-      // Any tag matches
-      return creatives.filter((c) => tags.some((tag) => c.tags.includes(tag)));
-    }
+    const filtered = creativesWithTags.filter(({ tags: creativeTags_ }) => {
+      if (matchAll) {
+        return tags.every(tag => creativeTags_.includes(tag));
+      } else {
+        return tags.some(tag => creativeTags_.includes(tag));
+      }
+    });
+
+    return Promise.all(filtered.map(({ creative }) => toApiCreative(creative)));
   }
 
   /**
    * Clear all data (for testing)
    */
-  clear(): void {
-    this.creatives.clear();
+  async clear(): Promise<void> {
+    await db.delete(creativeTags);
+    await db.delete(creatives);
   }
 
   /**
    * Get all creative IDs (for debugging)
    */
-  getAllIds(): string[] {
-    return Array.from(this.creatives.keys());
+  async getAllIds(): Promise<string[]> {
+    const result = await db.select({ id: creatives.id }).from(creatives);
+    return result.map(r => r.id);
   }
 }
 

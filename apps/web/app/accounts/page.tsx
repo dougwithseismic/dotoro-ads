@@ -7,49 +7,79 @@ import { AccountsList } from "./components/AccountsList";
 import { ConnectButton } from "./components/ConnectButton";
 import { DisconnectDialog } from "./components/DisconnectDialog";
 import { SyncHistoryModal } from "./components/SyncHistoryModal";
+import { API_BASE_URL, api } from "@/lib/api-client";
 import styles from "./Accounts.module.css";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+interface AccountsApiResponse {
+  data: AccountApiItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
 
-// Mock data for development
-const MOCK_ACCOUNTS: AdAccount[] = [
-  {
-    id: "acc-1",
-    platform: "reddit",
-    accountId: "t2_abc123",
-    accountName: "Reddit Ads - Main",
-    email: "marketing@mycompany.com",
-    status: "connected",
-    healthStatus: "healthy",
-    lastSyncedAt: new Date(Date.now() - 1000 * 60 * 30), // 30 mins ago
-    createdAt: new Date("2024-11-15"),
-    campaignCount: 12,
-    tokenInfo: {
-      isExpired: false,
-      daysUntilExpiry: 45,
-    },
-    syncHistory: [
-      { id: "s1", timestamp: new Date(Date.now() - 1000 * 60 * 30), status: "success", campaignsSynced: 12 },
-      { id: "s2", timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24), status: "success", campaignsSynced: 11 },
-      { id: "s3", timestamp: new Date(Date.now() - 1000 * 60 * 60 * 48), status: "failed", errorMessage: "API rate limit exceeded" },
-    ],
-  },
-  {
-    id: "acc-2",
-    platform: "reddit",
-    accountId: "t2_xyz789",
-    accountName: "Reddit Ads - Secondary",
-    email: "ads@otherteam.com",
-    status: "token_expired",
-    healthStatus: "warning",
-    createdAt: new Date("2024-10-01"),
-    campaignCount: 5,
-    tokenInfo: {
-      isExpired: true,
-      expiresAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3), // 3 days ago
-    },
-  },
-];
+interface AccountApiItem {
+  id: string;
+  platform: string;
+  accountId: string;
+  accountName: string;
+  email?: string;
+  status: string;
+  healthStatus: string;
+  lastSyncedAt?: string;
+  createdAt: string;
+  campaignCount: number;
+  tokenInfo?: {
+    expiresAt?: string;
+    isExpired: boolean;
+    daysUntilExpiry?: number;
+  };
+  errorDetails?: string;
+  syncHistory?: Array<{
+    id: string;
+    timestamp: string;
+    status: "success" | "failed";
+    campaignsSynced?: number;
+    errorMessage?: string;
+  }>;
+}
+
+/**
+ * Derive healthStatus from account status
+ */
+function deriveHealthStatus(status: string): AdAccount["healthStatus"] {
+  if (status === "active") return "healthy";
+  if (status === "error") return "error";
+  return "warning";
+}
+
+/**
+ * Transform API response dates to Date objects
+ */
+function transformAccount(account: AccountApiItem): AdAccount {
+  return {
+    ...account,
+    platform: account.platform as AdAccount["platform"],
+    status: account.status as AdAccount["status"],
+    healthStatus: deriveHealthStatus(account.status),
+    lastSyncedAt: account.lastSyncedAt
+      ? new Date(account.lastSyncedAt)
+      : undefined,
+    createdAt: new Date(account.createdAt),
+    tokenInfo: account.tokenInfo
+      ? {
+          ...account.tokenInfo,
+          expiresAt: account.tokenInfo.expiresAt
+            ? new Date(account.tokenInfo.expiresAt)
+            : undefined,
+        }
+      : undefined,
+    syncHistory: account.syncHistory?.map((entry) => ({
+      ...entry,
+      timestamp: new Date(entry.timestamp),
+    })),
+  };
+}
 
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<AdAccount[]>([]);
@@ -82,23 +112,9 @@ export default function AccountsPage() {
       setLoading(true);
       setError(null);
 
-      // Use mock data for development
-      // In production, this would fetch from the API
-      await new Promise((resolve) => setTimeout(resolve, 500)); // Simulate network delay
-      setAccounts(MOCK_ACCOUNTS);
-
-      // Uncomment below for real API integration
-      // const response = await fetch(`${API_BASE}/api/v1/accounts`);
-      // if (!response.ok) {
-      //   throw new Error("Failed to fetch accounts");
-      // }
-      // const data = await response.json();
-      // const accountsWithDates = data.data.map((acc: AdAccount) => ({
-      //   ...acc,
-      //   lastSyncedAt: acc.lastSyncedAt ? new Date(acc.lastSyncedAt) : undefined,
-      //   createdAt: new Date(acc.createdAt),
-      // }));
-      // setAccounts(accountsWithDates);
+      const response = await api.get<AccountsApiResponse>("/api/v1/accounts");
+      const transformedAccounts = response.data.map(transformAccount);
+      setAccounts(transformedAccounts);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -116,15 +132,12 @@ export default function AccountsPage() {
 
     try {
       setConnectingPlatform(platform);
-      // Simulate OAuth flow delay
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      // In production, this would redirect to OAuth flow
-      // window.location.href = `${API_BASE}${config.oauthUrl}`;
+      // Redirect to OAuth flow
+      window.location.href = `${API_BASE_URL}${config.oauthUrl}`;
     } catch (err) {
       setError(
         err instanceof Error ? err.message : `Failed to connect to ${config.name}`
       );
-    } finally {
       setConnectingPlatform(null);
     }
   };
@@ -147,14 +160,7 @@ export default function AccountsPage() {
     try {
       setDisconnectDialog((prev) => ({ ...prev, isLoading: true }));
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // In production:
-      // const response = await fetch(`${API_BASE}/api/v1/accounts/${disconnectDialog.accountId}`, {
-      //   method: "DELETE",
-      // });
-      // if (!response.ok) throw new Error("Failed to disconnect account");
+      await api.delete(`/api/v1/accounts/${disconnectDialog.accountId}`);
 
       setAccounts((prev) =>
         prev.filter((acc) => acc.id !== disconnectDialog.accountId)
@@ -175,14 +181,7 @@ export default function AccountsPage() {
 
   const handleRefresh = async (id: string) => {
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // In production:
-      // const response = await fetch(`${API_BASE}/api/v1/accounts/${id}/sync`, {
-      //   method: "POST",
-      // });
-      // if (!response.ok) throw new Error("Failed to refresh account");
+      await api.post(`/api/v1/accounts/${id}/sync`);
 
       setAccounts((prev) =>
         prev.map((acc) =>

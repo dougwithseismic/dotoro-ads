@@ -33,7 +33,7 @@ export function TopBar({ breadcrumbs = [], onMobileMenuToggle }: TopBarProps) {
 
   return (
     <header
-      className="flex items-center justify-between h-16 px-4 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700"
+      className="flex items-center justify-between h-14 px-4 bg-zinc-950 border-b border-zinc-800/50"
       role="banner"
     >
       {/* Left side: Mobile menu + Breadcrumbs */}
@@ -41,10 +41,10 @@ export function TopBar({ breadcrumbs = [], onMobileMenuToggle }: TopBarProps) {
         {/* Mobile menu button */}
         <button
           onClick={onMobileMenuToggle}
-          className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 lg:hidden"
+          className="p-2 rounded-md hover:bg-zinc-800 lg:hidden transition-colors"
           aria-label="Menu"
         >
-          <Menu className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+          <Menu className="w-5 h-5 text-zinc-400" />
         </button>
 
         {/* Breadcrumbs */}
@@ -54,14 +54,14 @@ export function TopBar({ breadcrumbs = [], onMobileMenuToggle }: TopBarProps) {
               {breadcrumbs.map((crumb, index) => (
                 <li key={crumb.href} className="flex items-center gap-2">
                   {index > 0 && (
-                    <span className="text-gray-400 dark:text-gray-500">/</span>
+                    <span className="text-zinc-600">/</span>
                   )}
                   <Link
                     href={crumb.href}
                     className={`
                       ${index === breadcrumbs.length - 1
-                        ? "text-gray-900 dark:text-white font-medium"
-                        : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                        ? "text-zinc-100 font-medium"
+                        : "text-zinc-500 hover:text-zinc-300 transition-colors"
                       }
                     `}
                     aria-current={index === breadcrumbs.length - 1 ? "page" : undefined}
@@ -76,50 +76,50 @@ export function TopBar({ breadcrumbs = [], onMobileMenuToggle }: TopBarProps) {
       </div>
 
       {/* Right side: Theme toggle + Account switcher */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
         <ThemeToggle />
 
         {/* Account Switcher */}
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setAccountDropdownOpen(!accountDropdownOpen)}
-            className="flex items-center gap-2 px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-zinc-800 transition-colors"
             aria-label="Account"
             aria-expanded={accountDropdownOpen}
             aria-haspopup="true"
           >
-            <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center">
-              <User className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+            <div className="w-7 h-7 bg-zinc-800 rounded-full flex items-center justify-center ring-1 ring-zinc-700">
+              <User className="w-3.5 h-3.5 text-zinc-400" />
             </div>
-            <ChevronDown className={`w-4 h-4 text-gray-600 dark:text-gray-300 transition-transform ${accountDropdownOpen ? "rotate-180" : ""}`} />
+            <ChevronDown className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${accountDropdownOpen ? "rotate-180" : ""}`} />
           </button>
 
           {/* Dropdown Menu */}
           {accountDropdownOpen && (
             <div
-              className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg py-1 z-50"
+              className="absolute right-0 top-full mt-2 w-56 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl py-1 z-50"
               role="menu"
               aria-orientation="vertical"
             >
-              <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-                <p className="text-sm font-medium text-gray-900 dark:text-white">
+              <div className="px-4 py-3 border-b border-zinc-800">
+                <p className="text-sm font-medium text-zinc-100">
                   Current Account
                 </p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+                <p className="text-sm text-zinc-500">
                   user@example.com
                 </p>
               </div>
 
               <div className="py-1">
                 <button
-                  className="flex items-center gap-3 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="flex items-center gap-3 w-full px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-colors"
                   role="menuitem"
                 >
                   <Settings className="w-4 h-4" />
                   Settings
                 </button>
                 <button
-                  className="flex items-center gap-3 w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="flex items-center gap-3 w-full px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-colors"
                   role="menuitem"
                 >
                   <LogOut className="w-4 h-4" />

@@ -55,39 +55,42 @@ export function Navigation({ collapsed = false }: NavigationProps) {
         <Link
           href={item.href}
           className={`
-            flex items-center gap-3 px-3 py-2 rounded-md transition-colors
+            flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors
             ${active
-              ? "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white font-medium"
-              : "text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white"
+              ? "bg-zinc-800 text-zinc-100"
+              : "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-200"
             }
           `}
           aria-current={active ? "page" : undefined}
           title={collapsed ? item.label : undefined}
         >
-          <Icon className="w-5 h-5 shrink-0" />
+          <Icon className="w-4 h-4 shrink-0" />
           {!collapsed && <span>{item.label}</span>}
         </Link>
       </li>
     );
   };
 
-  const renderSection = (items: NavItem[]) => (
-    <ul className="space-y-1">
-      {items.map(renderNavItem)}
-    </ul>
+  const renderSection = (items: NavItem[], label?: string) => (
+    <div className="space-y-1">
+      {label && !collapsed && (
+        <p className="px-3 py-1 text-xs font-medium text-zinc-500 uppercase tracking-wider">
+          {label}
+        </p>
+      )}
+      <ul className="space-y-0.5">
+        {items.map(renderNavItem)}
+      </ul>
+    </div>
   );
 
   return (
     <nav className="flex flex-col gap-6" aria-label="Main navigation">
       {renderSection(mainNavItems)}
 
-      <div className="border-t border-gray-200 dark:border-gray-700" />
+      {renderSection(dataNavItems, "Data")}
 
-      {renderSection(dataNavItems)}
-
-      <div className="border-t border-gray-200 dark:border-gray-700" />
-
-      {renderSection(managementNavItems)}
+      {renderSection(managementNavItems, "Management")}
     </nav>
   );
 }

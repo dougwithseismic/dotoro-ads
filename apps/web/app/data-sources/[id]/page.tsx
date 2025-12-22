@@ -7,9 +7,8 @@ import { DataPreviewEnhanced } from "../components/DataPreviewEnhanced";
 import { ColumnMapperEnhanced } from "../components/ColumnMapperEnhanced";
 import { ValidationPanel } from "../components/ValidationPanel";
 import type { DataSourceDetail, ColumnMapping, ValidationError } from "../types";
+import { api, ApiError } from "@/lib/api-client";
 import styles from "./DataSourceDetail.module.css";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 type TabId = "preview" | "mapping" | "validation";
 
@@ -23,38 +22,6 @@ const TABS: Tab[] = [
   { id: "mapping", label: "Mapping" },
   { id: "validation", label: "Validation" },
 ];
-
-// Mock data for development
-const createMockDataSource = (id: string): DataSourceDetail => ({
-  id,
-  name: "Product Catalog",
-  type: "csv",
-  rowCount: 1000,
-  createdAt: new Date("2024-01-15"),
-  updatedAt: new Date("2024-01-20"),
-  status: "ready",
-  columns: ["product_name", "price", "category", "description"],
-  columnMappings: [
-    { sourceColumn: "product_name", normalizedName: "name", dataType: "string" },
-    { sourceColumn: "price", normalizedName: "price", dataType: "currency" },
-    { sourceColumn: "category", normalizedName: "category", dataType: "string" },
-    { sourceColumn: "description", normalizedName: "description", dataType: "string" },
-  ],
-  data: Array.from({ length: 100 }, (_, i) => {
-    const categories = ["Electronics", "Clothing", "Home", "Sports"];
-    return {
-      product_name: `Product ${i + 1}`,
-      price: (Math.random() * 100).toFixed(2),
-      category: categories[i % 4] as string,
-      description: `Description for product ${i + 1}`,
-    };
-  }),
-  validationErrors: [
-    { column: "price", row: 5, message: "Invalid currency format", severity: "error" },
-    { column: "price", row: 15, message: "Invalid currency format", severity: "error" },
-    { column: "category", row: 12, message: "Unknown category", severity: "warning" },
-  ],
-});
 
 export default function DataSourceDetailPage() {
   const params = useParams();
@@ -81,25 +48,14 @@ export default function DataSourceDetailPage() {
       setLoading(true);
       setError(null);
 
-      // Use mock data for development
-      if (process.env.NODE_ENV === "development") {
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        setDataSource(createMockDataSource(id));
-        return;
-      }
-
-      const response = await fetch(`${API_BASE}/api/v1/data-sources/${id}`);
-      if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error("Data source not found");
-        }
-        throw new Error("Failed to load data source");
-      }
-
-      const data: DataSourceDetail = await response.json();
+      const data = await api.get<DataSourceDetail>(`/api/v1/data-sources/${id}`);
       setDataSource(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      if (err instanceof ApiError && err.status === 404) {
+        setError("Data source not found");
+      } else {
+        setError(err instanceof Error ? err.message : "An error occurred");
+      }
     } finally {
       setLoading(false);
     }
@@ -133,19 +89,10 @@ export default function DataSourceDetailPage() {
       setSaving(true);
       setError(null);
 
-      const response = await fetch(`${API_BASE}/api/v1/data-sources/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          columnMappings: dataSource.columnMappings,
-        }),
+      const updated = await api.put<DataSourceDetail>(`/api/v1/data-sources/${id}`, {
+        columnMappings: dataSource.columnMappings,
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to save changes");
-      }
-
-      const updated = await response.json();
       setDataSource(updated);
       setHasChanges(false);
     } catch (err) {
@@ -173,16 +120,7 @@ export default function DataSourceDetailPage() {
     }
 
     try {
-      const response = await fetch(`${API_BASE}/api/v1/data-sources/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: editedName }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to update name");
-      }
-
+      await api.patch(`/api/v1/data-sources/${id}`, { name: editedName });
       setDataSource({ ...dataSource, name: editedName });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update name");
@@ -204,15 +142,7 @@ export default function DataSourceDetailPage() {
 
     try {
       setDeleting(true);
-
-      const response = await fetch(`${API_BASE}/api/v1/data-sources/${id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to delete data source");
-      }
-
+      await api.delete(`/api/v1/data-sources/${id}`);
       router.push("/data-sources");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete");

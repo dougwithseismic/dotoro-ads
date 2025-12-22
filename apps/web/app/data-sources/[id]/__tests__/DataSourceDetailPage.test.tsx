@@ -78,6 +78,7 @@ describe("DataSourceDetailPage", () => {
     beforeEach(() => {
       mockFetch.mockResolvedValue({
         ok: true,
+        headers: new Headers({ "content-type": "application/json" }),
         json: () => Promise.resolve(createMockDataSource()),
       });
     });
@@ -175,10 +176,12 @@ describe("DataSourceDetailPage", () => {
       mockFetch
         .mockResolvedValueOnce({
           ok: true,
+          headers: new Headers({ "content-type": "application/json" }),
           json: () => Promise.resolve(createMockDataSource()),
         })
         .mockResolvedValueOnce({
           ok: true,
+          headers: new Headers({ "content-type": "application/json" }),
           json: () => Promise.resolve({}),
         });
 
@@ -235,6 +238,7 @@ describe("DataSourceDetailPage", () => {
     beforeEach(() => {
       mockFetch.mockResolvedValue({
         ok: true,
+        headers: new Headers({ "content-type": "application/json" }),
         json: () => Promise.resolve(createMockDataSource()),
       });
     });
@@ -318,6 +322,7 @@ describe("DataSourceDetailPage", () => {
     beforeEach(() => {
       mockFetch.mockResolvedValue({
         ok: true,
+        headers: new Headers({ "content-type": "application/json" }),
         json: () => Promise.resolve(createMockDataSource()),
       });
     });
@@ -412,6 +417,7 @@ describe("DataSourceDetailPage", () => {
     beforeEach(() => {
       mockFetch.mockResolvedValue({
         ok: true,
+        headers: new Headers({ "content-type": "application/json" }),
         json: () => Promise.resolve(createMockDataSource()),
       });
     });
@@ -451,6 +457,7 @@ describe("DataSourceDetailPage", () => {
       const user = userEvent.setup();
       mockFetch.mockResolvedValue({
         ok: true,
+        headers: new Headers({ "content-type": "application/json" }),
         json: () =>
           Promise.resolve(
             createMockDataSource({
@@ -481,6 +488,7 @@ describe("DataSourceDetailPage", () => {
       const user = userEvent.setup();
       mockFetch.mockResolvedValue({
         ok: true,
+        headers: new Headers({ "content-type": "application/json" }),
         json: () =>
           Promise.resolve(
             createMockDataSource({
@@ -536,6 +544,7 @@ describe("DataSourceDetailPage", () => {
     beforeEach(() => {
       mockFetch.mockResolvedValue({
         ok: true,
+        headers: new Headers({ "content-type": "application/json" }),
         json: () => Promise.resolve(createMockDataSource()),
       });
     });
@@ -558,6 +567,7 @@ describe("DataSourceDetailPage", () => {
       const user = userEvent.setup();
       mockFetch.mockResolvedValue({
         ok: true,
+        headers: new Headers({ "content-type": "application/json" }),
         json: () =>
           Promise.resolve(
             createMockDataSource({
@@ -612,6 +622,7 @@ describe("DataSourceDetailPage", () => {
       const user = userEvent.setup();
       mockFetch.mockResolvedValue({
         ok: true,
+        headers: new Headers({ "content-type": "application/json" }),
         json: () =>
           Promise.resolve(
             createMockDataSource({
@@ -662,6 +673,7 @@ describe("DataSourceDetailPage", () => {
     beforeEach(() => {
       mockFetch.mockResolvedValue({
         ok: true,
+        headers: new Headers({ "content-type": "application/json" }),
         json: () => Promise.resolve(createMockDataSource()),
       });
     });
@@ -719,12 +731,14 @@ describe("DataSourceDetailPage", () => {
       mockFetch.mockResolvedValue({
         ok: false,
         status: 500,
+        statusText: "Internal Server Error",
+        json: () => Promise.resolve(null),
       });
 
       render(<DataSourceDetailPage />);
 
       await waitFor(() => {
-        expect(screen.getByText(/failed to load/i)).toBeInTheDocument();
+        expect(screen.getByText(/API request failed/i)).toBeInTheDocument();
       });
     });
 
@@ -732,6 +746,8 @@ describe("DataSourceDetailPage", () => {
       mockFetch.mockResolvedValue({
         ok: false,
         status: 404,
+        statusText: "Not Found",
+        json: () => Promise.resolve(null),
       });
 
       render(<DataSourceDetailPage />);
@@ -743,9 +759,15 @@ describe("DataSourceDetailPage", () => {
 
     it("allows retry after error", async () => {
       mockFetch
-        .mockResolvedValueOnce({ ok: false, status: 500 })
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 500,
+          statusText: "Internal Server Error",
+          json: () => Promise.resolve(null),
+        })
         .mockResolvedValueOnce({
           ok: true,
+          headers: new Headers({ "content-type": "application/json" }),
           json: () => Promise.resolve(createMockDataSource()),
         });
 
@@ -753,7 +775,7 @@ describe("DataSourceDetailPage", () => {
       render(<DataSourceDetailPage />);
 
       await waitFor(() => {
-        expect(screen.getByText(/failed to load/i)).toBeInTheDocument();
+        expect(screen.getByText(/API request failed/i)).toBeInTheDocument();
       });
 
       const retryButton = screen.getByRole("button", { name: /try again/i });

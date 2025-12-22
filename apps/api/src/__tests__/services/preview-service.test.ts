@@ -84,8 +84,8 @@ describe("PreviewService", () => {
   });
 
   describe("generatePreview", () => {
-    it("should generate preview with correct counts", () => {
-      const result = service.generatePreview({
+    it("should generate preview with correct counts", async () => {
+      const result = await service.generatePreview({
         template_id: "tmpl-1",
         data_source_id: "ds-1",
         rules: [],
@@ -98,8 +98,8 @@ describe("PreviewService", () => {
       expect(result.preview).toHaveLength(2);
     });
 
-    it("should include metadata", () => {
-      const result = service.generatePreview({
+    it("should include metadata", async () => {
+      const result = await service.generatePreview({
         template_id: "tmpl-1",
         data_source_id: "ds-1",
         rules: [],
@@ -111,18 +111,18 @@ describe("PreviewService", () => {
       expect(result.metadata.generated_at).toBeDefined();
     });
 
-    it("should throw error for non-existent template", () => {
-      expect(() =>
+    it("should throw error for non-existent template", async () => {
+      await expect(
         service.generatePreview({
           template_id: "non-existent",
           data_source_id: "ds-1",
           rules: [],
           limit: 20,
         })
-      ).toThrow(PreviewError);
+      ).rejects.toThrow(PreviewError);
 
       try {
-        service.generatePreview({
+        await service.generatePreview({
           template_id: "non-existent",
           data_source_id: "ds-1",
           rules: [],
@@ -134,18 +134,18 @@ describe("PreviewService", () => {
       }
     });
 
-    it("should throw error for non-existent data source", () => {
-      expect(() =>
+    it("should throw error for non-existent data source", async () => {
+      await expect(
         service.generatePreview({
           template_id: "tmpl-1",
           data_source_id: "non-existent",
           rules: [],
           limit: 20,
         })
-      ).toThrow(PreviewError);
+      ).rejects.toThrow(PreviewError);
 
       try {
-        service.generatePreview({
+        await service.generatePreview({
           template_id: "tmpl-1",
           data_source_id: "non-existent",
           rules: [],
@@ -157,14 +157,14 @@ describe("PreviewService", () => {
       }
     });
 
-    it("should handle empty data source", () => {
+    it("should handle empty data source", async () => {
       const depsWithEmptyData = {
         ...mockDeps,
         getDataRows: () => [],
       };
       const serviceWithEmptyData = new PreviewService(depsWithEmptyData);
 
-      const result = serviceWithEmptyData.generatePreview({
+      const result = await serviceWithEmptyData.generatePreview({
         template_id: "tmpl-1",
         data_source_id: "ds-1",
         rules: [],
@@ -176,8 +176,8 @@ describe("PreviewService", () => {
       expect(result.warnings).toContain("Data source contains no rows");
     });
 
-    it("should respect limit parameter", () => {
-      const result = service.generatePreview({
+    it("should respect limit parameter", async () => {
+      const result = await service.generatePreview({
         template_id: "tmpl-1",
         data_source_id: "ds-1",
         rules: [],
@@ -190,8 +190,8 @@ describe("PreviewService", () => {
       expect(result.campaign_count).toBe(2);
     });
 
-    it("should add warning for non-existent rule IDs", () => {
-      const result = service.generatePreview({
+    it("should add warning for non-existent rule IDs", async () => {
+      const result = await service.generatePreview({
         template_id: "tmpl-1",
         data_source_id: "ds-1",
         rules: ["non-existent-rule"],
@@ -204,8 +204,8 @@ describe("PreviewService", () => {
       expect(result.warnings).toContain("Rule 'non-existent-rule' not found");
     });
 
-    it("should add warnings for multiple non-existent rule IDs", () => {
-      const result = service.generatePreview({
+    it("should add warnings for multiple non-existent rule IDs", async () => {
+      const result = await service.generatePreview({
         template_id: "tmpl-1",
         data_source_id: "ds-1",
         rules: ["missing-rule-1", "missing-rule-2", "rule-1"],
@@ -221,7 +221,7 @@ describe("PreviewService", () => {
       expect(result.warnings).not.toContain("Rule 'rule-1' not found");
     });
 
-    it("should ignore disabled rules", () => {
+    it("should ignore disabled rules", async () => {
       // Add a disabled rule
       const depsWithDisabledRule = {
         ...mockDeps,
@@ -247,7 +247,7 @@ describe("PreviewService", () => {
       };
       const serviceWithDisabledRule = new PreviewService(depsWithDisabledRule);
 
-      const result = serviceWithDisabledRule.generatePreview({
+      const result = await serviceWithDisabledRule.generatePreview({
         template_id: "tmpl-1",
         data_source_id: "ds-1",
         rules: ["disabled-rule"],
