@@ -933,6 +933,258 @@ Required Fields (Ad):
 
 ---
 
+## Current Focus: Campaign Generation Wizard UI
+
+**Date Added:** 2025-12-22
+**Status:** Ready for Development
+**Priority:** HIGH - Core user journey missing from UI
+
+### Context
+
+The dashboard links to `/campaigns/generate` but the page doesn't exist. All backend pieces are complete - we need the wizard UI that guides users through:
+1. Select Template
+2. Select Data Source
+3. Configure Rules (optional)
+4. Preview & Generate
+
+### What's Already Built (Backend Ready)
+
+**APIs Available:**
+- `POST /api/v1/campaigns/preview` - Preview generation with counts and sample campaigns
+  - Request: `{ template_id, data_source_id, rules: string[], limit }`
+  - Response: `{ campaign_count, ad_group_count, ad_count, preview[], warnings[], metadata }`
+- `POST /api/v1/campaigns/generate` - Execute campaign generation
+  - Request: `{ templateId, dataSourceId, ruleIds?: string[] }`
+  - Response: `{ generatedCount, campaigns[], warnings[] }`
+- `GET /api/v1/templates` - List templates (paginated)
+- `GET /api/v1/data-sources` - List data sources (paginated)
+- `GET /api/v1/rules` - List rules (paginated)
+
+**Core Engine:**
+- `GenerationOrchestrator.generate()` - Full campaign generation
+- `GenerationOrchestrator.preview()` - Preview with statistics
+- `GenerationOrchestrator.estimateCounts()` - Quick count estimation
+
+### File Structure to Create
+
+```
+apps/web/app/campaigns/generate/
+  page.tsx                    # Next.js page with "use client"
+  types.ts                    # TypeScript interfaces
+  GenerateWizard.module.css   # CSS Module styles
+  components/
+    GenerateWizard.tsx        # Main wizard container with step state
+    StepIndicator.tsx         # Visual 4-step progress indicator
+    TemplateSelector.tsx      # Step 1: Template selection grid
+    DataSourceSelector.tsx    # Step 2: Data source selection
+    RuleSelector.tsx          # Step 3: Optional multi-select rules
+    GenerationPreview.tsx     # Step 4: Preview + generate button
+    GenerationStats.tsx       # Campaign/AdGroup/Ad count display
+    PreviewCampaignCard.tsx   # Individual campaign preview card
+  hooks/
+    useGenerateWizard.ts      # useReducer state management
+```
+
+### Implementation Tasks
+
+#### Phase 1: Wizard Structure (HIGH - Foundation)
+
+- [ ] Create `apps/web/app/campaigns/generate/page.tsx`
+  - "use client" directive
+  - Import and render GenerateWizard component
+  - Page metadata: title "Generate Campaigns"
+
+- [ ] Create `GenerateWizard.tsx` - Main wizard container
+  - Track step: `'template' | 'data-source' | 'rules' | 'preview'`
+  - Store selections: `{ templateId, dataSourceId, ruleIds[] }`
+  - Navigation: Back/Next buttons with validation gates
+  - Render step content based on current step
+
+- [ ] Create `StepIndicator.tsx` - Progress display
+  - 4 numbered steps with labels
+  - States: completed (checkmark), current (highlighted), upcoming (muted)
+  - Clickable completed steps for back navigation
+  - Labels: "Select Template", "Select Data Source", "Configure Rules", "Preview & Generate"
+  - Accessible: `role="navigation"`, `aria-current="step"`
+
+- [ ] Create `GenerateWizard.module.css`
+  - Page layout (max-width: 1400px, padding: 32px)
+  - Step indicator + content layout
+  - Navigation buttons bar
+  - Loading/error state styles
+  - Responsive (768px breakpoint)
+
+#### Phase 2: Selection Steps (HIGH - Core UX)
+
+- [ ] Create `TemplateSelector.tsx` (Step 1)
+  - Fetch via `api.get<TemplatesResponse>('/api/v1/templates')`
+  - Grid of selectable cards: name, platform badge, variable count
+  - Highlight selected with border/background
+  - Loading: skeleton cards
+  - Empty: "No templates found. Create one first." + link to `/templates/new`
+  - Error: retry button
+
+- [ ] Create `DataSourceSelector.tsx` (Step 2)
+  - Fetch via `api.get<DataSourcesResponse>('/api/v1/data-sources')`
+  - Include virtual sources from transforms (type: 'transform')
+  - Cards: name, row count, type badge (CSV/Transform)
+  - Highlight selected
+  - Loading/empty/error states
+
+- [ ] Create `RuleSelector.tsx` (Step 3 - Optional)
+  - Fetch via `api.get<RulesResponse>('/api/v1/rules')`
+  - Multi-select checkboxes (not exclusive)
+  - Show: name, condition count, action count, enabled status
+  - Only show enabled rules by default
+  - Allow 0 or more selections
+  - "Skip" or auto-advance if no rules exist
+  - Empty: "No rules configured. You can skip this step."
+
+#### Phase 3: Preview and Generation (HIGH - Core Feature)
+
+- [ ] Create `GenerationPreview.tsx` (Step 4)
+  - Call preview API on mount:
+    ```typescript
+    api.post('/api/v1/campaigns/preview', {
+      template_id: templateId,
+      data_source_id: dataSourceId,
+      rules: ruleIds,
+      limit: 10
+    })
+    ```
+  - Display stats via GenerationStats component
+  - Show sample campaigns via PreviewCampaignCard
+  - Display warnings (yellow/orange styling)
+  - Display validation errors (red, block generation)
+  - "Generate Campaigns" button with loading state
+  - Success: count + link to `/campaigns`
+  - Error: message + retry
+
+- [ ] Create `GenerationStats.tsx`
+  - 3-column grid: Campaigns, Ad Groups, Ads
+  - Monospace numbers (font-geist-mono)
+  - Metadata: template name, data source name
+  - Show "rows processed" vs "rows skipped"
+
+- [ ] Create `PreviewCampaignCard.tsx`
+  - Display: name, platform, objective
+  - Ad groups count and sample names
+  - Ads count per ad group
+  - Expandable to show ad headlines/descriptions
+  - Budget display if present
+  - Tags/groups if rules applied them
+
+#### Phase 4: State Management (MEDIUM - Engineering Quality)
+
+- [ ] Create `hooks/useGenerateWizard.ts`
+  - useReducer for predictable state updates
+  - Actions: SET_TEMPLATE, SET_DATA_SOURCE, TOGGLE_RULE, SET_STEP, START_GENERATE, COMPLETE_GENERATE
+  - Expose: state, setTemplate, setDataSource, toggleRule, nextStep, prevStep, generate
+  - canProceed() validation helper
+  - Async generation with loading state
+
+- [ ] Create `types.ts`
+  - Template, DataSource, Rule interfaces
+  - PreviewCampaign, PreviewAdGroup, PreviewAd interfaces
+  - WizardState interface
+  - API response types: TemplatesResponse, DataSourcesResponse, RulesResponse, PreviewResponse, GenerateResponse
+  - WizardStep type union
+
+#### Phase 5: Polish and Accessibility (MEDIUM - Production Quality)
+
+- [ ] Loading States
+  - Skeleton loaders for cards during fetch
+  - "Generating..." overlay during generation
+  - Spinner in buttons during async
+  - Progress for preview API call
+
+- [ ] Error Handling
+  - API error display with retry buttons
+  - Inline validation ("Please select a template")
+  - Network error with offline detection
+  - Generation failure with actionable message
+
+- [ ] Accessibility
+  - Keyboard: Tab through cards, Enter to select
+  - Focus: First card on step change
+  - Screen reader: step change announcements
+  - ARIA: `aria-selected`, `aria-describedby` for cards
+  - Skip links for long lists
+
+- [ ] Responsive
+  - Stack step indicator vertically on mobile
+  - Single-column cards on mobile (<768px)
+  - Bottom-fixed navigation on mobile
+  - Touch targets min 44px
+
+#### Phase 6: Testing (MEDIUM - Quality Assurance)
+
+- [ ] Unit tests for `useGenerateWizard` hook
+  - State transitions
+  - Validation logic
+  - canProceed() edge cases
+
+- [ ] Component tests
+  - TemplateSelector selection behavior
+  - DataSourceSelector row count display
+  - RuleSelector multi-select
+  - GenerationPreview API integration
+
+- [ ] Integration test
+  - Full wizard flow end-to-end
+  - Template -> DataSource -> Rules -> Preview -> Generate
+
+- [ ] Accessibility audit with axe-core
+
+### Not In Scope (This Feature)
+
+- **Scheduling generation** - Users can manually time it
+- **Batch generation with multiple templates** - Single template proves value first
+- **Real-time preview updates** - Preview on demand is sufficient
+- **Saving wizard progress/drafts** - Wizard is short enough for one session
+- **Platform-specific preview formatting** - Generic preview for MVP
+- **Direct sync from wizard** - Sync is separate workflow from `/campaigns`
+- **Account selection in wizard** - Account management is separate concern
+
+### Success Criteria
+
+- [ ] User navigates to `/campaigns/generate` from sidebar or Quick Actions
+- [ ] All 4 steps render with proper API data
+- [ ] Template + data source required before preview
+- [ ] Rules optional (0 or more)
+- [ ] Preview shows accurate counts from backend
+- [ ] Generate creates campaigns and shows success with count
+- [ ] Keyboard navigation works end-to-end
+- [ ] Screen reader announces step changes
+- [ ] Loading states for all API calls
+- [ ] Error states with retry options
+- [ ] Mobile layout works to 375px
+- [ ] Test files for all components
+
+### Time Estimates
+
+| Task | Hours |
+|------|-------|
+| Step 1: Project setup | 0.5 |
+| Step 2: Wizard container + StepIndicator | 2-3 |
+| Step 3: TemplateSelector | 2 |
+| Step 4: DataSourceSelector | 2 |
+| Step 5: RuleSelector | 1.5 |
+| Step 6: Preview + Generate | 3 |
+| Step 7: Polish (loading, a11y, responsive) | 2-3 |
+| Step 8: Testing | 2-3 |
+| **Total** | **15-18 hours** |
+
+### Example Use Cases
+
+1. **Basic generation**: User selects "Summer Sale Reddit" template, "Products Q4.csv" data source, skips rules, previews 150 campaigns, clicks Generate
+2. **With rules**: User selects template, data source, checks "Exclude low stock" and "Premium pricing" rules, sees filtered preview of 42 campaigns
+3. **Empty state handling**: User has no templates, sees "Create a template first" with link
+4. **Error recovery**: Preview API fails, user sees error with "Retry" button
+5. **Large dataset**: User selects data source with 10,000 rows, preview shows "10,000 campaigns will be generated"
+
+---
+
 ## Next Steps
 
 ### Phase 2: Google Ads Integration (Weeks 5-7)

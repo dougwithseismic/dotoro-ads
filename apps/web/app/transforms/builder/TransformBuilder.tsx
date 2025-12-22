@@ -10,6 +10,7 @@ import {
 } from "./components";
 import styles from "./TransformBuilder.module.css";
 import { useDataSources } from "../hooks/useDataSources";
+import { useDataSourceColumns } from "../hooks/useDataSourceColumns";
 import { useCreateTransform } from "../hooks/useCreateTransform";
 import { useUpdateTransform } from "../hooks/useUpdateTransform";
 import { usePreviewTransform } from "../hooks/usePreviewTransform";
@@ -17,7 +18,6 @@ import type {
   Transform,
   TransformConfig,
   AggregationConfig,
-  DataSource,
 } from "../types";
 
 interface TransformBuilderProps {
@@ -81,14 +81,10 @@ export default function TransformBuilder({
   const [error, setError] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
 
-  // Get selected data source with columns
-  const selectedDataSource = useMemo<DataSource | undefined>(() => {
-    return dataSources.find((ds) => ds.id === transform.sourceDataSourceId);
-  }, [dataSources, transform.sourceDataSourceId]);
-
-  const columns = useMemo<string[]>(() => {
-    return selectedDataSource?.columns || [];
-  }, [selectedDataSource]);
+  // Fetch columns when a data source is selected
+  const { columns, loading: loadingColumns } = useDataSourceColumns(
+    transform.sourceDataSourceId || undefined
+  );
 
   // Fetch preview when config changes
   useEffect(() => {
@@ -356,6 +352,7 @@ export default function TransformBuilder({
               columns={columns}
               selectedFields={groupByArray}
               onChange={handleGroupByChange}
+              loading={loadingColumns}
             />
           </section>
 

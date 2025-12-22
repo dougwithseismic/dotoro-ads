@@ -7,12 +7,14 @@ interface GroupByPickerProps {
   columns: string[];
   selectedFields: string[];
   onChange: (fields: string[]) => void;
+  loading?: boolean;
 }
 
 export function GroupByPicker({
   columns,
   selectedFields,
   onChange,
+  loading = false,
 }: GroupByPickerProps) {
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -157,7 +159,9 @@ export function GroupByPicker({
           onChange={(e) => setSearchTerm(e.target.value)}
         />
 
-        {availableColumns.length > 0 ? (
+        {loading ? (
+          <p className={styles.noColumns}>Loading fields...</p>
+        ) : availableColumns.length > 0 ? (
           <div className={styles.availableFields}>
             {availableColumns.slice(0, 10).map((col) => (
               <button

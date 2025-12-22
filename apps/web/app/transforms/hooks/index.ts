@@ -6,3 +6,4 @@ export { useDeleteTransform } from "./useDeleteTransform";
 export { usePreviewTransform } from "./usePreviewTransform";
 export { useExecuteTransform } from "./useExecuteTransform";
 export { useDataSources, useDataSource } from "./useDataSources";
+export { useDataSourceColumns } from "./useDataSourceColumns";
