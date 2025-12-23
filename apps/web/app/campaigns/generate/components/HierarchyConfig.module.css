@@ -1,0 +1,497 @@
+/* HierarchyConfig Component Styles */
+
+.container {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* Section styling */
+.section {
+  margin-bottom: 32px;
+}
+
+.sectionTitle {
+  font-family: var(--font-geist-sans);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0 0 12px;
+}
+
+.sectionDescription {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  color: rgba(var(--gray-rgb), 0.6);
+  margin: 0 0 16px;
+}
+
+/* Input field with autocomplete */
+.inputWrapper {
+  position: relative;
+  width: 100%;
+}
+
+.input {
+  width: 100%;
+  padding: 12px 16px;
+  font-family: var(--font-geist-mono);
+  font-size: 14px;
+  border: 2px solid rgba(var(--gray-rgb), 0.2);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--foreground);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.input::placeholder {
+  color: rgba(var(--gray-rgb), 0.4);
+  font-family: var(--font-geist-mono);
+}
+
+.input:focus {
+  outline: none;
+  border-color: #0070f3;
+  box-shadow: 0 0 0 3px rgba(0, 112, 243, 0.15);
+}
+
+.inputInvalid {
+  border-color: #dc3545;
+}
+
+.inputInvalid:focus {
+  border-color: #dc3545;
+  box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.15);
+}
+
+.inputHint {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  color: rgba(var(--gray-rgb), 0.5);
+  margin-top: 8px;
+}
+
+/* Variable autocomplete dropdown */
+.dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  background: var(--background);
+  border: 1px solid rgba(var(--gray-rgb), 0.2);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  z-index: 100;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.dropdownOption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+}
+
+.dropdownOption:hover,
+.dropdownOptionHighlighted {
+  background: rgba(0, 112, 243, 0.08);
+}
+
+.dropdownOption[aria-selected="true"] {
+  background: rgba(0, 112, 243, 0.12);
+}
+
+.dropdownOptionName {
+  font-family: var(--font-geist-mono);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.dropdownOptionType {
+  font-family: var(--font-geist-sans);
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(var(--gray-rgb), 0.1);
+  color: rgba(var(--gray-rgb), 0.7);
+  text-transform: uppercase;
+  margin-left: 8px;
+}
+
+.dropdownOptionSamples {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  color: rgba(var(--gray-rgb), 0.5);
+  margin-left: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+
+.dropdownEmpty {
+  padding: 16px;
+  text-align: center;
+  color: rgba(var(--gray-rgb), 0.5);
+  font-size: 13px;
+}
+
+/* No variables hint */
+.noVariablesHint {
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  color: rgba(var(--gray-rgb), 0.5);
+  padding: 12px;
+  background: rgba(var(--gray-rgb), 0.05);
+  border-radius: 6px;
+  text-align: center;
+  margin-top: 12px;
+}
+
+/* Ad Mapping Grid */
+.adMappingGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 600px) {
+  .adMappingGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fieldLabel {
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(var(--gray-rgb), 0.8);
+}
+
+.requiredMark {
+  color: #dc3545;
+  margin-left: 2px;
+}
+
+.optionalMark {
+  font-weight: 400;
+  color: rgba(var(--gray-rgb), 0.5);
+  margin-left: 4px;
+}
+
+/* Hierarchy Preview Section */
+.previewSection {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(var(--gray-rgb), 0.15);
+}
+
+.previewContainer {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 768px) {
+  .previewContainer {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Tree visualization */
+.treeView {
+  background: rgba(var(--gray-rgb), 0.03);
+  border: 1px solid rgba(var(--gray-rgb), 0.1);
+  border-radius: 8px;
+  padding: 16px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.treeEmpty {
+  padding: 32px;
+  text-align: center;
+  color: rgba(var(--gray-rgb), 0.5);
+  font-size: 13px;
+}
+
+.treeNode {
+  padding: 4px 0;
+}
+
+.treeNodeHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: default;
+  transition: background-color 0.15s;
+}
+
+.treeNodeHeader:hover {
+  background: rgba(var(--gray-rgb), 0.05);
+}
+
+.treeNodeToggle {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: rgba(var(--gray-rgb), 0.5);
+  transition: transform 0.15s;
+  padding: 0;
+}
+
+.treeNodeToggle:hover {
+  color: var(--foreground);
+}
+
+.treeNodeToggleExpanded {
+  transform: rotate(90deg);
+}
+
+.treeNodeIcon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.treeNodeIconCampaign {
+  color: #0070f3;
+}
+
+.treeNodeIconAdGroup {
+  color: #10b981;
+}
+
+.treeNodeIconAd {
+  color: #8b5cf6;
+}
+
+.treeNodeLabel {
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  color: var(--foreground);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.treeNodeCount {
+  font-family: var(--font-geist-mono);
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(var(--gray-rgb), 0.1);
+  color: rgba(var(--gray-rgb), 0.7);
+}
+
+.treeNodeChildren {
+  margin-left: 24px;
+  border-left: 1px dashed rgba(var(--gray-rgb), 0.2);
+  padding-left: 12px;
+}
+
+.treeNodeAdContent {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  color: rgba(var(--gray-rgb), 0.6);
+  margin-left: 28px;
+  padding: 4px 0;
+}
+
+.treeNodeAdHeadline {
+  font-weight: 500;
+  color: rgba(var(--gray-rgb), 0.8);
+}
+
+.treeNodeAdDescription {
+  margin-top: 2px;
+}
+
+/* Stats panel */
+.statsPanel {
+  background: rgba(var(--gray-rgb), 0.03);
+  border: 1px solid rgba(var(--gray-rgb), 0.1);
+  border-radius: 8px;
+  padding: 16px;
+  height: fit-content;
+}
+
+.statsPanelTitle {
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(var(--gray-rgb), 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 16px;
+}
+
+.statsGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.statItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: rgba(var(--gray-rgb), 0.05);
+  border-radius: 6px;
+}
+
+.statLabel {
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  color: rgba(var(--gray-rgb), 0.7);
+}
+
+.statValue {
+  font-family: var(--font-geist-mono);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.statValueCampaigns {
+  color: #0070f3;
+}
+
+.statValueAdGroups {
+  color: #10b981;
+}
+
+.statValueAds {
+  color: #8b5cf6;
+}
+
+/* Validation messages */
+.validationSection {
+  margin-top: 24px;
+}
+
+.validationErrors {
+  background: rgba(220, 53, 69, 0.1);
+  border: 1px solid rgba(220, 53, 69, 0.3);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+}
+
+.validationWarnings {
+  background: rgba(255, 193, 7, 0.1);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  border-radius: 8px;
+  padding: 12px 16px;
+}
+
+.validationTitle {
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+
+.validationErrors .validationTitle {
+  color: #dc3545;
+}
+
+.validationWarnings .validationTitle {
+  color: #856404;
+}
+
+.validationList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.validationItem {
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+.validationErrors .validationItem {
+  color: #721c24;
+}
+
+.validationWarnings .validationItem {
+  color: #856404;
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .dropdown {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    border-color: rgba(var(--gray-rgb), 0.15);
+  }
+
+  .treeView {
+    background: rgba(var(--gray-rgb), 0.05);
+  }
+
+  .statsPanel {
+    background: rgba(var(--gray-rgb), 0.05);
+  }
+
+  .validationErrors {
+    background: rgba(220, 53, 69, 0.15);
+  }
+
+  .validationErrors .validationTitle {
+    color: #f87171;
+  }
+
+  .validationErrors .validationItem {
+    color: #fca5a5;
+  }
+
+  .validationWarnings {
+    background: rgba(255, 193, 7, 0.15);
+  }
+
+  .validationWarnings .validationTitle {
+    color: #fbbf24;
+  }
+
+  .validationWarnings .validationItem {
+    color: #fcd34d;
+  }
+}
+
+/* Touch device improvements */
+@media (pointer: coarse) {
+  .dropdownOption,
+  .treeNodeToggle {
+    min-height: 44px;
+  }
+}

@@ -40,24 +40,28 @@ export function DataPreviewEnhanced({
   // Create column type lookup
   const columnTypes = useMemo(() => {
     const types: Record<string, string> = {};
-    columnMappings.forEach((mapping) => {
+    (columnMappings ?? []).forEach((mapping) => {
       types[mapping.sourceColumn] = mapping.dataType;
     });
     return types;
   }, [columnMappings]);
 
+  // Normalize props to prevent undefined errors
+  const safeData = data ?? [];
+  const safeColumns = columns ?? [];
+
   // Filter data based on search term
   const filteredData = useMemo(() => {
-    if (!searchTerm.trim()) return data;
+    if (!searchTerm.trim()) return safeData;
 
     const term = searchTerm.toLowerCase();
-    return data.filter((row) =>
-      columns.some((col) => {
+    return safeData.filter((row) =>
+      safeColumns.some((col) => {
         const value = row[col];
         return value != null && String(value).toLowerCase().includes(term);
       })
     );
-  }, [data, columns, searchTerm]);
+  }, [safeData, safeColumns, searchTerm]);
 
   // Scroll to highlighted row
   useEffect(() => {
@@ -101,7 +105,7 @@ export function DataPreviewEnhanced({
   const visibleData = filteredData.slice(startIndex, endIndex);
   const offsetY = startIndex * ROW_HEIGHT;
 
-  if (data.length === 0) {
+  if (safeData.length === 0) {
     return (
       <div className={styles.empty}>
         <p>No data to preview</p>
@@ -120,10 +124,10 @@ export function DataPreviewEnhanced({
           <span className={styles.rowCount}>
             {isFiltered ? (
               <>
-                {filteredData.length} of {data.length} rows
+                {filteredData.length} of {safeData.length} rows
               </>
             ) : (
-              <>{data.length.toLocaleString()} rows</>
+              <>{safeData.length.toLocaleString()} rows</>
             )}
           </span>
         </div>
@@ -221,7 +225,7 @@ export function DataPreviewEnhanced({
           <thead className={styles.tableHeader}>
             <tr>
               <th className={styles.rowNumber} role="columnheader">#</th>
-              {columns.map((col) => {
+              {safeColumns.map((col) => {
                 const dataType = columnTypes[col] || "string";
                 return (
                   <th key={col} role="columnheader" aria-label={`${col} ${dataType}`}>
@@ -258,7 +262,7 @@ export function DataPreviewEnhanced({
               <tbody>
                 {visibleData.map((row, idx) => {
                   const actualIndex = startIndex + idx;
-                  const originalRowNumber = data.indexOf(row) + 1;
+                  const originalRowNumber = safeData.indexOf(row) + 1;
                   const isHighlighted = highlightRow === originalRowNumber;
 
                   return (
@@ -268,7 +272,7 @@ export function DataPreviewEnhanced({
                       className={isHighlighted ? styles.highlightedRow : ""}
                     >
                       <td className={styles.rowNumber}>{originalRowNumber}</td>
-                      {columns.map((col) => (
+                      {safeColumns.map((col) => (
                         <td key={col} title={String(row[col] ?? "")}>
                           {row[col] ?? ""}
                         </td>

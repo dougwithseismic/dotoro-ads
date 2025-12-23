@@ -18,3 +18,6 @@ export * from "./utils/index.js";
 
 // Re-export transform engine
 export * from "./transforms/index.js";
+
+// Re-export keywords
+export * from "./keywords/index.js";

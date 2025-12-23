@@ -44,3 +44,17 @@ export {
   type GeneratedVariation,
   type VariationResult,
 } from "./inline-variation-generator.js";
+
+// Re-export hierarchical grouper for campaign structure generation
+export {
+  HierarchicalGrouper,
+  groupRowsIntoCampaigns,
+  type GroupingConfig,
+  type AdFieldMapping,
+  type GroupedCampaign,
+  type GroupedAdGroup,
+  type GroupedAd,
+  type GroupingWarning,
+  type GroupingStats,
+  type GroupingResult,
+} from "./hierarchical-grouper.js";

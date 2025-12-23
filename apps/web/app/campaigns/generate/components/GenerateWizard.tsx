@@ -362,30 +362,19 @@ export function GenerateWizard() {
         );
 
       case "preview":
-        // Determine which mode to use based on available data
-        const useConfigMode = state.campaignConfig && state.hierarchyConfig;
         return (
           <div className={styles.stepContent} data-testid="step-content">
             <h2 className={styles.stepTitle}>{STEP_LABELS[currentStep]}</h2>
             <p className={styles.stepDescription}>
               Review your generated campaigns before creating them.
             </p>
-            {useConfigMode && state.campaignConfig && state.hierarchyConfig ? (
+            {state.campaignConfig && state.hierarchyConfig ? (
               <GenerationPreview
-                mode="config"
                 dataSourceId={state.dataSourceId ?? ""}
                 ruleIds={state.ruleIds}
                 campaignConfig={state.campaignConfig}
                 hierarchyConfig={state.hierarchyConfig}
                 sampleData={sampleData}
-                onGenerateComplete={setGenerateResult}
-              />
-            ) : state.templateId ? (
-              <GenerationPreview
-                mode="template"
-                templateId={state.templateId}
-                dataSourceId={state.dataSourceId ?? ""}
-                ruleIds={state.ruleIds}
                 onGenerateComplete={setGenerateResult}
               />
             ) : (

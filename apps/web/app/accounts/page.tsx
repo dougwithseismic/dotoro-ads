@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { Suspense, useState, useEffect, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import type { AdAccount, SyncHistoryEntry } from "./types";
 import { PLATFORM_CONFIGS } from "./types";
@@ -82,7 +82,7 @@ function transformAccount(account: AccountApiItem): AdAccount {
   };
 }
 
-export default function AccountsPage() {
+function AccountsPageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [accounts, setAccounts] = useState<AdAccount[]>([]);
@@ -342,5 +342,24 @@ export default function AccountsPage() {
         }
       />
     </div>
+  );
+}
+
+function AccountsPageFallback() {
+  return (
+    <div className={styles.page}>
+      <div className={styles.loading} role="status" aria-live="polite">
+        <div className={styles.spinner} />
+        <span>Loading accounts...</span>
+      </div>
+    </div>
+  );
+}
+
+export default function AccountsPage() {
+  return (
+    <Suspense fallback={<AccountsPageFallback />}>
+      <AccountsPageContent />
+    </Suspense>
   );
 }

@@ -12,12 +12,17 @@ import {
   diffResponseSchema,
   previewRequestSchema,
   previewResponseSchema,
+  generateFromConfigRequestSchema,
+  generateFromConfigResponseSchema,
+  previewWithConfigRequestSchema,
+  previewWithConfigResponseSchema,
 } from "../schemas/campaigns.js";
 import { platformSchema } from "../schemas/templates.js";
 import { idParamSchema } from "../schemas/common.js";
 import { commonResponses, createPaginatedResponse } from "../lib/openapi.js";
 import { createNotFoundError, ApiException, ErrorCode } from "../lib/errors.js";
 import { PreviewService, PreviewError } from "../services/preview-service.js";
+import { ConfigPreviewService, ConfigPreviewError } from "../services/config-preview-service.js";
 import {
   db,
   generatedCampaigns,
@@ -32,24 +37,16 @@ import { hasStoredData, getStoredRows } from "../services/data-ingestion.js";
 // Create the OpenAPI Hono app
 export const campaignsApp = new OpenAPIHono();
 
-// Create preview service with database dependencies
-const previewService = new PreviewService({
-  getTemplate: async (id: string) => {
-    const [template] = await db
-      .select()
-      .from(campaignTemplates)
-      .where(eq(campaignTemplates.id, id))
-      .limit(1);
+// ============================================================================
+// Shared Dependency Factory
+// ============================================================================
 
-    if (!template) return undefined;
-    return {
-      id: template.id,
-      name: template.name,
-      platform: template.platform,
-      structure: template.structure,
-    };
-  },
-  getDataSource: async (id: string) => {
+/**
+ * Factory function to create shared database dependencies for preview services.
+ * Eliminates code duplication between PreviewService and ConfigPreviewService.
+ */
+function createSharedDependencies() {
+  const getDataSource = async (id: string) => {
     const [dataSource] = await db
       .select()
       .from(dataSources)
@@ -62,8 +59,9 @@ const previewService = new PreviewService({
       name: dataSource.name,
       type: dataSource.type,
     };
-  },
-  getDataRows: async (dataSourceId: string) => {
+  };
+
+  const getDataRows = async (dataSourceId: string) => {
     // Try stored data first (from CSV upload)
     if (hasStoredData(dataSourceId)) {
       const { rows } = getStoredRows(dataSourceId, 1, 10000);
@@ -78,8 +76,9 @@ const previewService = new PreviewService({
       .orderBy(asc(dataRows.rowIndex));
 
     return rows.map((row) => row.rowData as Record<string, unknown>);
-  },
-  getRule: async (id: string) => {
+  };
+
+  const getRule = async (id: string) => {
     const [rule] = await db
       .select()
       .from(rules)
@@ -112,8 +111,35 @@ const previewService = new PreviewService({
       createdAt: rule.createdAt.toISOString(),
       updatedAt: rule.updatedAt.toISOString(),
     };
+  };
+
+  return { getDataSource, getDataRows, getRule };
+}
+
+const sharedDeps = createSharedDependencies();
+
+// Create preview service with database dependencies
+const previewService = new PreviewService({
+  getTemplate: async (id: string) => {
+    const [template] = await db
+      .select()
+      .from(campaignTemplates)
+      .where(eq(campaignTemplates.id, id))
+      .limit(1);
+
+    if (!template) return undefined;
+    return {
+      id: template.id,
+      name: template.name,
+      platform: template.platform,
+      structure: template.structure,
+    };
   },
+  ...sharedDeps,
 });
+
+// Create config preview service with shared database dependencies
+const configPreviewService = new ConfigPreviewService(sharedDeps);
 
 // ============================================================================
 // Route Definitions
@@ -267,6 +293,64 @@ const previewCampaignsRoute = createRoute({
       content: {
         "application/json": {
           schema: previewResponseSchema,
+        },
+      },
+    },
+    ...commonResponses,
+  },
+});
+
+const generateFromConfigRoute = createRoute({
+  method: "post",
+  path: "/api/v1/campaigns/generate-from-config",
+  tags: ["Campaigns"],
+  summary: "Generate campaigns from configuration",
+  description:
+    "Generates campaigns using a campaign-first configuration with variable patterns. Uses HierarchicalGrouper to transform flat data rows into hierarchical campaign structures.",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: generateFromConfigRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Campaigns generated successfully",
+      content: {
+        "application/json": {
+          schema: generateFromConfigResponseSchema,
+        },
+      },
+    },
+    ...commonResponses,
+  },
+});
+
+const previewFromConfigRoute = createRoute({
+  method: "post",
+  path: "/api/v1/campaigns/preview-from-config",
+  tags: ["Campaigns"],
+  summary: "Preview campaign generation from configuration",
+  description:
+    "Generates a preview of campaigns using config-based generation. Returns campaign counts and sample data without persisting.",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: previewWithConfigRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Campaign preview generated successfully",
+      content: {
+        "application/json": {
+          schema: previewWithConfigResponseSchema,
         },
       },
     },
@@ -546,6 +630,51 @@ campaignsApp.openapi(previewCampaignsRoute, async (c) => {
         throw createNotFoundError("Data source", body.data_source_id);
       }
     }
+    console.error("Unexpected error in previewCampaignsRoute:", {
+      templateId: body.template_id,
+      dataSourceId: body.data_source_id,
+      error,
+    });
+    throw error;
+  }
+});
+
+campaignsApp.openapi(generateFromConfigRoute, async (c) => {
+  const body = c.req.valid("json");
+
+  try {
+    const result = await configPreviewService.generateFromConfig(body);
+    return c.json(result, 200);
+  } catch (error) {
+    if (error instanceof ConfigPreviewError) {
+      if (error.code === "DATA_SOURCE_NOT_FOUND") {
+        throw createNotFoundError("Data source", body.dataSourceId);
+      }
+    }
+    console.error("Unexpected error in generateFromConfigRoute:", {
+      dataSourceId: body.dataSourceId,
+      error,
+    });
+    throw error;
+  }
+});
+
+campaignsApp.openapi(previewFromConfigRoute, async (c) => {
+  const body = c.req.valid("json");
+
+  try {
+    const result = await configPreviewService.generatePreview(body);
+    return c.json(result, 200);
+  } catch (error) {
+    if (error instanceof ConfigPreviewError) {
+      if (error.code === "DATA_SOURCE_NOT_FOUND") {
+        throw createNotFoundError("Data source", body.dataSourceId);
+      }
+    }
+    console.error("Unexpected error in previewFromConfigRoute:", {
+      dataSourceId: body.dataSourceId,
+      error,
+    });
     throw error;
   }
 });

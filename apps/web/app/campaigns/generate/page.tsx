@@ -9,7 +9,7 @@ export default function GenerateCampaignsPage() {
       <header className={styles.header}>
         <h1 className={styles.title}>Generate Campaigns</h1>
         <p className={styles.subtitle}>
-          Create ad campaigns by combining templates with your data sources
+          Build ad campaigns from your data sources
         </p>
       </header>
       <GenerateWizard />

@@ -1,7 +1,6 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import { StepIndicator } from "../StepIndicator";
-import type { WizardStep } from "../../types";
 
 describe("StepIndicator", () => {
   const mockOnStepClick = vi.fn();
@@ -10,54 +9,56 @@ describe("StepIndicator", () => {
     mockOnStepClick.mockClear();
   });
 
-  it("renders all 4 steps", () => {
+  it("renders all 6 steps", () => {
     render(
-      <StepIndicator currentStep="template" onStepClick={mockOnStepClick} />
+      <StepIndicator currentStep="data-source" onStepClick={mockOnStepClick} />
     );
 
-    expect(screen.getByText("Select Template")).toBeInTheDocument();
-    expect(screen.getByText("Select Data Source")).toBeInTheDocument();
-    expect(screen.getByText("Configure Rules")).toBeInTheDocument();
+    expect(screen.getByText("Data Source")).toBeInTheDocument();
+    expect(screen.getByText("Campaign Config")).toBeInTheDocument();
+    expect(screen.getByText("Ad Structure")).toBeInTheDocument();
+    expect(screen.getByText("Keywords")).toBeInTheDocument();
+    expect(screen.getByText("Rules")).toBeInTheDocument();
     expect(screen.getByText("Preview & Generate")).toBeInTheDocument();
   });
 
   it("highlights the current step", () => {
     render(
-      <StepIndicator currentStep="data-source" onStepClick={mockOnStepClick} />
+      <StepIndicator currentStep="campaign-config" onStepClick={mockOnStepClick} />
     );
 
     const currentStep = screen.getByRole("button", {
-      name: /step 2.*data source.*current/i,
+      name: /step 2.*campaign config.*current/i,
     });
     expect(currentStep).toHaveAttribute("aria-current", "step");
   });
 
   it("marks earlier steps as completed", () => {
     render(
-      <StepIndicator currentStep="rules" onStepClick={mockOnStepClick} />
+      <StepIndicator currentStep="hierarchy" onStepClick={mockOnStepClick} />
     );
 
     // Steps 1 and 2 should be completed
     expect(
-      screen.getByRole("button", { name: /step 1.*template.*completed/i })
+      screen.getByRole("button", { name: /step 1.*data source.*completed/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /step 2.*data source.*completed/i })
+      screen.getByRole("button", { name: /step 2.*campaign config.*completed/i })
     ).toBeInTheDocument();
 
     // Step 3 should be current
     expect(
-      screen.getByRole("button", { name: /step 3.*rules.*current/i })
+      screen.getByRole("button", { name: /step 3.*ad structure.*current/i })
     ).toBeInTheDocument();
   });
 
   it("completed steps are clickable", () => {
     render(
-      <StepIndicator currentStep="rules" onStepClick={mockOnStepClick} />
+      <StepIndicator currentStep="hierarchy" onStepClick={mockOnStepClick} />
     );
 
     const completedStep = screen.getByRole("button", {
-      name: /step 1.*template.*completed/i,
+      name: /step 1.*data source.*completed/i,
     });
 
     // Should not be disabled
@@ -67,11 +68,11 @@ describe("StepIndicator", () => {
 
   it("upcoming steps are not clickable", () => {
     render(
-      <StepIndicator currentStep="template" onStepClick={mockOnStepClick} />
+      <StepIndicator currentStep="data-source" onStepClick={mockOnStepClick} />
     );
 
     const upcomingStep = screen.getByRole("button", {
-      name: /step 2.*data source/i,
+      name: /step 2.*campaign config/i,
     });
 
     // Should be disabled
@@ -81,25 +82,25 @@ describe("StepIndicator", () => {
 
   it("clicking completed step calls onStepClick", () => {
     render(
-      <StepIndicator currentStep="rules" onStepClick={mockOnStepClick} />
+      <StepIndicator currentStep="hierarchy" onStepClick={mockOnStepClick} />
     );
 
     const completedStep = screen.getByRole("button", {
-      name: /step 1.*template.*completed/i,
+      name: /step 1.*data source.*completed/i,
     });
     fireEvent.click(completedStep);
 
     expect(mockOnStepClick).toHaveBeenCalledTimes(1);
-    expect(mockOnStepClick).toHaveBeenCalledWith("template");
+    expect(mockOnStepClick).toHaveBeenCalledWith("data-source");
   });
 
   it("clicking upcoming step does not call onStepClick", () => {
     render(
-      <StepIndicator currentStep="template" onStepClick={mockOnStepClick} />
+      <StepIndicator currentStep="data-source" onStepClick={mockOnStepClick} />
     );
 
     const upcomingStep = screen.getByRole("button", {
-      name: /step 3.*rules/i,
+      name: /step 5.*rules/i,
     });
     fireEvent.click(upcomingStep);
 
@@ -108,11 +109,11 @@ describe("StepIndicator", () => {
 
   it("clicking current step does not call onStepClick", () => {
     render(
-      <StepIndicator currentStep="data-source" onStepClick={mockOnStepClick} />
+      <StepIndicator currentStep="campaign-config" onStepClick={mockOnStepClick} />
     );
 
     const currentStep = screen.getByRole("button", {
-      name: /step 2.*data source.*current/i,
+      name: /step 2.*campaign config.*current/i,
     });
     fireEvent.click(currentStep);
 
@@ -121,7 +122,7 @@ describe("StepIndicator", () => {
 
   it("has proper ARIA navigation role", () => {
     render(
-      <StepIndicator currentStep="template" onStepClick={mockOnStepClick} />
+      <StepIndicator currentStep="data-source" onStepClick={mockOnStepClick} />
     );
 
     const nav = screen.getByRole("navigation", { name: /wizard progress/i });
@@ -130,51 +131,57 @@ describe("StepIndicator", () => {
 
   it("each step has proper aria-label", () => {
     render(
-      <StepIndicator currentStep="data-source" onStepClick={mockOnStepClick} />
+      <StepIndicator currentStep="campaign-config" onStepClick={mockOnStepClick} />
     );
 
     // Check various step labels
     expect(
-      screen.getByRole("button", { name: /step 1.*select template.*completed/i })
+      screen.getByRole("button", { name: /step 1.*data source.*completed/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /step 2.*select data source.*current/i })
+      screen.getByRole("button", { name: /step 2.*campaign config.*current/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /step 3.*configure rules/i })
+      screen.getByRole("button", { name: /step 3.*ad structure/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /step 4.*preview.*generate/i })
+      screen.getByRole("button", { name: /step 4.*keywords/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /step 5.*rules/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /step 6.*preview.*generate/i })
     ).toBeInTheDocument();
   });
 
   it("supports keyboard navigation on completed steps", () => {
     render(
-      <StepIndicator currentStep="rules" onStepClick={mockOnStepClick} />
+      <StepIndicator currentStep="hierarchy" onStepClick={mockOnStepClick} />
     );
 
     const completedStep = screen.getByRole("button", {
-      name: /step 1.*template.*completed/i,
+      name: /step 1.*data source.*completed/i,
     });
 
     // Test Enter key
     fireEvent.keyDown(completedStep, { key: "Enter" });
-    expect(mockOnStepClick).toHaveBeenCalledWith("template");
+    expect(mockOnStepClick).toHaveBeenCalledWith("data-source");
 
     mockOnStepClick.mockClear();
 
     // Test Space key
     fireEvent.keyDown(completedStep, { key: " " });
-    expect(mockOnStepClick).toHaveBeenCalledWith("template");
+    expect(mockOnStepClick).toHaveBeenCalledWith("data-source");
   });
 
   it("keyboard navigation does not work on upcoming steps", () => {
     render(
-      <StepIndicator currentStep="template" onStepClick={mockOnStepClick} />
+      <StepIndicator currentStep="data-source" onStepClick={mockOnStepClick} />
     );
 
     const upcomingStep = screen.getByRole("button", {
-      name: /step 3.*rules/i,
+      name: /step 5.*rules/i,
     });
 
     fireEvent.keyDown(upcomingStep, { key: "Enter" });

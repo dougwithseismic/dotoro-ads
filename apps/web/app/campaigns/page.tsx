@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import Link from "next/link";
 import type { GeneratedCampaign, CampaignFilters as CampaignFiltersType, Platform } from "./types";
 import { CampaignsTable } from "./components/CampaignsTable";
 import { CampaignFilters } from "./components/CampaignFilters";
@@ -19,22 +20,31 @@ interface CampaignsResponse {
 interface CampaignApiItem {
   id: string;
   templateId: string;
-  templateName: string;
+  templateName?: string;
   dataRowId: string;
-  name: string;
-  platform: string;
-  status: string;
-  paused: boolean;
-  adCount: number;
-  adGroups?: Array<{
-    id: string;
+  campaignData: {
     name: string;
-    adCount: number;
-  }>;
+    budget?: {
+      type: string;
+      amount: number;
+      currency: string;
+    };
+    adGroups?: Array<{
+      name: string;
+      ads: Array<{
+        headline: string;
+        description: string;
+      }>;
+    }>;
+    objective?: string;
+  };
+  platform?: string;
+  status: string;
   platformId?: string;
   lastSyncedAt?: string;
   errorMessage?: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 interface TemplateOption {
@@ -47,22 +57,74 @@ interface TemplatesResponse {
 }
 
 /**
- * Transform API response dates to Date objects
+ * Map API status to frontend status
  */
-function transformCampaign(campaign: CampaignApiItem): GeneratedCampaign {
+function mapStatus(apiStatus: string): GeneratedCampaign["status"] {
+  switch (apiStatus) {
+    case "active":
+    case "synced":
+      return "synced";
+    case "pending":
+    case "pending_sync":
+      return "pending_sync";
+    case "error":
+    case "sync_error":
+      return "sync_error";
+    case "draft":
+    default:
+      return "draft";
+  }
+}
+
+/**
+ * Calculate total ad count from ad groups
+ */
+function calculateAdCount(adGroups?: CampaignApiItem["campaignData"]["adGroups"]): number {
+  if (!adGroups || adGroups.length === 0) return 0;
+  return adGroups.reduce((total, group) => total + (group.ads?.length || 0), 0);
+}
+
+/**
+ * Transform API ad groups to frontend format
+ */
+function transformAdGroups(adGroups?: CampaignApiItem["campaignData"]["adGroups"]): GeneratedCampaign["adGroups"] {
+  if (!adGroups) return undefined;
+  return adGroups.map((group, index) => ({
+    id: `ag-${index}`,
+    name: group.name,
+    adCount: group.ads?.length || 0,
+  }));
+}
+
+/**
+ * Transform API response to frontend format
+ */
+function transformCampaign(
+  campaign: CampaignApiItem,
+  templateMap: Map<string, string>
+): GeneratedCampaign {
+  const adGroups = campaign.campaignData?.adGroups;
+
   return {
-    ...campaign,
-    platform: campaign.platform as Platform,
-    status: campaign.status as GeneratedCampaign["status"],
+    id: campaign.id,
+    templateId: campaign.templateId,
+    templateName: templateMap.get(campaign.templateId) || campaign.templateName || "Unknown Template",
+    dataRowId: campaign.dataRowId,
+    name: campaign.campaignData?.name || "Untitled Campaign",
+    platform: (campaign.platform as Platform) || "google",
+    status: mapStatus(campaign.status),
+    paused: campaign.status === "paused",
+    adCount: calculateAdCount(adGroups),
+    adGroups: transformAdGroups(adGroups),
+    platformId: campaign.platformId,
+    lastSyncedAt: campaign.lastSyncedAt ? new Date(campaign.lastSyncedAt) : undefined,
+    errorMessage: campaign.errorMessage,
     createdAt: new Date(campaign.createdAt),
-    lastSyncedAt: campaign.lastSyncedAt
-      ? new Date(campaign.lastSyncedAt)
-      : undefined,
   };
 }
 
 export default function CampaignsPage() {
-  const [campaigns, setCampaigns] = useState<GeneratedCampaign[]>([]);
+  const [rawCampaigns, setRawCampaigns] = useState<CampaignApiItem[]>([]);
   const [templates, setTemplates] = useState<TemplateOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -97,7 +159,7 @@ export default function CampaignsPage() {
       const response = await api.get<CampaignsResponse>(
         `/api/v1/campaigns${queryString}`
       );
-      setCampaigns(response.data.map(transformCampaign));
+      setRawCampaigns(response.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -126,6 +188,16 @@ export default function CampaignsPage() {
   useEffect(() => {
     fetchTemplates();
   }, [fetchTemplates]);
+
+  // Create template lookup map
+  const templateMap = useMemo(() => {
+    return new Map(templates.map((t) => [t.id, t.name]));
+  }, [templates]);
+
+  // Transform raw campaigns with template names
+  const campaigns = useMemo(() => {
+    return rawCampaigns.map((c) => transformCampaign(c, templateMap));
+  }, [rawCampaigns, templateMap]);
 
   const handleSyncSelected = async () => {
     if (selectedIds.length === 0) return;
@@ -341,7 +413,11 @@ export default function CampaignsPage() {
             View and manage your generated ad campaigns
           </p>
         </div>
-        <div className={styles.stats}>
+        <div className={styles.headerActions}>
+          <Link href="/campaigns/generate" className={styles.generateButton}>
+            + Generate Campaigns
+          </Link>
+          <div className={styles.stats}>
           <div className={styles.stat}>
             <span className={styles.statValue}>{campaigns.length}</span>
             <span className={styles.statLabel}>Total</span>
@@ -357,6 +433,7 @@ export default function CampaignsPage() {
           <div className={styles.stat} data-status="error">
             <span className={styles.statValue}>{statusCounts.sync_error || 0}</span>
             <span className={styles.statLabel}>Errors</span>
+          </div>
           </div>
         </div>
       </header>

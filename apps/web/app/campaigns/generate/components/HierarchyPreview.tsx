@@ -1,0 +1,395 @@
+"use client";
+
+import { useMemo, useState, useCallback } from "react";
+import type { CampaignConfig, HierarchyConfig } from "../types";
+import { interpolatePattern } from "../types";
+import styles from "./HierarchyPreview.module.css";
+
+// Types for the preview
+export interface PreviewStats {
+  totalCampaigns: number;
+  totalAdGroups: number;
+  totalAds: number;
+  rowsProcessed: number;
+  rowsSkipped: number;
+}
+
+export interface PreviewWarning {
+  type: string;
+  message: string;
+  rowIndex?: number;
+}
+
+interface GroupedAd {
+  headline: string;
+  description: string;
+  displayUrl?: string;
+  finalUrl?: string;
+}
+
+interface GroupedAdGroup {
+  name: string;
+  ads: GroupedAd[];
+}
+
+interface GroupedCampaign {
+  name: string;
+  adGroups: GroupedAdGroup[];
+}
+
+export interface HierarchyPreviewProps {
+  campaignConfig: CampaignConfig;
+  hierarchyConfig: HierarchyConfig;
+  sampleData: Record<string, unknown>[];
+  loading?: boolean;
+  error?: string;
+  warnings?: PreviewWarning[];
+  rowsSkipped?: number;
+  onRetry?: () => void;
+}
+
+export function HierarchyPreview({
+  campaignConfig,
+  hierarchyConfig,
+  sampleData,
+  loading = false,
+  error,
+  warnings = [],
+  rowsSkipped = 0,
+  onRetry,
+}: HierarchyPreviewProps) {
+  // Collapsed state for tree nodes
+  const [collapsedCampaigns, setCollapsedCampaigns] = useState<Set<string>>(new Set());
+  const [collapsedAdGroups, setCollapsedAdGroups] = useState<Set<string>>(new Set());
+
+  // Compute hierarchy from sample data
+  const { campaigns, stats } = useMemo(() => {
+    if (!sampleData || sampleData.length === 0) {
+      return {
+        campaigns: [] as GroupedCampaign[],
+        stats: {
+          totalCampaigns: 0,
+          totalAdGroups: 0,
+          totalAds: 0,
+          rowsProcessed: 0,
+          rowsSkipped,
+        },
+      };
+    }
+
+    const campaignMap = new Map<string, Map<string, GroupedAd[]>>();
+
+    for (const row of sampleData) {
+      const campaignName = interpolatePattern(campaignConfig.namePattern, row);
+      const adGroupName = interpolatePattern(hierarchyConfig.adGroupNamePattern, row);
+      const headline = interpolatePattern(hierarchyConfig.adMapping.headline, row);
+      const description = interpolatePattern(hierarchyConfig.adMapping.description, row);
+      const displayUrl = hierarchyConfig.adMapping.displayUrl
+        ? interpolatePattern(hierarchyConfig.adMapping.displayUrl, row)
+        : undefined;
+      const finalUrl = hierarchyConfig.adMapping.finalUrl
+        ? interpolatePattern(hierarchyConfig.adMapping.finalUrl, row)
+        : undefined;
+
+      if (!campaignMap.has(campaignName)) {
+        campaignMap.set(campaignName, new Map());
+      }
+      const adGroupMap = campaignMap.get(campaignName)!;
+
+      if (!adGroupMap.has(adGroupName)) {
+        adGroupMap.set(adGroupName, []);
+      }
+      adGroupMap.get(adGroupName)!.push({ headline, description, displayUrl, finalUrl });
+    }
+
+    const campaignList: GroupedCampaign[] = [];
+    let totalAdGroups = 0;
+    let totalAds = 0;
+
+    for (const [campaignName, adGroupMap] of campaignMap) {
+      const adGroups: GroupedAdGroup[] = [];
+      for (const [adGroupName, ads] of adGroupMap) {
+        adGroups.push({ name: adGroupName, ads });
+        totalAdGroups++;
+        totalAds += ads.length;
+      }
+      campaignList.push({ name: campaignName, adGroups });
+    }
+
+    return {
+      campaigns: campaignList,
+      stats: {
+        totalCampaigns: campaignList.length,
+        totalAdGroups,
+        totalAds,
+        rowsProcessed: sampleData.length,
+        rowsSkipped,
+      },
+    };
+  }, [sampleData, campaignConfig, hierarchyConfig, rowsSkipped]);
+
+  // Toggle campaign collapse
+  const toggleCampaign = useCallback((name: string) => {
+    setCollapsedCampaigns((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) {
+        next.delete(name);
+      } else {
+        next.add(name);
+      }
+      return next;
+    });
+  }, []);
+
+  // Toggle ad group collapse
+  const toggleAdGroup = useCallback((key: string) => {
+    setCollapsedAdGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }, []);
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className={styles.container} data-testid="hierarchy-preview-loading">
+        <div className={styles.loadingWrapper}>
+          <div className={styles.skeletonTree}>
+            {[1, 2, 3].map((i) => (
+              <div key={i} className={styles.skeletonNode}>
+                <div className={styles.skeletonToggle} />
+                <div className={styles.skeletonLabel} />
+              </div>
+            ))}
+          </div>
+          <div className={styles.skeletonStats}>
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className={styles.skeletonStat} />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className={styles.container} data-testid="hierarchy-preview-error">
+        <div className={styles.errorWrapper}>
+          <div className={styles.errorIcon}>!</div>
+          <p className={styles.errorMessage}>{error}</p>
+          {onRetry && (
+            <button
+              type="button"
+              className={styles.retryButton}
+              onClick={onRetry}
+            >
+              Retry
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Empty state
+  if (!sampleData || sampleData.length === 0) {
+    return (
+      <div className={styles.container} data-testid="hierarchy-preview-empty">
+        <div className={styles.emptyWrapper}>
+          <p className={styles.emptyMessage}>
+            No data available. Select a data source to see the hierarchy preview.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.container} data-testid="hierarchy-preview">
+      <div className={styles.previewLayout}>
+        {/* Tree View */}
+        <div className={styles.treeView} data-testid="tree-view">
+          {campaigns.length === 0 ? (
+            <div className={styles.treeEmpty}>
+              No campaigns generated. Configure the patterns above.
+            </div>
+          ) : (
+            campaigns.map((campaign) => {
+              const isCampaignCollapsed = collapsedCampaigns.has(campaign.name);
+
+              return (
+                <div
+                  key={campaign.name}
+                  className={styles.treeNode}
+                  data-testid={`tree-campaign-${campaign.name}`}
+                >
+                  {/* Campaign Header */}
+                  <div className={styles.treeNodeHeader}>
+                    <button
+                      type="button"
+                      className={`${styles.toggleButton} ${!isCampaignCollapsed ? styles.toggleButtonExpanded : ""}`}
+                      onClick={() => toggleCampaign(campaign.name)}
+                      aria-expanded={!isCampaignCollapsed}
+                      aria-label={`Toggle ${campaign.name}`}
+                      data-testid="toggle-button"
+                    >
+                      <span className={styles.toggleIcon}>&#9656;</span>
+                    </button>
+                    <span className={`${styles.nodeIcon} ${styles.nodeIconCampaign}`}>C</span>
+                    <span
+                      className={`${styles.nodeLabel} ${styles.truncate}`}
+                      title={campaign.name}
+                      data-testid="node-label"
+                    >
+                      {campaign.name}
+                    </span>
+                    <span className={styles.nodeCount}>
+                      {campaign.adGroups.length} ad group{campaign.adGroups.length !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+
+                  {/* Ad Groups */}
+                  {!isCampaignCollapsed && (
+                    <div className={styles.treeChildren}>
+                      {campaign.adGroups.map((adGroup, agIdx) => {
+                        const agKey = `${campaign.name}-${adGroup.name}`;
+                        const isAdGroupCollapsed = collapsedAdGroups.has(agKey);
+
+                        return (
+                          <div
+                            key={`${agKey}-${agIdx}`}
+                            className={styles.treeNode}
+                            data-testid={`tree-adgroup-${agKey}`}
+                          >
+                            {/* Ad Group Header */}
+                            <div className={styles.treeNodeHeader}>
+                              <button
+                                type="button"
+                                className={`${styles.toggleButton} ${!isAdGroupCollapsed ? styles.toggleButtonExpanded : ""}`}
+                                onClick={() => toggleAdGroup(agKey)}
+                                aria-expanded={!isAdGroupCollapsed}
+                                aria-label={`Toggle ${adGroup.name}`}
+                                data-testid="toggle-button"
+                              >
+                                <span className={styles.toggleIcon}>&#9656;</span>
+                              </button>
+                              <span className={`${styles.nodeIcon} ${styles.nodeIconAdGroup}`}>AG</span>
+                              <span
+                                className={`${styles.nodeLabel} ${styles.truncate}`}
+                                title={adGroup.name}
+                                data-testid="node-label"
+                              >
+                                {adGroup.name}
+                              </span>
+                              <span className={styles.nodeCount}>
+                                {adGroup.ads.length} ad{adGroup.ads.length !== 1 ? "s" : ""}
+                              </span>
+                            </div>
+
+                            {/* Ads */}
+                            {!isAdGroupCollapsed && (
+                              <div className={styles.treeChildren}>
+                                {adGroup.ads.slice(0, 5).map((ad, adIdx) => (
+                                  <div key={adIdx} className={styles.adNode}>
+                                    <span className={`${styles.nodeIcon} ${styles.nodeIconAd}`}>Ad</span>
+                                    <div className={styles.adContent}>
+                                      <span
+                                        className={`${styles.adHeadline} ${styles.truncate}`}
+                                        title={ad.headline}
+                                      >
+                                        {ad.headline || "(no headline)"}
+                                      </span>
+                                      <span
+                                        className={`${styles.adDescription} ${styles.truncate}`}
+                                        title={ad.description}
+                                      >
+                                        {ad.description || "(no description)"}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                                {adGroup.ads.length > 5 && (
+                                  <div className={styles.moreAds}>
+                                    ...and {adGroup.ads.length - 5} more ad{adGroup.ads.length - 5 !== 1 ? "s" : ""}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Stats Panel */}
+        <div className={styles.statsPanel} data-testid="stats-panel">
+          <h4 className={styles.statsPanelTitle}>Statistics</h4>
+          <div className={styles.statsGrid}>
+            <div className={styles.statItem} data-testid="stat-campaigns">
+              <span className={styles.statLabel}>Campaigns</span>
+              <span className={`${styles.statValue} ${styles.statValueCampaigns}`}>
+                {stats.totalCampaigns}
+              </span>
+            </div>
+            <div className={styles.statItem} data-testid="stat-ad-groups">
+              <span className={styles.statLabel}>Ad Groups</span>
+              <span className={`${styles.statValue} ${styles.statValueAdGroups}`}>
+                {stats.totalAdGroups}
+              </span>
+            </div>
+            <div className={styles.statItem} data-testid="stat-ads">
+              <span className={styles.statLabel}>Ads</span>
+              <span className={`${styles.statValue} ${styles.statValueAds}`}>
+                {stats.totalAds}
+              </span>
+            </div>
+            <div className={styles.statItem} data-testid="stat-rows-processed">
+              <span className={styles.statLabel}>Rows Processed</span>
+              <span className={styles.statValue}>{stats.rowsProcessed}</span>
+            </div>
+            {stats.rowsSkipped > 0 && (
+              <div className={styles.statItem} data-testid="stat-rows-skipped">
+                <span className={styles.statLabel}>Rows Skipped</span>
+                <span className={`${styles.statValue} ${styles.statValueWarning}`}>
+                  {stats.rowsSkipped}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Warnings Section */}
+      {warnings.length > 0 && (
+        <div className={styles.warningsSection} data-testid="warnings-section">
+          <div className={styles.warningsHeader} data-testid="warnings-header">
+            <span className={styles.warningsIcon}>!</span>
+            <span>{warnings.length} warning{warnings.length !== 1 ? "s" : ""}</span>
+          </div>
+          <ul className={styles.warningsList}>
+            {warnings.map((warning, idx) => (
+              <li key={idx} className={styles.warningItem}>
+                {warning.rowIndex !== undefined && (
+                  <span className={styles.warningRowIndex}>Row {warning.rowIndex}: </span>
+                )}
+                {warning.message}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -40,6 +40,36 @@
   margin: 0;
 }
 
+/* Generate Button */
+.generateButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  font-weight: 500;
+  color: #fff;
+  background: #3b82f6;
+  border: none;
+  border-radius: 8px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+
+.generateButton:hover {
+  background: #2563eb;
+}
+
+/* Header Actions */
+.headerActions {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+}
+
 /* Stats */
 .stats {
   display: flex;
@@ -161,6 +191,17 @@
 
   .header {
     flex-direction: column;
+  }
+
+  .headerActions {
+    flex-direction: column;
+    width: 100%;
+    gap: 16px;
+  }
+
+  .generateButton {
+    width: 100%;
+    justify-content: center;
   }
 
   .stats {
