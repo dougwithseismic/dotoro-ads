@@ -30,11 +30,15 @@ const validCampaignConfig: CampaignConfig = {
 };
 
 const validHierarchyConfig: HierarchyConfig = {
-  adGroupNamePattern: '{product_name}',
-  adMapping: {
-    headline: '{headline}',
-    description: '{description}',
-  },
+  adGroups: [{
+    id: 'ag-1',
+    namePattern: '{product_name}',
+    ads: [{
+      id: 'ad-1',
+      headline: '{headline}',
+      description: '{description}',
+    }],
+  }],
 };
 
 const validKeywordConfig: KeywordConfig = {

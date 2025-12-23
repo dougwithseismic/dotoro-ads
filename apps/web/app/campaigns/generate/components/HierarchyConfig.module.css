@@ -495,3 +495,198 @@
     min-height: 44px;
   }
 }
+
+/* ============================================================
+   Ad Group Builder Styles
+   ============================================================ */
+
+.adGroupsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.adGroupCard {
+  background: rgba(var(--gray-rgb), 0.03);
+  border: 1px solid rgba(var(--gray-rgb), 0.15);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.adGroupHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: rgba(var(--gray-rgb), 0.05);
+  border-bottom: 1px solid rgba(var(--gray-rgb), 0.1);
+}
+
+.adGroupToggle {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: rgba(var(--gray-rgb), 0.5);
+  transition: transform 0.15s, color 0.15s;
+  padding: 0;
+  font-size: 10px;
+}
+
+.adGroupToggle:hover {
+  color: var(--foreground);
+}
+
+.adGroupToggleExpanded {
+  transform: rotate(90deg);
+}
+
+.adGroupTitle {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--foreground);
+  flex: 1;
+}
+
+.adGroupInfo {
+  font-family: var(--font-geist-mono);
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(var(--gray-rgb), 0.1);
+  color: rgba(var(--gray-rgb), 0.7);
+}
+
+.adGroupBody {
+  padding: 16px;
+}
+
+.adsSection {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px dashed rgba(var(--gray-rgb), 0.15);
+}
+
+.adsSectionTitle {
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(var(--gray-rgb), 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 12px;
+}
+
+.adCard {
+  background: rgba(var(--gray-rgb), 0.02);
+  border: 1px solid rgba(var(--gray-rgb), 0.1);
+  border-radius: 6px;
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.adCard:last-of-type {
+  margin-bottom: 0;
+}
+
+.adCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.adCardTitle {
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(var(--gray-rgb), 0.8);
+}
+
+/* Remove button */
+.removeButton {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  padding: 4px 10px;
+  border: 1px solid rgba(220, 53, 69, 0.3);
+  border-radius: 4px;
+  background: transparent;
+  color: #dc3545;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.removeButton:hover {
+  background: rgba(220, 53, 69, 0.1);
+  border-color: rgba(220, 53, 69, 0.5);
+}
+
+/* Add buttons */
+.addButton {
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  padding: 8px 14px;
+  border: 1px dashed rgba(0, 112, 243, 0.4);
+  border-radius: 6px;
+  background: rgba(0, 112, 243, 0.05);
+  color: #0070f3;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+  width: 100%;
+  margin-top: 12px;
+}
+
+.addButton:hover {
+  background: rgba(0, 112, 243, 0.1);
+  border-color: rgba(0, 112, 243, 0.6);
+}
+
+.addAdGroupButton {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 12px 20px;
+  border: 2px dashed rgba(0, 112, 243, 0.4);
+  border-radius: 8px;
+  background: rgba(0, 112, 243, 0.03);
+  color: #0070f3;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+  width: 100%;
+}
+
+.addAdGroupButton:hover {
+  background: rgba(0, 112, 243, 0.08);
+  border-color: rgba(0, 112, 243, 0.6);
+}
+
+/* Dark mode adjustments for ad group builder */
+@media (prefers-color-scheme: dark) {
+  .adGroupCard {
+    background: rgba(var(--gray-rgb), 0.05);
+  }
+
+  .adGroupHeader {
+    background: rgba(var(--gray-rgb), 0.08);
+  }
+
+  .adCard {
+    background: rgba(var(--gray-rgb), 0.04);
+  }
+
+  .removeButton {
+    color: #f87171;
+    border-color: rgba(248, 113, 113, 0.3);
+  }
+
+  .removeButton:hover {
+    background: rgba(248, 113, 113, 0.15);
+    border-color: rgba(248, 113, 113, 0.5);
+  }
+}

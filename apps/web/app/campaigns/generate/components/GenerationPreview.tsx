@@ -55,23 +55,34 @@ export function GenerationPreview(props: GenerationPreviewProps) {
     warnings: string[];
   } | null>(null);
 
-  // Compute campaign count from sample data
+  // Compute campaign count from sample data using new structure
   const stats = useMemo(() => {
     if (!sampleData || sampleData.length === 0) {
       return { campaignCount: 0, adGroupCount: 0, adCount: 0, rowsProcessed: 0 };
+    }
+
+    // Handle empty adGroups
+    if (!hierarchyConfig.adGroups || hierarchyConfig.adGroups.length === 0) {
+      return { campaignCount: 0, adGroupCount: 0, adCount: 0, rowsProcessed: sampleData.length };
     }
 
     const campaignMap = new Map<string, Map<string, number>>();
 
     for (const row of sampleData) {
       const campaignName = interpolatePattern(campaignConfig.namePattern, row);
-      const adGroupName = interpolatePattern(hierarchyConfig.adGroupNamePattern, row);
 
-      if (!campaignMap.has(campaignName)) {
-        campaignMap.set(campaignName, new Map());
+      // Process each ad group definition
+      for (const adGroupDef of hierarchyConfig.adGroups) {
+        const adGroupName = interpolatePattern(adGroupDef.namePattern, row);
+
+        if (!campaignMap.has(campaignName)) {
+          campaignMap.set(campaignName, new Map());
+        }
+        const adGroupMap = campaignMap.get(campaignName)!;
+        // Count ads per ad group (number of ads in definition * number of rows with same ad group name)
+        const currentCount = adGroupMap.get(adGroupName) || 0;
+        adGroupMap.set(adGroupName, currentCount + adGroupDef.ads.length);
       }
-      const adGroupMap = campaignMap.get(campaignName)!;
-      adGroupMap.set(adGroupName, (adGroupMap.get(adGroupName) || 0) + 1);
     }
 
     let adGroupCount = 0;
@@ -89,7 +100,7 @@ export function GenerationPreview(props: GenerationPreviewProps) {
       adCount,
       rowsProcessed: sampleData.length,
     };
-  }, [sampleData, campaignConfig.namePattern, hierarchyConfig.adGroupNamePattern]);
+  }, [sampleData, campaignConfig.namePattern, hierarchyConfig.adGroups]);
 
   const hasData = sampleData && sampleData.length > 0;
 
@@ -115,8 +126,18 @@ export function GenerationPreview(props: GenerationPreviewProps) {
           objective: campaignConfig.objective,
         },
         hierarchyConfig: {
-          adGroupNamePattern: hierarchyConfig.adGroupNamePattern,
-          adMapping: hierarchyConfig.adMapping,
+          adGroups: hierarchyConfig.adGroups.map(ag => ({
+            id: ag.id,
+            namePattern: ag.namePattern,
+            ads: ag.ads.map(ad => ({
+              id: ad.id,
+              headline: ad.headline,
+              description: ad.description,
+              displayUrl: ad.displayUrl,
+              finalUrl: ad.finalUrl,
+              callToAction: ad.callToAction,
+            })),
+          })),
         },
         selectedPlatforms,
         platformBudgets: Object.keys(budgetsForRequest).length > 0 ? budgetsForRequest : undefined,

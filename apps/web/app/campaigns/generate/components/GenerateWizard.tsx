@@ -20,6 +20,7 @@ import {
   validateCampaignConfig,
   validateHierarchyConfig,
   validatePlatformSelection,
+  createDefaultAdGroup,
   CampaignConfig as CampaignConfigType,
   HierarchyConfig as HierarchyConfigType,
 } from "../types";
@@ -34,13 +35,9 @@ const DEFAULT_CAMPAIGN_CONFIG: CampaignConfigType = {
   namePattern: "",
 };
 
-// Default initial hierarchy config
+// Default initial hierarchy config with new structure
 const DEFAULT_HIERARCHY_CONFIG: HierarchyConfigType = {
-  adGroupNamePattern: "",
-  adMapping: {
-    headline: "",
-    description: "",
-  },
+  adGroups: [createDefaultAdGroup()],
 };
 
 export function GenerateWizard() {

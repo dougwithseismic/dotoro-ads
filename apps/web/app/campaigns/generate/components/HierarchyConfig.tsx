@@ -6,6 +6,14 @@ import type {
   CampaignConfig as CampaignConfigType,
   DataSourceColumn,
   ValidationResult,
+  AdGroupDefinition,
+  AdDefinition,
+} from "../types";
+import {
+  generateId,
+  createDefaultAdGroup,
+  createDefaultAd,
+  interpolatePattern,
 } from "../types";
 import styles from "./HierarchyConfig.module.css";
 
@@ -18,7 +26,12 @@ interface HierarchyConfigProps {
   validation?: ValidationResult;
 }
 
-type InputField = "adGroup" | "headline" | "description" | "displayUrl" | "finalUrl";
+type InputField =
+  | { type: "adGroupName"; adGroupId: string }
+  | { type: "headline"; adGroupId: string; adId: string }
+  | { type: "description"; adGroupId: string; adId: string }
+  | { type: "displayUrl"; adGroupId: string; adId: string }
+  | { type: "finalUrl"; adGroupId: string; adId: string };
 
 interface GroupedCampaign {
   name: string;
@@ -35,23 +48,6 @@ interface GroupedAd {
   description: string;
 }
 
-// Variable pattern regex: matches {variable_name} or {variable_name|default}
-const VARIABLE_PATTERN = /\{([a-zA-Z_][a-zA-Z0-9_]*)(?:\|([^}]*))?\}/g;
-
-function interpolatePattern(
-  pattern: string,
-  row: Record<string, unknown>
-): string {
-  if (!pattern) return "";
-  return pattern.replace(VARIABLE_PATTERN, (match, varName, defaultVal) => {
-    const value = row[varName];
-    if (value !== undefined && value !== null && value !== "") {
-      return String(value);
-    }
-    return defaultVal ?? match;
-  });
-}
-
 export function HierarchyConfig({
   config,
   campaignConfig,
@@ -60,49 +56,33 @@ export function HierarchyConfig({
   onChange,
   validation,
 }: HierarchyConfigProps) {
-  // Local state for input values
-  const [localAdGroupPattern, setLocalAdGroupPattern] = useState(config.adGroupNamePattern);
-  const [localHeadline, setLocalHeadline] = useState(config.adMapping.headline);
-  const [localDescription, setLocalDescription] = useState(config.adMapping.description);
-  const [localDisplayUrl, setLocalDisplayUrl] = useState(config.adMapping.displayUrl ?? "");
-  const [localFinalUrl, setLocalFinalUrl] = useState(config.adMapping.finalUrl ?? "");
+  // Ensure config has at least one ad group
+  const effectiveConfig = useMemo(() => {
+    if (!config.adGroups || config.adGroups.length === 0) {
+      return { adGroups: [createDefaultAdGroup()] };
+    }
+    return config;
+  }, [config]);
 
+  // Autocomplete state
   const [showDropdown, setShowDropdown] = useState(false);
   const [dropdownFilter, setDropdownFilter] = useState("");
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [activeInputField, setActiveInputField] = useState<InputField | null>(null);
 
+  // Expanded state for ad groups
+  const [expandedAdGroups, setExpandedAdGroups] = useState<Set<string>>(() => {
+    // Default: expand all ad groups
+    return new Set(effectiveConfig.adGroups.map(ag => ag.id));
+  });
+
   // Collapsed state for tree nodes
   const [collapsedCampaigns, setCollapsedCampaigns] = useState<Set<string>>(new Set());
   const [collapsedAdGroups, setCollapsedAdGroups] = useState<Set<string>>(new Set());
 
-  const adGroupInputRef = useRef<HTMLInputElement>(null);
-  const headlineInputRef = useRef<HTMLInputElement>(null);
-  const descriptionInputRef = useRef<HTMLInputElement>(null);
-  const displayUrlInputRef = useRef<HTMLInputElement>(null);
-  const finalUrlInputRef = useRef<HTMLInputElement>(null);
+  // Refs for inputs
+  const inputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // Sync local state with props
-  useEffect(() => {
-    setLocalAdGroupPattern(config.adGroupNamePattern);
-  }, [config.adGroupNamePattern]);
-
-  useEffect(() => {
-    setLocalHeadline(config.adMapping.headline);
-  }, [config.adMapping.headline]);
-
-  useEffect(() => {
-    setLocalDescription(config.adMapping.description);
-  }, [config.adMapping.description]);
-
-  useEffect(() => {
-    setLocalDisplayUrl(config.adMapping.displayUrl ?? "");
-  }, [config.adMapping.displayUrl]);
-
-  useEffect(() => {
-    setLocalFinalUrl(config.adMapping.finalUrl ?? "");
-  }, [config.adMapping.finalUrl]);
 
   // Filter columns based on partial variable input
   const filteredColumns = useMemo(() => {
@@ -120,11 +100,7 @@ export function HierarchyConfig({
       if (
         dropdownRef.current &&
         !dropdownRef.current.contains(target) &&
-        target !== adGroupInputRef.current &&
-        target !== headlineInputRef.current &&
-        target !== descriptionInputRef.current &&
-        target !== displayUrlInputRef.current &&
-        target !== finalUrlInputRef.current
+        !Array.from(inputRefs.current.values()).some(ref => ref === target)
       ) {
         setShowDropdown(false);
         setDropdownFilter("");
@@ -136,216 +112,252 @@ export function HierarchyConfig({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Get ref for active input
-  const getActiveRef = useCallback(
-    (
-      field: InputField | null
-    ): React.RefObject<HTMLInputElement | null> | null => {
-      switch (field) {
-        case "adGroup":
-          return adGroupInputRef;
-        case "headline":
-          return headlineInputRef;
-        case "description":
-          return descriptionInputRef;
-        case "displayUrl":
-          return displayUrlInputRef;
-        case "finalUrl":
-          return finalUrlInputRef;
-        default:
-          return null;
-      }
-    },
-    []
-  );
+  // Get ref key for an input field
+  const getRefKey = useCallback((field: InputField): string => {
+    switch (field.type) {
+      case "adGroupName":
+        return `adGroup-${field.adGroupId}-name`;
+      case "headline":
+        return `ad-${field.adGroupId}-${field.adId}-headline`;
+      case "description":
+        return `ad-${field.adGroupId}-${field.adId}-description`;
+      case "displayUrl":
+        return `ad-${field.adGroupId}-${field.adId}-displayUrl`;
+      case "finalUrl":
+        return `ad-${field.adGroupId}-${field.adId}-finalUrl`;
+    }
+  }, []);
 
   // Get current value for active input
-  const getCurrentValue = useCallback(
-    (field: InputField | null): string => {
-      switch (field) {
-        case "adGroup":
-          return localAdGroupPattern;
-        case "headline":
-          return localHeadline;
-        case "description":
-          return localDescription;
-        case "displayUrl":
-          return localDisplayUrl;
-        case "finalUrl":
-          return localFinalUrl;
-        default:
-          return "";
-      }
-    },
-    [localAdGroupPattern, localHeadline, localDescription, localDisplayUrl, localFinalUrl]
-  );
+  const getCurrentValue = useCallback((field: InputField | null): string => {
+    if (!field) return "";
 
-  // Update config helper - must be defined before handleInputChange
-  const updateConfig = useCallback(
-    (field: InputField, value: string) => {
-      if (field === "adGroup") {
-        onChange({ ...config, adGroupNamePattern: value });
-      } else {
-        const mapping = { ...config.adMapping };
-        switch (field) {
-          case "headline":
-            mapping.headline = value;
-            break;
-          case "description":
-            mapping.description = value;
-            break;
-          case "displayUrl":
-            mapping.displayUrl = value || undefined;
-            break;
-          case "finalUrl":
-            mapping.finalUrl = value || undefined;
-            break;
-        }
-        onChange({ ...config, adMapping: mapping });
+    switch (field.type) {
+      case "adGroupName": {
+        const adGroup = effectiveConfig.adGroups.find(ag => ag.id === field.adGroupId);
+        return adGroup?.namePattern ?? "";
       }
-    },
-    [config, onChange]
-  );
+      case "headline": {
+        const adGroup = effectiveConfig.adGroups.find(ag => ag.id === field.adGroupId);
+        const ad = adGroup?.ads.find(a => a.id === field.adId);
+        return ad?.headline ?? "";
+      }
+      case "description": {
+        const adGroup = effectiveConfig.adGroups.find(ag => ag.id === field.adGroupId);
+        const ad = adGroup?.ads.find(a => a.id === field.adId);
+        return ad?.description ?? "";
+      }
+      case "displayUrl": {
+        const adGroup = effectiveConfig.adGroups.find(ag => ag.id === field.adGroupId);
+        const ad = adGroup?.ads.find(a => a.id === field.adId);
+        return ad?.displayUrl ?? "";
+      }
+      case "finalUrl": {
+        const adGroup = effectiveConfig.adGroups.find(ag => ag.id === field.adGroupId);
+        const ad = adGroup?.ads.find(a => a.id === field.adId);
+        return ad?.finalUrl ?? "";
+      }
+    }
+  }, [effectiveConfig.adGroups]);
+
+  // Update ad group
+  const updateAdGroup = useCallback((adGroupId: string, updates: Partial<AdGroupDefinition>) => {
+    const newAdGroups = effectiveConfig.adGroups.map(ag =>
+      ag.id === adGroupId ? { ...ag, ...updates } : ag
+    );
+    onChange({ adGroups: newAdGroups });
+  }, [effectiveConfig.adGroups, onChange]);
+
+  // Update ad within an ad group
+  const updateAd = useCallback((adGroupId: string, adId: string, updates: Partial<AdDefinition>) => {
+    const newAdGroups = effectiveConfig.adGroups.map(ag => {
+      if (ag.id !== adGroupId) return ag;
+      const newAds = ag.ads.map(ad =>
+        ad.id === adId ? { ...ad, ...updates } : ad
+      );
+      return { ...ag, ads: newAds };
+    });
+    onChange({ adGroups: newAdGroups });
+  }, [effectiveConfig.adGroups, onChange]);
+
+  // Add new ad group
+  const addAdGroup = useCallback(() => {
+    const newAdGroup = createDefaultAdGroup();
+    onChange({ adGroups: [...effectiveConfig.adGroups, newAdGroup] });
+    setExpandedAdGroups(prev => new Set([...prev, newAdGroup.id]));
+  }, [effectiveConfig.adGroups, onChange]);
+
+  // Remove ad group
+  const removeAdGroup = useCallback((adGroupId: string) => {
+    if (effectiveConfig.adGroups.length <= 1) return; // Keep at least one
+    const newAdGroups = effectiveConfig.adGroups.filter(ag => ag.id !== adGroupId);
+    onChange({ adGroups: newAdGroups });
+    setExpandedAdGroups(prev => {
+      const next = new Set(prev);
+      next.delete(adGroupId);
+      return next;
+    });
+  }, [effectiveConfig.adGroups, onChange]);
+
+  // Add new ad to an ad group
+  const addAd = useCallback((adGroupId: string) => {
+    const newAd = createDefaultAd();
+    const newAdGroups = effectiveConfig.adGroups.map(ag => {
+      if (ag.id !== adGroupId) return ag;
+      return { ...ag, ads: [...ag.ads, newAd] };
+    });
+    onChange({ adGroups: newAdGroups });
+  }, [effectiveConfig.adGroups, onChange]);
+
+  // Remove ad from an ad group
+  const removeAd = useCallback((adGroupId: string, adId: string) => {
+    const newAdGroups = effectiveConfig.adGroups.map(ag => {
+      if (ag.id !== adGroupId) return ag;
+      if (ag.ads.length <= 1) return ag; // Keep at least one
+      return { ...ag, ads: ag.ads.filter(ad => ad.id !== adId) };
+    });
+    onChange({ adGroups: newAdGroups });
+  }, [effectiveConfig.adGroups, onChange]);
+
+  // Toggle ad group expansion
+  const toggleAdGroupExpansion = useCallback((adGroupId: string) => {
+    setExpandedAdGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(adGroupId)) {
+        next.delete(adGroupId);
+      } else {
+        next.add(adGroupId);
+      }
+      return next;
+    });
+  }, []);
 
   // Handle variable autocomplete trigger
-  const handleInputChange = useCallback(
-    (value: string, field: InputField) => {
-      // Update local state immediately
-      switch (field) {
-        case "adGroup":
-          setLocalAdGroupPattern(value);
-          break;
-        case "headline":
-          setLocalHeadline(value);
-          break;
-        case "description":
-          setLocalDescription(value);
-          break;
-        case "displayUrl":
-          setLocalDisplayUrl(value);
-          break;
-        case "finalUrl":
-          setLocalFinalUrl(value);
-          break;
-      }
+  const handleInputChange = useCallback((value: string, field: InputField, inputRef: HTMLInputElement | null) => {
+    // Update the value
+    switch (field.type) {
+      case "adGroupName":
+        updateAdGroup(field.adGroupId, { namePattern: value });
+        break;
+      case "headline":
+        updateAd(field.adGroupId, field.adId, { headline: value });
+        break;
+      case "description":
+        updateAd(field.adGroupId, field.adId, { description: value });
+        break;
+      case "displayUrl":
+        updateAd(field.adGroupId, field.adId, { displayUrl: value || undefined });
+        break;
+      case "finalUrl":
+        updateAd(field.adGroupId, field.adId, { finalUrl: value || undefined });
+        break;
+    }
 
-      // Find if we're typing a variable
-      const ref = getActiveRef(field);
-      const cursorPosition = ref?.current?.selectionStart ?? value.length;
-      const textBeforeCursor = value.slice(0, cursorPosition);
-      const openBraceIndex = textBeforeCursor.lastIndexOf("{");
-      const closeBraceIndex = textBeforeCursor.lastIndexOf("}");
+    // Find if we're typing a variable
+    const cursorPosition = inputRef?.selectionStart ?? value.length;
+    const textBeforeCursor = value.slice(0, cursorPosition);
+    const openBraceIndex = textBeforeCursor.lastIndexOf("{");
+    const closeBraceIndex = textBeforeCursor.lastIndexOf("}");
 
-      if (openBraceIndex > closeBraceIndex) {
-        const partialVar = textBeforeCursor.slice(openBraceIndex + 1);
-        setDropdownFilter(partialVar);
-        setShowDropdown(true);
-        setActiveInputField(field);
-        setHighlightedIndex(-1);
-      } else if (value.endsWith("{")) {
-        setDropdownFilter("");
-        setShowDropdown(true);
-        setActiveInputField(field);
-        setHighlightedIndex(-1);
-      } else {
-        setShowDropdown(false);
-        setDropdownFilter("");
-      }
-
-      // Update config (notify parent)
-      updateConfig(field, value);
-    },
-    [getActiveRef, updateConfig]
-  );
-
-  // Handle selecting a variable from dropdown
-  const selectVariable = useCallback(
-    (columnName: string) => {
-      const ref = getActiveRef(activeInputField);
-      const currentValue = getCurrentValue(activeInputField);
-      const cursorPosition = ref?.current?.selectionStart ?? currentValue.length;
-      const textBeforeCursor = currentValue.slice(0, cursorPosition);
-      const textAfterCursor = currentValue.slice(cursorPosition);
-
-      const openBraceIndex = textBeforeCursor.lastIndexOf("{");
-      const beforeBrace = textBeforeCursor.slice(0, openBraceIndex);
-      const newValue = `${beforeBrace}{${columnName}}${textAfterCursor}`;
-
-      // Update local state
-      if (activeInputField) {
-        switch (activeInputField) {
-          case "adGroup":
-            setLocalAdGroupPattern(newValue);
-            break;
-          case "headline":
-            setLocalHeadline(newValue);
-            break;
-          case "description":
-            setLocalDescription(newValue);
-            break;
-          case "displayUrl":
-            setLocalDisplayUrl(newValue);
-            break;
-          case "finalUrl":
-            setLocalFinalUrl(newValue);
-            break;
-        }
-        updateConfig(activeInputField, newValue);
-      }
-
+    if (openBraceIndex > closeBraceIndex) {
+      const partialVar = textBeforeCursor.slice(openBraceIndex + 1);
+      setDropdownFilter(partialVar);
+      setShowDropdown(true);
+      setActiveInputField(field);
+      setHighlightedIndex(-1);
+    } else if (value.endsWith("{")) {
+      setDropdownFilter("");
+      setShowDropdown(true);
+      setActiveInputField(field);
+      setHighlightedIndex(-1);
+    } else {
       setShowDropdown(false);
       setDropdownFilter("");
-      setHighlightedIndex(-1);
+    }
+  }, [updateAdGroup, updateAd]);
 
-      // Restore focus and set cursor position
-      setTimeout(() => {
-        ref?.current?.focus();
-        const newCursorPos = beforeBrace.length + columnName.length + 2;
-        ref?.current?.setSelectionRange(newCursorPos, newCursorPos);
-      }, 0);
-    },
-    [activeInputField, getActiveRef, getCurrentValue, updateConfig]
-  );
+  // Handle selecting a variable from dropdown
+  const selectVariable = useCallback((columnName: string) => {
+    if (!activeInputField) return;
+
+    const refKey = getRefKey(activeInputField);
+    const inputRef = inputRefs.current.get(refKey);
+    const currentValue = getCurrentValue(activeInputField);
+    const cursorPosition = inputRef?.selectionStart ?? currentValue.length;
+    const textBeforeCursor = currentValue.slice(0, cursorPosition);
+    const textAfterCursor = currentValue.slice(cursorPosition);
+
+    const openBraceIndex = textBeforeCursor.lastIndexOf("{");
+    const beforeBrace = textBeforeCursor.slice(0, openBraceIndex);
+    const newValue = `${beforeBrace}{${columnName}}${textAfterCursor}`;
+
+    // Update the value
+    switch (activeInputField.type) {
+      case "adGroupName":
+        updateAdGroup(activeInputField.adGroupId, { namePattern: newValue });
+        break;
+      case "headline":
+        updateAd(activeInputField.adGroupId, activeInputField.adId, { headline: newValue });
+        break;
+      case "description":
+        updateAd(activeInputField.adGroupId, activeInputField.adId, { description: newValue });
+        break;
+      case "displayUrl":
+        updateAd(activeInputField.adGroupId, activeInputField.adId, { displayUrl: newValue || undefined });
+        break;
+      case "finalUrl":
+        updateAd(activeInputField.adGroupId, activeInputField.adId, { finalUrl: newValue || undefined });
+        break;
+    }
+
+    setShowDropdown(false);
+    setDropdownFilter("");
+    setHighlightedIndex(-1);
+
+    // Restore focus and set cursor position
+    setTimeout(() => {
+      inputRef?.focus();
+      const newCursorPos = beforeBrace.length + columnName.length + 2;
+      inputRef?.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
+  }, [activeInputField, getRefKey, getCurrentValue, updateAdGroup, updateAd]);
 
   // Handle keyboard navigation in dropdown
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (!showDropdown) return;
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showDropdown) return;
 
-      switch (e.key) {
-        case "ArrowDown":
-          e.preventDefault();
-          setHighlightedIndex((prev) =>
-            Math.min(prev + 1, filteredColumns.length - 1)
-          );
-          break;
-        case "ArrowUp":
-          e.preventDefault();
-          setHighlightedIndex((prev) => Math.max(prev - 1, 0));
-          break;
-        case "Enter":
-          e.preventDefault();
-          if (highlightedIndex >= 0 && filteredColumns[highlightedIndex]) {
-            selectVariable(filteredColumns[highlightedIndex].name);
-          }
-          break;
-        case "Escape":
-          e.preventDefault();
-          setShowDropdown(false);
-          setDropdownFilter("");
-          setHighlightedIndex(-1);
-          break;
-      }
-    },
-    [showDropdown, filteredColumns, highlightedIndex, selectVariable]
-  );
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        setHighlightedIndex((prev) =>
+          Math.min(prev + 1, filteredColumns.length - 1)
+        );
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        setHighlightedIndex((prev) => Math.max(prev - 1, 0));
+        break;
+      case "Enter":
+        e.preventDefault();
+        if (highlightedIndex >= 0 && filteredColumns[highlightedIndex]) {
+          selectVariable(filteredColumns[highlightedIndex].name);
+        }
+        break;
+      case "Escape":
+        e.preventDefault();
+        setShowDropdown(false);
+        setDropdownFilter("");
+        setHighlightedIndex(-1);
+        break;
+    }
+  }, [showDropdown, filteredColumns, highlightedIndex, selectVariable]);
 
   // Compute hierarchy preview from sample data
   const hierarchyPreview = useMemo((): {
     campaigns: GroupedCampaign[];
     stats: { campaignCount: number; adGroupCount: number; adCount: number };
   } => {
-    if (!sampleData || sampleData.length === 0) {
+    if (!sampleData || sampleData.length === 0 || effectiveConfig.adGroups.length === 0) {
       return { campaigns: [], stats: { campaignCount: 0, adGroupCount: 0, adCount: 0 } };
     }
 
@@ -353,19 +365,29 @@ export function HierarchyConfig({
 
     for (const row of sampleData) {
       const campaignName = interpolatePattern(campaignConfig.namePattern, row);
-      const adGroupName = interpolatePattern(config.adGroupNamePattern, row);
-      const headline = interpolatePattern(config.adMapping.headline, row);
-      const description = interpolatePattern(config.adMapping.description, row);
 
-      if (!campaignMap.has(campaignName)) {
-        campaignMap.set(campaignName, new Map());
-      }
-      const adGroupMap = campaignMap.get(campaignName)!;
+      // For each ad group definition, create ad group instances
+      for (const adGroupDef of effectiveConfig.adGroups) {
+        const adGroupName = interpolatePattern(adGroupDef.namePattern, row);
 
-      if (!adGroupMap.has(adGroupName)) {
-        adGroupMap.set(adGroupName, []);
+        if (!campaignMap.has(campaignName)) {
+          campaignMap.set(campaignName, new Map());
+        }
+        const adGroupMap = campaignMap.get(campaignName)!;
+
+        // Create or get ads for this ad group
+        if (!adGroupMap.has(adGroupName)) {
+          adGroupMap.set(adGroupName, []);
+        }
+        const ads = adGroupMap.get(adGroupName)!;
+
+        // Add all ads from this definition
+        for (const adDef of adGroupDef.ads) {
+          const headline = interpolatePattern(adDef.headline, row);
+          const description = interpolatePattern(adDef.description, row);
+          ads.push({ headline, description });
+        }
       }
-      adGroupMap.get(adGroupName)!.push({ headline, description });
     }
 
     const campaigns: GroupedCampaign[] = [];
@@ -390,9 +412,9 @@ export function HierarchyConfig({
         adCount,
       },
     };
-  }, [sampleData, campaignConfig.namePattern, config.adGroupNamePattern, config.adMapping]);
+  }, [sampleData, campaignConfig.namePattern, effectiveConfig.adGroups]);
 
-  // Toggle campaign collapse
+  // Toggle campaign collapse in preview
   const toggleCampaign = useCallback((name: string) => {
     setCollapsedCampaigns((prev) => {
       const next = new Set(prev);
@@ -405,8 +427,8 @@ export function HierarchyConfig({
     });
   }, []);
 
-  // Toggle ad group collapse
-  const toggleAdGroup = useCallback((key: string) => {
+  // Toggle ad group collapse in preview
+  const toggleAdGroupPreview = useCallback((key: string) => {
     setCollapsedAdGroups((prev) => {
       const next = new Set(prev);
       if (next.has(key)) {
@@ -418,20 +440,24 @@ export function HierarchyConfig({
     });
   }, []);
 
-  // Check if fields have validation errors
-  const hasAdGroupPatternError =
-    validation?.errors.some((e) => e.toLowerCase().includes("ad group pattern")) ?? false;
-  const hasHeadlineError =
-    validation?.errors.some((e) => e.toLowerCase().includes("headline")) ?? false;
-  const hasDescriptionError =
-    validation?.errors.some((e) => e.toLowerCase().includes("description")) ?? false;
-
+  // Check for validation errors
   const hasErrors = validation && validation.errors.length > 0;
   const hasWarnings = validation && validation.warnings.length > 0;
 
+  // Helper to check if a field has an error
+  const hasFieldError = useCallback((field: string) => {
+    if (!validation) return false;
+    return validation.errors.some(e => e.toLowerCase().includes(field.toLowerCase()));
+  }, [validation]);
+
   // Render variable dropdown
   const renderDropdown = (field: InputField) => {
-    if (!showDropdown || activeInputField !== field) return null;
+    if (!showDropdown || !activeInputField) return null;
+
+    // Check if this is the active field
+    const activeKey = getRefKey(activeInputField);
+    const fieldKey = getRefKey(field);
+    if (activeKey !== fieldKey) return null;
 
     return (
       <div
@@ -470,34 +496,208 @@ export function HierarchyConfig({
     );
   };
 
-  return (
-    <div className={styles.container}>
-      {/* Ad Group Name Pattern Section */}
-      <div className={styles.section}>
-        <h3 className={styles.sectionTitle}>Ad Group Name Pattern</h3>
-        <p className={styles.sectionDescription}>
-          Define how rows are grouped into ad groups. Use {"{variable}"} syntax to group rows with the same value.
-        </p>
+  // Render a single ad form
+  const renderAdForm = (adGroup: AdGroupDefinition, ad: AdDefinition, adIndex: number) => {
+    const headlineField: InputField = { type: "headline", adGroupId: adGroup.id, adId: ad.id };
+    const descriptionField: InputField = { type: "description", adGroupId: adGroup.id, adId: ad.id };
+    const displayUrlField: InputField = { type: "displayUrl", adGroupId: adGroup.id, adId: ad.id };
+    const finalUrlField: InputField = { type: "finalUrl", adGroupId: adGroup.id, adId: ad.id };
 
-        <div className={styles.inputWrapper}>
-          <input
-            ref={adGroupInputRef}
-            id="ad-group-name-pattern"
-            type="text"
-            className={`${styles.input} ${hasAdGroupPatternError ? styles.inputInvalid : ""}`}
-            value={localAdGroupPattern}
-            onChange={(e) => handleInputChange(e.target.value, "adGroup")}
-            onKeyDown={handleKeyDown}
-            placeholder="{product_name}"
-            aria-label="Ad group name pattern"
-            aria-describedby="ad-group-pattern-hint"
-            aria-invalid={hasAdGroupPatternError}
-          />
-          {renderDropdown("adGroup")}
+    const canRemoveAd = adGroup.ads.length > 1;
+
+    return (
+      <div key={ad.id} className={styles.adCard} data-testid={`ad-card-${ad.id}`}>
+        <div className={styles.adCardHeader}>
+          <span className={styles.adCardTitle}>Ad {adIndex + 1}</span>
+          {canRemoveAd && (
+            <button
+              type="button"
+              className={styles.removeButton}
+              onClick={() => removeAd(adGroup.id, ad.id)}
+              aria-label={`Remove Ad ${adIndex + 1}`}
+              data-testid={`remove-ad-${ad.id}`}
+            >
+              Remove
+            </button>
+          )}
         </div>
 
-        <p id="ad-group-pattern-hint" className={styles.inputHint}>
-          Example: {"{product}"} groups all rows with the same product into one ad group.
+        <div className={styles.adMappingGrid}>
+          {/* Headline */}
+          <div className={styles.fieldGroup}>
+            <label htmlFor={`ad-headline-${ad.id}`} className={styles.fieldLabel}>
+              Headline<span className={styles.requiredMark}>*</span>
+            </label>
+            <div className={styles.inputWrapper}>
+              <input
+                ref={(el) => { if (el) inputRefs.current.set(getRefKey(headlineField), el); }}
+                id={`ad-headline-${ad.id}`}
+                type="text"
+                className={`${styles.input} ${hasFieldError(`ad ${adIndex + 1}`) && hasFieldError("headline") ? styles.inputInvalid : ""}`}
+                value={ad.headline}
+                onChange={(e) => handleInputChange(e.target.value, headlineField, e.target)}
+                onKeyDown={handleKeyDown}
+                placeholder="{headline}"
+                aria-label="Headline"
+              />
+              {renderDropdown(headlineField)}
+            </div>
+          </div>
+
+          {/* Description */}
+          <div className={styles.fieldGroup}>
+            <label htmlFor={`ad-description-${ad.id}`} className={styles.fieldLabel}>
+              Description<span className={styles.requiredMark}>*</span>
+            </label>
+            <div className={styles.inputWrapper}>
+              <input
+                ref={(el) => { if (el) inputRefs.current.set(getRefKey(descriptionField), el); }}
+                id={`ad-description-${ad.id}`}
+                type="text"
+                className={`${styles.input} ${hasFieldError(`ad ${adIndex + 1}`) && hasFieldError("description") ? styles.inputInvalid : ""}`}
+                value={ad.description}
+                onChange={(e) => handleInputChange(e.target.value, descriptionField, e.target)}
+                onKeyDown={handleKeyDown}
+                placeholder="{description}"
+                aria-label="Description"
+              />
+              {renderDropdown(descriptionField)}
+            </div>
+          </div>
+
+          {/* Display URL */}
+          <div className={styles.fieldGroup}>
+            <label htmlFor={`ad-display-url-${ad.id}`} className={styles.fieldLabel}>
+              Display URL<span className={styles.optionalMark}>(optional)</span>
+            </label>
+            <div className={styles.inputWrapper}>
+              <input
+                ref={(el) => { if (el) inputRefs.current.set(getRefKey(displayUrlField), el); }}
+                id={`ad-display-url-${ad.id}`}
+                type="text"
+                className={styles.input}
+                value={ad.displayUrl ?? ""}
+                onChange={(e) => handleInputChange(e.target.value, displayUrlField, e.target)}
+                onKeyDown={handleKeyDown}
+                placeholder="{display_url}"
+                aria-label="Display URL"
+              />
+              {renderDropdown(displayUrlField)}
+            </div>
+          </div>
+
+          {/* Final URL */}
+          <div className={styles.fieldGroup}>
+            <label htmlFor={`ad-final-url-${ad.id}`} className={styles.fieldLabel}>
+              Final URL<span className={styles.optionalMark}>(optional)</span>
+            </label>
+            <div className={styles.inputWrapper}>
+              <input
+                ref={(el) => { if (el) inputRefs.current.set(getRefKey(finalUrlField), el); }}
+                id={`ad-final-url-${ad.id}`}
+                type="text"
+                className={styles.input}
+                value={ad.finalUrl ?? ""}
+                onChange={(e) => handleInputChange(e.target.value, finalUrlField, e.target)}
+                onKeyDown={handleKeyDown}
+                placeholder="{final_url}"
+                aria-label="Final URL"
+              />
+              {renderDropdown(finalUrlField)}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Render a single ad group
+  const renderAdGroup = (adGroup: AdGroupDefinition, adGroupIndex: number) => {
+    const nameField: InputField = { type: "adGroupName", adGroupId: adGroup.id };
+    const isExpanded = expandedAdGroups.has(adGroup.id);
+    const canRemoveAdGroup = effectiveConfig.adGroups.length > 1;
+
+    return (
+      <div key={adGroup.id} className={styles.adGroupCard} data-testid={`ad-group-${adGroup.id}`}>
+        <div className={styles.adGroupHeader}>
+          <button
+            type="button"
+            className={`${styles.adGroupToggle} ${isExpanded ? styles.adGroupToggleExpanded : ""}`}
+            onClick={() => toggleAdGroupExpansion(adGroup.id)}
+            aria-expanded={isExpanded}
+            aria-label={`Toggle Ad Group ${adGroupIndex + 1}`}
+            data-testid={`toggle-ad-group-${adGroup.id}`}
+          >
+            &#x25B6;
+          </button>
+          <span className={styles.adGroupTitle}>Ad Group {adGroupIndex + 1}</span>
+          <span className={styles.adGroupInfo}>{adGroup.ads.length} ad{adGroup.ads.length !== 1 ? "s" : ""}</span>
+          {canRemoveAdGroup && (
+            <button
+              type="button"
+              className={styles.removeButton}
+              onClick={() => removeAdGroup(adGroup.id)}
+              aria-label={`Remove Ad Group ${adGroupIndex + 1}`}
+              data-testid={`remove-ad-group-${adGroup.id}`}
+            >
+              Remove
+            </button>
+          )}
+        </div>
+
+        {isExpanded && (
+          <div className={styles.adGroupBody}>
+            {/* Ad Group Name Pattern */}
+            <div className={styles.fieldGroup}>
+              <label htmlFor={`ad-group-name-${adGroup.id}`} className={styles.fieldLabel}>
+                Name Pattern<span className={styles.requiredMark}>*</span>
+              </label>
+              <div className={styles.inputWrapper}>
+                <input
+                  ref={(el) => { if (el) inputRefs.current.set(getRefKey(nameField), el); }}
+                  id={`ad-group-name-${adGroup.id}`}
+                  type="text"
+                  className={`${styles.input} ${hasFieldError(`ad group ${adGroupIndex + 1}`) && hasFieldError("name pattern") ? styles.inputInvalid : ""}`}
+                  value={adGroup.namePattern}
+                  onChange={(e) => handleInputChange(e.target.value, nameField, e.target)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="{product_name}"
+                  aria-label="Ad group name pattern"
+                  aria-describedby={`ad-group-pattern-hint-${adGroup.id}`}
+                />
+                {renderDropdown(nameField)}
+              </div>
+              <p id={`ad-group-pattern-hint-${adGroup.id}`} className={styles.inputHint}>
+                Use {"{variable}"} syntax to create dynamic names based on your data.
+              </p>
+            </div>
+
+            {/* Ads Section */}
+            <div className={styles.adsSection}>
+              <h4 className={styles.adsSectionTitle}>Ads</h4>
+              {adGroup.ads.map((ad, adIndex) => renderAdForm(adGroup, ad, adIndex))}
+              <button
+                type="button"
+                className={styles.addButton}
+                onClick={() => addAd(adGroup.id)}
+                data-testid={`add-ad-${adGroup.id}`}
+              >
+                + Add Ad
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className={styles.container}>
+      {/* Ad Groups Section */}
+      <div className={styles.section}>
+        <h3 className={styles.sectionTitle}>Ad Groups</h3>
+        <p className={styles.sectionDescription}>
+          Define your ad groups and the ads within each group. Use {"{variable}"} syntax to create dynamic content from your data.
         </p>
 
         {availableColumns.length === 0 && (
@@ -505,102 +705,19 @@ export function HierarchyConfig({
             No variables available. Select a data source first.
           </p>
         )}
-      </div>
 
-      {/* Ad Field Mapping Section */}
-      <div className={styles.section}>
-        <h3 className={styles.sectionTitle}>Ad Field Mapping</h3>
-        <p className={styles.sectionDescription}>
-          Map data columns to ad fields. Use {"{variable}"} syntax to pull values from your data.
-        </p>
-
-        <div className={styles.adMappingGrid}>
-          {/* Headline */}
-          <div className={styles.fieldGroup}>
-            <label htmlFor="ad-headline" className={styles.fieldLabel}>
-              Headline<span className={styles.requiredMark}>*</span>
-            </label>
-            <div className={styles.inputWrapper}>
-              <input
-                ref={headlineInputRef}
-                id="ad-headline"
-                type="text"
-                className={`${styles.input} ${hasHeadlineError ? styles.inputInvalid : ""}`}
-                value={localHeadline}
-                onChange={(e) => handleInputChange(e.target.value, "headline")}
-                onKeyDown={handleKeyDown}
-                placeholder="{headline}"
-                aria-label="Headline"
-                aria-invalid={hasHeadlineError}
-              />
-              {renderDropdown("headline")}
-            </div>
-          </div>
-
-          {/* Description */}
-          <div className={styles.fieldGroup}>
-            <label htmlFor="ad-description" className={styles.fieldLabel}>
-              Description<span className={styles.requiredMark}>*</span>
-            </label>
-            <div className={styles.inputWrapper}>
-              <input
-                ref={descriptionInputRef}
-                id="ad-description"
-                type="text"
-                className={`${styles.input} ${hasDescriptionError ? styles.inputInvalid : ""}`}
-                value={localDescription}
-                onChange={(e) => handleInputChange(e.target.value, "description")}
-                onKeyDown={handleKeyDown}
-                placeholder="{description}"
-                aria-label="Description"
-                aria-invalid={hasDescriptionError}
-              />
-              {renderDropdown("description")}
-            </div>
-          </div>
-
-          {/* Display URL */}
-          <div className={styles.fieldGroup}>
-            <label htmlFor="ad-display-url" className={styles.fieldLabel}>
-              Display URL<span className={styles.optionalMark}>(optional)</span>
-            </label>
-            <div className={styles.inputWrapper}>
-              <input
-                ref={displayUrlInputRef}
-                id="ad-display-url"
-                type="text"
-                className={styles.input}
-                value={localDisplayUrl}
-                onChange={(e) => handleInputChange(e.target.value, "displayUrl")}
-                onKeyDown={handleKeyDown}
-                placeholder="{display_url}"
-                aria-label="Display URL"
-              />
-              {renderDropdown("displayUrl")}
-            </div>
-          </div>
-
-          {/* Final URL */}
-          <div className={styles.fieldGroup}>
-            <label htmlFor="ad-final-url" className={styles.fieldLabel}>
-              Final URL<span className={styles.optionalMark}>(optional)</span>
-            </label>
-            <div className={styles.inputWrapper}>
-              <input
-                ref={finalUrlInputRef}
-                id="ad-final-url"
-                type="text"
-                className={styles.input}
-                value={localFinalUrl}
-                onChange={(e) => handleInputChange(e.target.value, "finalUrl")}
-                onKeyDown={handleKeyDown}
-                placeholder="{final_url}"
-                aria-label="Final URL"
-              />
-              {renderDropdown("finalUrl")}
-            </div>
-          </div>
+        <div className={styles.adGroupsContainer}>
+          {effectiveConfig.adGroups.map((adGroup, index) => renderAdGroup(adGroup, index))}
         </div>
+
+        <button
+          type="button"
+          className={styles.addAdGroupButton}
+          onClick={addAdGroup}
+          data-testid="add-ad-group"
+        >
+          + Add Ad Group
+        </button>
       </div>
 
       {/* Hierarchy Preview Section */}
@@ -667,7 +784,7 @@ export function HierarchyConfig({
                                     ? styles.treeNodeToggleExpanded
                                     : ""
                                 }`}
-                                onClick={() => toggleAdGroup(agKey)}
+                                onClick={() => toggleAdGroupPreview(agKey)}
                                 aria-expanded={!collapsedAdGroups.has(agKey)}
                                 aria-label={`Toggle ${adGroup.name}`}
                               >

@@ -12,11 +12,15 @@ const mockCampaignConfig: CampaignConfig = {
 };
 
 const mockHierarchyConfig: HierarchyConfig = {
-  adGroupNamePattern: "{product}",
-  adMapping: {
-    headline: "{headline}",
-    description: "{description}",
-  },
+  adGroups: [{
+    id: "ag-1",
+    namePattern: "{product}",
+    ads: [{
+      id: "ad-1",
+      headline: "{headline}",
+      description: "{description}",
+    }],
+  }],
 };
 
 const mockSelectedPlatforms: Platform[] = ["google"];
@@ -171,7 +175,9 @@ describe("GenerationPreview", () => {
       const requestBody = JSON.parse(fetchCall[1].body);
       expect(requestBody.dataSourceId).toBe("datasource-1");
       expect(requestBody.campaignConfig.namePattern).toBe("{brand}-performance");
-      expect(requestBody.hierarchyConfig.adGroupNamePattern).toBe("{product}");
+      // New structure uses adGroups array
+      expect(requestBody.hierarchyConfig.adGroups).toBeDefined();
+      expect(requestBody.hierarchyConfig.adGroups[0].namePattern).toBe("{product}");
       expect(requestBody.selectedPlatforms).toEqual(["google"]);
     });
 

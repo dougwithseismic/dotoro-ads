@@ -62,7 +62,7 @@ export function HierarchyPreview({
   const [collapsedCampaigns, setCollapsedCampaigns] = useState<Set<string>>(new Set());
   const [collapsedAdGroups, setCollapsedAdGroups] = useState<Set<string>>(new Set());
 
-  // Compute hierarchy from sample data
+  // Compute hierarchy from sample data using new structure
   const { campaigns, stats } = useMemo(() => {
     if (!sampleData || sampleData.length === 0) {
       return {
@@ -77,29 +77,53 @@ export function HierarchyPreview({
       };
     }
 
+    // Handle empty adGroups
+    if (!hierarchyConfig.adGroups || hierarchyConfig.adGroups.length === 0) {
+      return {
+        campaigns: [] as GroupedCampaign[],
+        stats: {
+          totalCampaigns: 0,
+          totalAdGroups: 0,
+          totalAds: 0,
+          rowsProcessed: sampleData.length,
+          rowsSkipped,
+        },
+      };
+    }
+
     const campaignMap = new Map<string, Map<string, GroupedAd[]>>();
 
     for (const row of sampleData) {
       const campaignName = interpolatePattern(campaignConfig.namePattern, row);
-      const adGroupName = interpolatePattern(hierarchyConfig.adGroupNamePattern, row);
-      const headline = interpolatePattern(hierarchyConfig.adMapping.headline, row);
-      const description = interpolatePattern(hierarchyConfig.adMapping.description, row);
-      const displayUrl = hierarchyConfig.adMapping.displayUrl
-        ? interpolatePattern(hierarchyConfig.adMapping.displayUrl, row)
-        : undefined;
-      const finalUrl = hierarchyConfig.adMapping.finalUrl
-        ? interpolatePattern(hierarchyConfig.adMapping.finalUrl, row)
-        : undefined;
 
-      if (!campaignMap.has(campaignName)) {
-        campaignMap.set(campaignName, new Map());
-      }
-      const adGroupMap = campaignMap.get(campaignName)!;
+      // Process each ad group definition
+      for (const adGroupDef of hierarchyConfig.adGroups) {
+        const adGroupName = interpolatePattern(adGroupDef.namePattern, row);
 
-      if (!adGroupMap.has(adGroupName)) {
-        adGroupMap.set(adGroupName, []);
+        if (!campaignMap.has(campaignName)) {
+          campaignMap.set(campaignName, new Map());
+        }
+        const adGroupMap = campaignMap.get(campaignName)!;
+
+        if (!adGroupMap.has(adGroupName)) {
+          adGroupMap.set(adGroupName, []);
+        }
+        const ads = adGroupMap.get(adGroupName)!;
+
+        // Process each ad in the ad group definition
+        for (const adDef of adGroupDef.ads) {
+          const headline = interpolatePattern(adDef.headline, row);
+          const description = interpolatePattern(adDef.description, row);
+          const displayUrl = adDef.displayUrl
+            ? interpolatePattern(adDef.displayUrl, row)
+            : undefined;
+          const finalUrl = adDef.finalUrl
+            ? interpolatePattern(adDef.finalUrl, row)
+            : undefined;
+
+          ads.push({ headline, description, displayUrl, finalUrl });
+        }
       }
-      adGroupMap.get(adGroupName)!.push({ headline, description, displayUrl, finalUrl });
     }
 
     const campaignList: GroupedCampaign[] = [];

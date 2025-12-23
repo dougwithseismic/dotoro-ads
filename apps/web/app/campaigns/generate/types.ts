@@ -22,18 +22,73 @@ export interface BudgetConfig {
   currency: string;
 }
 
-// Hierarchy configuration for ad group and ad mapping
-export interface HierarchyConfig {
-  adGroupNamePattern: string;    // e.g., "{product_name}"
-  adMapping: AdMapping;
+// Ad definition within an ad group
+export interface AdDefinition {
+  id: string;
+  headline: string;            // Pattern like "{headline}" or static text
+  description: string;
+  displayUrl?: string;
+  finalUrl?: string;
+  callToAction?: string;
 }
 
+// Ad group definition with multiple ads
+export interface AdGroupDefinition {
+  id: string;
+  namePattern: string;         // Pattern like "{product_name}" or static text
+  ads: AdDefinition[];         // Multiple ads per group
+}
+
+// Hierarchy configuration for ad group and ad mapping
+export interface HierarchyConfig {
+  adGroups: AdGroupDefinition[];  // Explicit ad group definitions
+}
+
+// Legacy AdMapping interface (for backwards compatibility during migration)
 export interface AdMapping {
   headline: string;            // Column name or pattern
   description: string;
   displayUrl?: string;
   finalUrl?: string;
   callToAction?: string;
+}
+
+/**
+ * Generates a unique ID for ad groups and ads
+ * Uses crypto.randomUUID if available, otherwise falls back to Math.random
+ */
+export function generateId(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback for environments without crypto.randomUUID
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
+/**
+ * Creates a default ad group with one empty ad
+ */
+export function createDefaultAdGroup(): AdGroupDefinition {
+  return {
+    id: generateId(),
+    namePattern: '',
+    ads: [createDefaultAd()],
+  };
+}
+
+/**
+ * Creates a default empty ad
+ */
+export function createDefaultAd(): AdDefinition {
+  return {
+    id: generateId(),
+    headline: '',
+    description: '',
+  };
 }
 
 // Keyword configuration (optional step)
@@ -370,6 +425,87 @@ export function validatePlatformSelection(
 }
 
 /**
+ * Validates a single ad definition
+ */
+function validateAdDefinition(
+  ad: AdDefinition,
+  adGroupIndex: number,
+  adIndex: number,
+  availableColumns: DataSourceColumn[]
+): { errors: string[]; warnings: string[] } {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const prefix = `Ad Group ${adGroupIndex + 1}, Ad ${adIndex + 1}`;
+
+  // Headline is required
+  if (!ad.headline || ad.headline.trim() === '') {
+    errors.push(`${prefix}: Headline is required`);
+  } else {
+    const headlineResult = validateVariablesInPattern(ad.headline, availableColumns);
+    errors.push(...headlineResult.errors.map(e => `${prefix} headline: ${e}`));
+  }
+
+  // Description is required
+  if (!ad.description || ad.description.trim() === '') {
+    errors.push(`${prefix}: Description is required`);
+  } else {
+    const descResult = validateVariablesInPattern(ad.description, availableColumns);
+    errors.push(...descResult.errors.map(e => `${prefix} description: ${e}`));
+  }
+
+  // Optional fields validation
+  if (ad.displayUrl) {
+    const urlResult = validateVariablesInPattern(ad.displayUrl, availableColumns);
+    warnings.push(...urlResult.errors.map(e => `${prefix} display URL: ${e}`));
+  }
+
+  if (ad.finalUrl) {
+    const urlResult = validateVariablesInPattern(ad.finalUrl, availableColumns);
+    warnings.push(...urlResult.errors.map(e => `${prefix} final URL: ${e}`));
+  }
+
+  return { errors, warnings };
+}
+
+/**
+ * Validates a single ad group definition
+ */
+function validateAdGroupDefinition(
+  adGroup: AdGroupDefinition,
+  adGroupIndex: number,
+  availableColumns: DataSourceColumn[]
+): { errors: string[]; warnings: string[] } {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const prefix = `Ad Group ${adGroupIndex + 1}`;
+
+  // Validate ad group name pattern
+  if (!adGroup.namePattern || adGroup.namePattern.trim() === '') {
+    errors.push(`${prefix}: Name pattern is required`);
+  } else {
+    const patternResult = validateVariablesInPattern(adGroup.namePattern, availableColumns);
+    errors.push(...patternResult.errors.map(e => `${prefix} name pattern: ${e}`));
+  }
+
+  // Validate that at least one ad exists
+  if (!adGroup.ads || adGroup.ads.length === 0) {
+    errors.push(`${prefix}: At least one ad is required`);
+  } else {
+    // Validate each ad
+    for (let adIndex = 0; adIndex < adGroup.ads.length; adIndex++) {
+      const ad = adGroup.ads[adIndex];
+      if (ad) {
+        const adValidation = validateAdDefinition(ad, adGroupIndex, adIndex, availableColumns);
+        errors.push(...adValidation.errors);
+        warnings.push(...adValidation.warnings);
+      }
+    }
+  }
+
+  return { errors, warnings };
+}
+
+/**
  * Validates hierarchy configuration
  */
 export function validateHierarchyConfig(
@@ -384,39 +520,19 @@ export function validateHierarchyConfig(
     return { valid: false, errors, warnings };
   }
 
-  // Validate ad group name pattern
-  const adGroupResult = validateVariablesInPattern(config.adGroupNamePattern, availableColumns);
-  errors.push(...adGroupResult.errors.map(e => `Ad group pattern: ${e}`));
+  // Validate that at least one ad group exists
+  if (!config.adGroups || config.adGroups.length === 0) {
+    errors.push('At least one ad group is required');
+    return { valid: false, errors, warnings };
+  }
 
-  // Validate ad mapping
-  if (!config.adMapping) {
-    errors.push('Ad mapping is required');
-  } else {
-    // Headline is required
-    if (!config.adMapping.headline || config.adMapping.headline.trim() === '') {
-      errors.push('Ad headline mapping is required');
-    } else {
-      const headlineResult = validateVariablesInPattern(config.adMapping.headline, availableColumns);
-      errors.push(...headlineResult.errors.map(e => `Headline: ${e}`));
-    }
-
-    // Description is required
-    if (!config.adMapping.description || config.adMapping.description.trim() === '') {
-      errors.push('Ad description mapping is required');
-    } else {
-      const descResult = validateVariablesInPattern(config.adMapping.description, availableColumns);
-      errors.push(...descResult.errors.map(e => `Description: ${e}`));
-    }
-
-    // Optional fields validation
-    if (config.adMapping.displayUrl) {
-      const urlResult = validateVariablesInPattern(config.adMapping.displayUrl, availableColumns);
-      warnings.push(...urlResult.errors.map(e => `Display URL: ${e}`));
-    }
-
-    if (config.adMapping.finalUrl) {
-      const urlResult = validateVariablesInPattern(config.adMapping.finalUrl, availableColumns);
-      warnings.push(...urlResult.errors.map(e => `Final URL: ${e}`));
+  // Validate each ad group
+  for (let i = 0; i < config.adGroups.length; i++) {
+    const adGroup = config.adGroups[i];
+    if (adGroup) {
+      const adGroupValidation = validateAdGroupDefinition(adGroup, i, availableColumns);
+      errors.push(...adGroupValidation.errors);
+      warnings.push(...adGroupValidation.warnings);
     }
   }
 
