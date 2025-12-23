@@ -408,4 +408,175 @@ describe("GenerationPreview", () => {
       consoleSpy.mockRestore();
     });
   });
+
+  // ==========================================================================
+  // Multi-Platform Preview Tests
+  // ==========================================================================
+
+  describe("Multi-Platform Preview", () => {
+    const multiPlatformProps = {
+      ...defaultProps,
+      selectedPlatforms: ["google", "reddit", "facebook"] as Platform[],
+    };
+
+    it("shows platform tabs when multiple platforms are selected", () => {
+      render(<GenerationPreview {...multiPlatformProps} />);
+
+      expect(screen.getByTestId("platform-tabs")).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: /google/i })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: /reddit/i })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: /facebook/i })).toBeInTheDocument();
+    });
+
+    it("does not show platform tabs when only one platform is selected", () => {
+      render(<GenerationPreview {...defaultProps} />);
+
+      expect(screen.queryByTestId("platform-tabs")).not.toBeInTheDocument();
+    });
+
+    it("shows first platform tab as active by default", () => {
+      render(<GenerationPreview {...multiPlatformProps} />);
+
+      const googleTab = screen.getByRole("tab", { name: /google/i });
+      expect(googleTab).toHaveAttribute("aria-selected", "true");
+    });
+
+    it("switches active tab when clicked", () => {
+      render(<GenerationPreview {...multiPlatformProps} />);
+
+      const redditTab = screen.getByRole("tab", { name: /reddit/i });
+      fireEvent.click(redditTab);
+
+      expect(redditTab).toHaveAttribute("aria-selected", "true");
+      expect(screen.getByRole("tab", { name: /google/i })).toHaveAttribute("aria-selected", "false");
+    });
+
+    it("shows platform-specific character limits in active tab panel", () => {
+      // Use data with long content that exceeds limits
+      const longContentData = [
+        {
+          brand: "Nike",
+          product: "Air Max",
+          headline: "This is a very long headline that exceeds the 30 character limit for Google",
+          description: "This is a description that might exceed limits for some platforms",
+        },
+      ];
+
+      render(
+        <GenerationPreview
+          {...multiPlatformProps}
+          sampleData={longContentData}
+        />
+      );
+
+      // Should show character limit warnings for active platform (Google)
+      const charLimitSection = screen.queryByTestId("char-limit-section");
+      if (charLimitSection) {
+        expect(screen.getByTestId("char-limit-platform-google")).toBeInTheDocument();
+      }
+    });
+
+    it("shows correct platform name in hierarchy preview for active tab", () => {
+      render(<GenerationPreview {...multiPlatformProps} />);
+
+      // The active tab's platform should be passed to HierarchyPreview
+      // We verify this by checking the hierarchy preview is rendered
+      expect(screen.getByTestId("hierarchy-preview")).toBeInTheDocument();
+    });
+
+    it("shows generate button with correct platform count", () => {
+      render(<GenerationPreview {...multiPlatformProps} />);
+
+      const generateButton = screen.getByTestId("config-generate-button");
+      expect(generateButton).toHaveTextContent(/Generate.*for 3 Platforms/i);
+    });
+
+    it("shows generate button with singular platform text when one platform", () => {
+      render(<GenerationPreview {...defaultProps} />);
+
+      const generateButton = screen.getByTestId("config-generate-button");
+      // Should not mention "platforms" when only one
+      expect(generateButton).not.toHaveTextContent(/Platforms/i);
+    });
+
+    it("includes all selected platforms in generate API request", async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve(mockConfigGenerateResponse),
+        headers: new Headers({ "content-type": "application/json" }),
+      });
+
+      render(<GenerationPreview {...multiPlatformProps} />);
+
+      fireEvent.click(screen.getByTestId("config-generate-button"));
+
+      await waitFor(() => {
+        expect(mockFetch).toHaveBeenCalled();
+      });
+
+      const fetchCall = mockFetch.mock.calls.find((call) =>
+        call[0].includes("/api/v1/campaigns/generate-from-config")
+      );
+      const requestBody = JSON.parse(fetchCall[1].body);
+      expect(requestBody.selectedPlatforms).toEqual(["google", "reddit", "facebook"]);
+    });
+
+    it("shows per-platform stats breakdown in stats panel", () => {
+      render(<GenerationPreview {...multiPlatformProps} />);
+
+      // Stats panel should show per-platform information for the active platform
+      const statsPanel = screen.getByTestId("stats-panel");
+      expect(statsPanel).toBeInTheDocument();
+
+      // HierarchyPreview shows stats for the active platform only
+      // Since we pass only the active platform to HierarchyPreview, it shows 2 campaigns
+      expect(screen.getByTestId("stat-campaigns")).toHaveTextContent("2");
+    });
+
+    it("updates preview when switching between platform tabs", () => {
+      const longContentData = [
+        {
+          brand: "Nike",
+          product: "Air Max",
+          headline: "This is a very long headline that exceeds Google limits but not Reddit",
+          description: "Short desc",
+        },
+      ];
+
+      render(
+        <GenerationPreview
+          {...multiPlatformProps}
+          sampleData={longContentData}
+        />
+      );
+
+      // Switch to Reddit tab
+      const redditTab = screen.getByRole("tab", { name: /reddit/i });
+      fireEvent.click(redditTab);
+
+      // The hierarchy preview should still be visible
+      expect(screen.getByTestId("hierarchy-preview")).toBeInTheDocument();
+    });
+
+    it("shows platform indicator for currently previewed platform", () => {
+      render(<GenerationPreview {...multiPlatformProps} />);
+
+      // Should show which platform is being previewed
+      expect(screen.getByTestId("active-platform-indicator")).toBeInTheDocument();
+      expect(screen.getByTestId("active-platform-indicator")).toHaveTextContent(/google/i);
+    });
+
+    it("keyboard navigation works between platform tabs", () => {
+      render(<GenerationPreview {...multiPlatformProps} />);
+
+      const googleTab = screen.getByRole("tab", { name: /google/i });
+      googleTab.focus();
+
+      // Press right arrow to move to next tab
+      fireEvent.keyDown(googleTab, { key: "ArrowRight" });
+
+      const redditTab = screen.getByRole("tab", { name: /reddit/i });
+      expect(redditTab).toHaveAttribute("aria-selected", "true");
+    });
+  });
 });

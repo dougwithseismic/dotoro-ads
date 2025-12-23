@@ -41,14 +41,6 @@ const uuids = {
   adTemplate3: "00000000-0002-0000-0000-000000000003",
   adTemplate4: "00000000-0002-0000-0000-000000000004",
 
-  // Data rows
-  dataRow1: "00000000-0003-0000-0000-000000000001",
-  dataRow2: "00000000-0003-0000-0000-000000000002",
-  dataRow3: "00000000-0003-0000-0000-000000000003",
-  dataRow4: "00000000-0003-0000-0000-000000000004",
-  dataRow5: "00000000-0003-0000-0000-000000000005",
-  dataRow6: "00000000-0003-0000-0000-000000000006",
-
   // Rules
   rule1: "00000000-0004-0000-0000-000000000001",
   rule2: "00000000-0004-0000-0000-000000000002",
@@ -71,6 +63,151 @@ const uuids = {
   creative2: "00000000-0007-0000-0000-000000000002",
   creative3: "00000000-0007-0000-0000-000000000003",
 };
+
+// Helper to generate data row UUID from index
+const dataRowUuid = (index: number) =>
+  `00000000-0003-0000-0000-${String(index + 1).padStart(12, "0")}`;
+
+// Sample product data matching the UI test mock data
+// 120 rows across 11 brands with varied products and ad copy
+const sampleProductData = [
+  // Nike - Running (10 rows)
+  { brand: "Nike", product: "Air Max 90", headline: "Run Fast", description: "Best shoe ever", display_url: "nike.com/airmax", final_url: "https://nike.com/shoes/air-max-90" },
+  { brand: "Nike", product: "Air Max 90", headline: "Speed Up Your Run", description: "Top rated running shoe", display_url: "nike.com/airmax", final_url: "https://nike.com/shoes/air-max-90" },
+  { brand: "Nike", product: "Air Max 90", headline: "Classic Comfort", description: "Iconic design meets modern tech", display_url: "nike.com/airmax", final_url: "https://nike.com/shoes/air-max-90" },
+  { brand: "Nike", product: "Air Max 270", headline: "Max Air Cushioning", description: "Feel the difference", display_url: "nike.com/270", final_url: "https://nike.com/shoes/air-max-270" },
+  { brand: "Nike", product: "Air Max 270", headline: "All Day Comfort", description: "Walk in clouds", display_url: "nike.com/270", final_url: "https://nike.com/shoes/air-max-270" },
+  { brand: "Nike", product: "Free Run", headline: "Natural Movement", description: "Like running barefoot", display_url: "nike.com/free", final_url: "https://nike.com/shoes/free-run" },
+  { brand: "Nike", product: "Free Run", headline: "Flexible Freedom", description: "Move without limits", display_url: "nike.com/free", final_url: "https://nike.com/shoes/free-run" },
+  { brand: "Nike", product: "Pegasus 40", headline: "Trusted by Runners", description: "40 years of excellence", display_url: "nike.com/pegasus", final_url: "https://nike.com/shoes/pegasus-40" },
+  { brand: "Nike", product: "Pegasus 40", headline: "Your Daily Trainer", description: "Mile after mile", display_url: "nike.com/pegasus", final_url: "https://nike.com/shoes/pegasus-40" },
+  { brand: "Nike", product: "Pegasus 40", headline: "Responsive Cushion", description: "Spring in every step", display_url: "nike.com/pegasus", final_url: "https://nike.com/shoes/pegasus-40" },
+  // Nike - Basketball (6 rows)
+  { brand: "Nike", product: "Jordan 1", headline: "Jump High", description: "Classic basketball icon", display_url: "nike.com/jordan", final_url: "https://nike.com/shoes/jordan-1" },
+  { brand: "Nike", product: "Jordan 1", headline: "Legendary Style", description: "Since 1985", display_url: "nike.com/jordan", final_url: "https://nike.com/shoes/jordan-1" },
+  { brand: "Nike", product: "Jordan 1", headline: "Street Meets Court", description: "Versatile classics", display_url: "nike.com/jordan", final_url: "https://nike.com/shoes/jordan-1" },
+  { brand: "Nike", product: "LeBron 21", headline: "King of the Court", description: "Dominate every game", display_url: "nike.com/lebron", final_url: "https://nike.com/shoes/lebron-21" },
+  { brand: "Nike", product: "LeBron 21", headline: "Built for Champions", description: "Elite performance", display_url: "nike.com/lebron", final_url: "https://nike.com/shoes/lebron-21" },
+  { brand: "Nike", product: "KD 16", headline: "Smooth Operator", description: "Precision on court", display_url: "nike.com/kd", final_url: "https://nike.com/shoes/kd-16" },
+  // Nike - Training (3 rows)
+  { brand: "Nike", product: "Metcon 9", headline: "Train Harder", description: "Built for CrossFit", display_url: "nike.com/metcon", final_url: "https://nike.com/shoes/metcon-9" },
+  { brand: "Nike", product: "Metcon 9", headline: "Stability First", description: "Lift with confidence", display_url: "nike.com/metcon", final_url: "https://nike.com/shoes/metcon-9" },
+  { brand: "Nike", product: "SuperRep", headline: "HIIT Ready", description: "Move in any direction", display_url: "nike.com/superrep", final_url: "https://nike.com/shoes/superrep" },
+  // Adidas - Running (8 rows)
+  { brand: "Adidas", product: "Ultraboost 23", headline: "Run Faster", description: "Premium comfort boost", display_url: "adidas.com/ultra", final_url: "https://adidas.com/shoes/ultraboost-23" },
+  { brand: "Adidas", product: "Ultraboost 23", headline: "Energy Returns", description: "Boost technology", display_url: "adidas.com/ultra", final_url: "https://adidas.com/shoes/ultraboost-23" },
+  { brand: "Adidas", product: "Ultraboost 23", headline: "Endless Energy", description: "Run longer, recover faster", display_url: "adidas.com/ultra", final_url: "https://adidas.com/shoes/ultraboost-23" },
+  { brand: "Adidas", product: "Ultraboost Light", headline: "Lighter Than Ever", description: "Same boost, less weight", display_url: "adidas.com/ultra", final_url: "https://adidas.com/shoes/ultraboost-light" },
+  { brand: "Adidas", product: "Adizero SL", headline: "Speed Training", description: "Race day ready", display_url: "adidas.com/adizero", final_url: "https://adidas.com/shoes/adizero-sl" },
+  { brand: "Adidas", product: "Adizero SL", headline: "Fast Gets Faster", description: "Break your PR", display_url: "adidas.com/adizero", final_url: "https://adidas.com/shoes/adizero-sl" },
+  { brand: "Adidas", product: "Supernova", headline: "Dream Runner", description: "Comfort for every mile", display_url: "adidas.com/supernova", final_url: "https://adidas.com/shoes/supernova" },
+  { brand: "Adidas", product: "Supernova", headline: "Supportive Ride", description: "Perfect for beginners", display_url: "adidas.com/supernova", final_url: "https://adidas.com/shoes/supernova" },
+  // Adidas - Lifestyle (7 rows)
+  { brand: "Adidas", product: "Stan Smith", headline: "Timeless Style", description: "Since 1971", display_url: "adidas.com/stan", final_url: "https://adidas.com/shoes/stan-smith" },
+  { brand: "Adidas", product: "Stan Smith", headline: "Clean & Classic", description: "Goes with everything", display_url: "adidas.com/stan", final_url: "https://adidas.com/shoes/stan-smith" },
+  { brand: "Adidas", product: "Samba", headline: "Street Icon", description: "From pitch to pavement", display_url: "adidas.com/samba", final_url: "https://adidas.com/shoes/samba" },
+  { brand: "Adidas", product: "Samba", headline: "Retro Vibes", description: "Classic never fades", display_url: "adidas.com/samba", final_url: "https://adidas.com/shoes/samba" },
+  { brand: "Adidas", product: "Samba", headline: "Cult Favorite", description: "The shoe everyone wants", display_url: "adidas.com/samba", final_url: "https://adidas.com/shoes/samba" },
+  { brand: "Adidas", product: "Gazelle", headline: "70s Revival", description: "Vintage aesthetic", display_url: "adidas.com/gazelle", final_url: "https://adidas.com/shoes/gazelle" },
+  { brand: "Adidas", product: "Gazelle", headline: "Suede Classic", description: "Soft touch luxury", display_url: "adidas.com/gazelle", final_url: "https://adidas.com/shoes/gazelle" },
+  // Puma - Running (5 rows)
+  { brand: "Puma", product: "Deviate Nitro", headline: "Nitro Powered", description: "Maximum propulsion", display_url: "puma.com/nitro", final_url: "https://puma.com/shoes/deviate-nitro" },
+  { brand: "Puma", product: "Deviate Nitro", headline: "Race to Win", description: "Elite carbon plate", display_url: "puma.com/nitro", final_url: "https://puma.com/shoes/deviate-nitro" },
+  { brand: "Puma", product: "Velocity Nitro", headline: "Daily Speed", description: "Train fast every day", display_url: "puma.com/velocity", final_url: "https://puma.com/shoes/velocity-nitro" },
+  { brand: "Puma", product: "Velocity Nitro", headline: "Grip & Go", description: "All surface traction", display_url: "puma.com/velocity", final_url: "https://puma.com/shoes/velocity-nitro" },
+  { brand: "Puma", product: "Magnify Nitro", headline: "Plush Ride", description: "Maximum cushion", display_url: "puma.com/magnify", final_url: "https://puma.com/shoes/magnify-nitro" },
+  // Puma - Lifestyle (5 rows)
+  { brand: "Puma", product: "Suede Classic", headline: "Iconic Since 68", description: "Hip-hop heritage", display_url: "puma.com/suede", final_url: "https://puma.com/shoes/suede-classic" },
+  { brand: "Puma", product: "Suede Classic", headline: "Street Legend", description: "Culture classic", display_url: "puma.com/suede", final_url: "https://puma.com/shoes/suede-classic" },
+  { brand: "Puma", product: "RS-X", headline: "Chunky Cool", description: "Bold design statement", display_url: "puma.com/rsx", final_url: "https://puma.com/shoes/rs-x" },
+  { brand: "Puma", product: "RS-X", headline: "Reinvention", description: "Running system reimagined", display_url: "puma.com/rsx", final_url: "https://puma.com/shoes/rs-x" },
+  { brand: "Puma", product: "Palermo", headline: "Italian Flair", description: "Soccer meets street", display_url: "puma.com/palermo", final_url: "https://puma.com/shoes/palermo" },
+  // Under Armour - Running & Training (8 rows)
+  { brand: "Under Armour", product: "HOVR Machina", headline: "Zero Gravity Feel", description: "Energy return technology", display_url: "ua.com/hovr", final_url: "https://ua.com/shoes/hovr-machina" },
+  { brand: "Under Armour", product: "HOVR Machina", headline: "Connected Running", description: "Track every step", display_url: "ua.com/hovr", final_url: "https://ua.com/shoes/hovr-machina" },
+  { brand: "Under Armour", product: "HOVR Phantom", headline: "Plush Performance", description: "Soft yet responsive", display_url: "ua.com/phantom", final_url: "https://ua.com/shoes/hovr-phantom" },
+  { brand: "Under Armour", product: "HOVR Phantom", headline: "All Day Runner", description: "Comfort for miles", display_url: "ua.com/phantom", final_url: "https://ua.com/shoes/hovr-phantom" },
+  { brand: "Under Armour", product: "Charged Assert", headline: "Budget Champion", description: "Great value performer", display_url: "ua.com/charged", final_url: "https://ua.com/shoes/charged-assert" },
+  { brand: "Under Armour", product: "Project Rock", headline: "Dwayne's Pick", description: "Train like The Rock", display_url: "ua.com/rock", final_url: "https://ua.com/shoes/project-rock" },
+  { brand: "Under Armour", product: "Project Rock", headline: "Built Different", description: "Heavy lifting ready", display_url: "ua.com/rock", final_url: "https://ua.com/shoes/project-rock" },
+  { brand: "Under Armour", product: "TriBase Reign", headline: "Ground Contact", description: "Feel the floor", display_url: "ua.com/tribase", final_url: "https://ua.com/shoes/tribase-reign" },
+  // New Balance - Running (8 rows)
+  { brand: "New Balance", product: "Fresh Foam 1080", headline: "Plush Perfection", description: "Premium daily trainer", display_url: "nb.com/1080", final_url: "https://nb.com/shoes/fresh-foam-1080" },
+  { brand: "New Balance", product: "Fresh Foam 1080", headline: "Cloud-Like Comfort", description: "Ultra soft ride", display_url: "nb.com/1080", final_url: "https://nb.com/shoes/fresh-foam-1080" },
+  { brand: "New Balance", product: "Fresh Foam 1080", headline: "Editor's Choice", description: "Award winning cushion", display_url: "nb.com/1080", final_url: "https://nb.com/shoes/fresh-foam-1080" },
+  { brand: "New Balance", product: "FuelCell Rebel", headline: "Light & Fast", description: "Springy propulsion", display_url: "nb.com/rebel", final_url: "https://nb.com/shoes/fuelcell-rebel" },
+  { brand: "New Balance", product: "FuelCell Rebel", headline: "Speed Machine", description: "Built for fast", display_url: "nb.com/rebel", final_url: "https://nb.com/shoes/fuelcell-rebel" },
+  { brand: "New Balance", product: "FuelCell SC Elite", headline: "Race Day Carbon", description: "Elite performance", display_url: "nb.com/sc-elite", final_url: "https://nb.com/shoes/fuelcell-sc-elite" },
+  { brand: "New Balance", product: "880v14", headline: "Reliable Runner", description: "Trusted classic", display_url: "nb.com/880", final_url: "https://nb.com/shoes/880v14" },
+  { brand: "New Balance", product: "880v14", headline: "Everyday Excellence", description: "Never lets you down", display_url: "nb.com/880", final_url: "https://nb.com/shoes/880v14" },
+  // New Balance - Lifestyle (7 rows)
+  { brand: "New Balance", product: "550", headline: "Basketball Heritage", description: "80s court style", display_url: "nb.com/550", final_url: "https://nb.com/shoes/550" },
+  { brand: "New Balance", product: "550", headline: "Streetwear Essential", description: "Clean silhouette", display_url: "nb.com/550", final_url: "https://nb.com/shoes/550" },
+  { brand: "New Balance", product: "550", headline: "Hype Worthy", description: "Everyone wants these", display_url: "nb.com/550", final_url: "https://nb.com/shoes/550" },
+  { brand: "New Balance", product: "574", headline: "Original Classic", description: "Everyday icon", display_url: "nb.com/574", final_url: "https://nb.com/shoes/574" },
+  { brand: "New Balance", product: "574", headline: "Timeless Design", description: "Never out of style", display_url: "nb.com/574", final_url: "https://nb.com/shoes/574" },
+  { brand: "New Balance", product: "2002R", headline: "Y2K Revival", description: "Retro future style", display_url: "nb.com/2002r", final_url: "https://nb.com/shoes/2002r" },
+  { brand: "New Balance", product: "2002R", headline: "Premium Materials", description: "Suede & mesh", display_url: "nb.com/2002r", final_url: "https://nb.com/shoes/2002r" },
+  // Reebok - Running/Training (5 rows)
+  { brand: "Reebok", product: "Nano X4", headline: "CrossFit Ready", description: "Official CF shoe", display_url: "reebok.com/nano", final_url: "https://reebok.com/shoes/nano-x4" },
+  { brand: "Reebok", product: "Nano X4", headline: "WOD Warrior", description: "Do it all trainer", display_url: "reebok.com/nano", final_url: "https://reebok.com/shoes/nano-x4" },
+  { brand: "Reebok", product: "Nano X4", headline: "Box Jump Stable", description: "Land with confidence", display_url: "reebok.com/nano", final_url: "https://reebok.com/shoes/nano-x4" },
+  { brand: "Reebok", product: "Floatride Energy", headline: "Lightweight Run", description: "Fast & comfortable", display_url: "reebok.com/float", final_url: "https://reebok.com/shoes/floatride-energy" },
+  { brand: "Reebok", product: "Floatride Energy", headline: "Tempo Trainer", description: "Speed work ready", display_url: "reebok.com/float", final_url: "https://reebok.com/shoes/floatride-energy" },
+  // Reebok - Lifestyle (5 rows)
+  { brand: "Reebok", product: "Classic Leather", headline: "80s Original", description: "Retro running style", display_url: "reebok.com/classic", final_url: "https://reebok.com/shoes/classic-leather" },
+  { brand: "Reebok", product: "Classic Leather", headline: "Heritage Style", description: "Clean & simple", display_url: "reebok.com/classic", final_url: "https://reebok.com/shoes/classic-leather" },
+  { brand: "Reebok", product: "Club C", headline: "Tennis Heritage", description: "Court classic", display_url: "reebok.com/clubc", final_url: "https://reebok.com/shoes/club-c" },
+  { brand: "Reebok", product: "Club C", headline: "Clean White", description: "Goes with anything", display_url: "reebok.com/clubc", final_url: "https://reebok.com/shoes/club-c" },
+  { brand: "Reebok", product: "Pump Omni", headline: "Pump It Up", description: "Iconic tech returns", display_url: "reebok.com/pump", final_url: "https://reebok.com/shoes/pump-omni" },
+  // ASICS - Running (9 rows)
+  { brand: "ASICS", product: "Gel-Kayano 30", headline: "Stability King", description: "30 years of support", display_url: "asics.com/kayano", final_url: "https://asics.com/shoes/gel-kayano-30" },
+  { brand: "ASICS", product: "Gel-Kayano 30", headline: "Overpronation Fix", description: "Guided gait support", display_url: "asics.com/kayano", final_url: "https://asics.com/shoes/gel-kayano-30" },
+  { brand: "ASICS", product: "Gel-Nimbus 25", headline: "Cloud Nine Run", description: "Maximum cushion", display_url: "asics.com/nimbus", final_url: "https://asics.com/shoes/gel-nimbus-25" },
+  { brand: "ASICS", product: "Gel-Nimbus 25", headline: "Plush Landing", description: "Soft impact absorption", display_url: "asics.com/nimbus", final_url: "https://asics.com/shoes/gel-nimbus-25" },
+  { brand: "ASICS", product: "Gel-Nimbus 25", headline: "Long Run Ready", description: "Marathon favorite", display_url: "asics.com/nimbus", final_url: "https://asics.com/shoes/gel-nimbus-25" },
+  { brand: "ASICS", product: "Novablast 4", headline: "Bouncy Fun", description: "Trampoline feel", display_url: "asics.com/nova", final_url: "https://asics.com/shoes/novablast-4" },
+  { brand: "ASICS", product: "Novablast 4", headline: "Energy Return", description: "FF Blast Plus foam", display_url: "asics.com/nova", final_url: "https://asics.com/shoes/novablast-4" },
+  { brand: "ASICS", product: "GT-2000 12", headline: "Reliable Support", description: "Everyday stability", display_url: "asics.com/gt2000", final_url: "https://asics.com/shoes/gt-2000-12" },
+  { brand: "ASICS", product: "Metaspeed Sky+", headline: "Carbon Racer", description: "Sub-2 hour tech", display_url: "asics.com/meta", final_url: "https://asics.com/shoes/metaspeed-sky" },
+  // Saucony - Running (7 rows)
+  { brand: "Saucony", product: "Endorphin Speed", headline: "Daily Speedster", description: "Nylon plate power", display_url: "saucony.com/endo", final_url: "https://saucony.com/shoes/endorphin-speed" },
+  { brand: "Saucony", product: "Endorphin Speed", headline: "Tempo King", description: "Fast day favorite", display_url: "saucony.com/endo", final_url: "https://saucony.com/shoes/endorphin-speed" },
+  { brand: "Saucony", product: "Endorphin Pro", headline: "Race Day Elite", description: "Carbon plate racer", display_url: "saucony.com/pro", final_url: "https://saucony.com/shoes/endorphin-pro" },
+  { brand: "Saucony", product: "Triumph 21", headline: "Plush Comfort", description: "Max cushion trainer", display_url: "saucony.com/triumph", final_url: "https://saucony.com/shoes/triumph-21" },
+  { brand: "Saucony", product: "Triumph 21", headline: "PWRRUN+ Cloud", description: "Softest Saucony ever", display_url: "saucony.com/triumph", final_url: "https://saucony.com/shoes/triumph-21" },
+  { brand: "Saucony", product: "Guide 16", headline: "Guided Ride", description: "Light stability", display_url: "saucony.com/guide", final_url: "https://saucony.com/shoes/guide-16" },
+  { brand: "Saucony", product: "Kinvara 14", headline: "Minimal & Fast", description: "Natural feel runner", display_url: "saucony.com/kinvara", final_url: "https://saucony.com/shoes/kinvara-14" },
+  // Brooks - Running (8 rows)
+  { brand: "Brooks", product: "Ghost 15", headline: "Smooth Operator", description: "Neutral daily trainer", display_url: "brooks.com/ghost", final_url: "https://brooks.com/shoes/ghost-15" },
+  { brand: "Brooks", product: "Ghost 15", headline: "DNA Loft Comfort", description: "Soft transitions", display_url: "brooks.com/ghost", final_url: "https://brooks.com/shoes/ghost-15" },
+  { brand: "Brooks", product: "Ghost 15", headline: "Best Seller", description: "Fan favorite shoe", display_url: "brooks.com/ghost", final_url: "https://brooks.com/shoes/ghost-15" },
+  { brand: "Brooks", product: "Glycerin 20", headline: "Premium Plush", description: "Luxury cushioning", display_url: "brooks.com/glycerin", final_url: "https://brooks.com/shoes/glycerin-20" },
+  { brand: "Brooks", product: "Glycerin 20", headline: "Super Soft", description: "Pillow-like ride", display_url: "brooks.com/glycerin", final_url: "https://brooks.com/shoes/glycerin-20" },
+  { brand: "Brooks", product: "Adrenaline GTS 23", headline: "GuideRails Support", description: "Motion control", display_url: "brooks.com/adrenaline", final_url: "https://brooks.com/shoes/adrenaline-gts-23" },
+  { brand: "Brooks", product: "Adrenaline GTS 23", headline: "Podiatrist Pick", description: "Doctor recommended", display_url: "brooks.com/adrenaline", final_url: "https://brooks.com/shoes/adrenaline-gts-23" },
+  { brand: "Brooks", product: "Hyperion Tempo", headline: "Speed Session", description: "Tempo day essential", display_url: "brooks.com/hyperion", final_url: "https://brooks.com/shoes/hyperion-tempo" },
+  // Hoka - Running (11 rows)
+  { brand: "Hoka", product: "Clifton 9", headline: "Marshmallow Run", description: "Light & cushioned", display_url: "hoka.com/clifton", final_url: "https://hoka.com/shoes/clifton-9" },
+  { brand: "Hoka", product: "Clifton 9", headline: "Cloud Walking", description: "Maximalist comfort", display_url: "hoka.com/clifton", final_url: "https://hoka.com/shoes/clifton-9" },
+  { brand: "Hoka", product: "Clifton 9", headline: "Nurse Favorite", description: "All day on feet", display_url: "hoka.com/clifton", final_url: "https://hoka.com/shoes/clifton-9" },
+  { brand: "Hoka", product: "Bondi 8", headline: "Max Cushion", description: "Ultra plush ride", display_url: "hoka.com/bondi", final_url: "https://hoka.com/shoes/bondi-8" },
+  { brand: "Hoka", product: "Bondi 8", headline: "Standing Support", description: "Perfect for workers", display_url: "hoka.com/bondi", final_url: "https://hoka.com/shoes/bondi-8" },
+  { brand: "Hoka", product: "Bondi 8", headline: "Thick & Comfy", description: "Signature Hoka stack", display_url: "hoka.com/bondi", final_url: "https://hoka.com/shoes/bondi-8" },
+  { brand: "Hoka", product: "Mach 5", headline: "Light Speed", description: "Fast but cushioned", display_url: "hoka.com/mach", final_url: "https://hoka.com/shoes/mach-5" },
+  { brand: "Hoka", product: "Mach 5", headline: "Daily Racer", description: "Speed meets comfort", display_url: "hoka.com/mach", final_url: "https://hoka.com/shoes/mach-5" },
+  { brand: "Hoka", product: "Speedgoat 5", headline: "Trail Beast", description: "Off-road champion", display_url: "hoka.com/speedgoat", final_url: "https://hoka.com/shoes/speedgoat-5" },
+  { brand: "Hoka", product: "Speedgoat 5", headline: "Mountain Ready", description: "Vibram grip traction", display_url: "hoka.com/speedgoat", final_url: "https://hoka.com/shoes/speedgoat-5" },
+  { brand: "Hoka", product: "Arahi 6", headline: "Stable & Light", description: "J-Frame support", display_url: "hoka.com/arahi", final_url: "https://hoka.com/shoes/arahi-6" },
+  // On - Running (7 rows)
+  { brand: "On", product: "Cloudmonster", headline: "Monster Cushion", description: "Maximum CloudTec", display_url: "on.com/monster", final_url: "https://on.com/shoes/cloudmonster" },
+  { brand: "On", product: "Cloudmonster", headline: "Big Stack Energy", description: "Bouncy cloud pods", display_url: "on.com/monster", final_url: "https://on.com/shoes/cloudmonster" },
+  { brand: "On", product: "Cloudsurfer", headline: "Swiss Engineering", description: "Helion foam tech", display_url: "on.com/surfer", final_url: "https://on.com/shoes/cloudsurfer" },
+  { brand: "On", product: "Cloudsurfer", headline: "Smooth Ride", description: "Seamless transition", display_url: "on.com/surfer", final_url: "https://on.com/shoes/cloudsurfer" },
+  { brand: "On", product: "Cloud 5", headline: "Everyday Essential", description: "Light & versatile", display_url: "on.com/cloud5", final_url: "https://on.com/shoes/cloud-5" },
+  { brand: "On", product: "Cloud 5", headline: "Travel Companion", description: "Pack light, go far", display_url: "on.com/cloud5", final_url: "https://on.com/shoes/cloud-5" },
+  { brand: "On", product: "Cloudflow 4", headline: "Race Ready", description: "Fast & responsive", display_url: "on.com/flow", final_url: "https://on.com/shoes/cloudflow-4" },
+];
 
 async function seed() {
   console.log("Seeding database...\n");
@@ -100,14 +237,15 @@ async function seed() {
   await db.insert(schema.dataSources).values([
     {
       id: uuids.dataSource1,
-      name: "Product Catalog Q1 2025",
+      name: "Athletic Footwear Catalog",
       type: "csv",
       config: {
-        originalFileName: "products_q1_2025.csv",
+        originalFileName: "athletic_footwear_2025.csv",
         encoding: "utf-8",
         delimiter: ",",
         hasHeader: true,
-        // Note: rowCount is computed dynamically from actual data rows
+        // Note: 120 rows across 11 brands (Nike, Adidas, Puma, Under Armour,
+        // New Balance, Reebok, ASICS, Saucony, Brooks, Hoka, On)
       },
       createdAt: new Date("2025-01-10T09:00:00Z"),
       updatedAt: new Date("2025-01-15T14:30:00Z"),
@@ -140,101 +278,16 @@ async function seed() {
   ]);
 
   // ============================================
-  // 2. DATA ROWS (Sample product data)
+  // 2. DATA ROWS (120 rows of sample product data)
   // ============================================
-  console.log("Seeding data rows...");
-  await db.insert(schema.dataRows).values([
-    {
-      id: uuids.dataRow1,
-      dataSourceId: uuids.dataSource1,
-      rowIndex: 0,
-      rowData: {
-        product_name: "Nike Air Max 90",
-        brand: "Nike",
-        category: "Footwear",
-        price: 149.99,
-        sale_price: 119.99,
-        stock_quantity: 245,
-        product_description: "Classic comfort meets modern style",
-        target_subreddit: "r/sneakers",
-      },
-    },
-    {
-      id: uuids.dataRow2,
-      dataSourceId: uuids.dataSource1,
-      rowIndex: 1,
-      rowData: {
-        product_name: "Adidas Ultraboost",
-        brand: "Adidas",
-        category: "Footwear",
-        price: 189.99,
-        sale_price: null,
-        stock_quantity: 178,
-        product_description: "Energy-returning comfort for every run",
-        target_subreddit: "r/running",
-      },
-    },
-    {
-      id: uuids.dataRow3,
-      dataSourceId: uuids.dataSource1,
-      rowIndex: 2,
-      rowData: {
-        product_name: "Sony WH-1000XM5",
-        brand: "Sony",
-        category: "Electronics",
-        price: 399.99,
-        sale_price: 349.99,
-        stock_quantity: 89,
-        product_description: "Industry-leading noise cancellation",
-        target_subreddit: "r/headphones",
-      },
-    },
-    {
-      id: uuids.dataRow4,
-      dataSourceId: uuids.dataSource1,
-      rowIndex: 3,
-      rowData: {
-        product_name: "Apple AirPods Pro 2",
-        brand: "Apple",
-        category: "Electronics",
-        price: 249.99,
-        sale_price: 199.99,
-        stock_quantity: 412,
-        product_description: "Active Noise Cancellation. Adaptive Audio.",
-        target_subreddit: "r/apple",
-      },
-    },
-    {
-      id: uuids.dataRow5,
-      dataSourceId: uuids.dataSource1,
-      rowIndex: 4,
-      rowData: {
-        product_name: "Patagonia Better Sweater",
-        brand: "Patagonia",
-        category: "Apparel",
-        price: 139.0,
-        sale_price: null,
-        stock_quantity: 67,
-        product_description: "Classic fleece with a conscience",
-        target_subreddit: "r/malefashionadvice",
-      },
-    },
-    {
-      id: uuids.dataRow6,
-      dataSourceId: uuids.dataSource1,
-      rowIndex: 5,
-      rowData: {
-        product_name: "Bundle: Gaming Starter Kit",
-        brand: "Various",
-        category: "Electronics",
-        price: 599.99,
-        sale_price: 499.99,
-        stock_quantity: 5,
-        product_description: "Everything you need to start gaming",
-        target_subreddit: "r/gaming",
-      },
-    },
-  ]);
+  console.log("Seeding data rows (120 rows)...");
+  const dataRowValues = sampleProductData.map((data, index) => ({
+    id: dataRowUuid(index),
+    dataSourceId: uuids.dataSource1,
+    rowIndex: index,
+    rowData: data,
+  }));
+  await db.insert(schema.dataRows).values(dataRowValues);
 
   // ============================================
   // 3. COLUMN MAPPINGS
@@ -243,50 +296,38 @@ async function seed() {
   await db.insert(schema.columnMappings).values([
     {
       dataSourceId: uuids.dataSource1,
-      sourceColumn: "Product Name",
-      normalizedName: "product_name",
-      dataType: "string",
-    },
-    {
-      dataSourceId: uuids.dataSource1,
       sourceColumn: "Brand",
       normalizedName: "brand",
       dataType: "string",
     },
     {
       dataSourceId: uuids.dataSource1,
-      sourceColumn: "Category",
-      normalizedName: "category",
+      sourceColumn: "Product",
+      normalizedName: "product",
       dataType: "string",
     },
     {
       dataSourceId: uuids.dataSource1,
-      sourceColumn: "Price ($)",
-      normalizedName: "price",
-      dataType: "number",
-    },
-    {
-      dataSourceId: uuids.dataSource1,
-      sourceColumn: "Sale Price ($)",
-      normalizedName: "sale_price",
-      dataType: "number",
-    },
-    {
-      dataSourceId: uuids.dataSource1,
-      sourceColumn: "Stock Qty",
-      normalizedName: "stock_quantity",
-      dataType: "number",
+      sourceColumn: "Headline",
+      normalizedName: "headline",
+      dataType: "string",
     },
     {
       dataSourceId: uuids.dataSource1,
       sourceColumn: "Description",
-      normalizedName: "product_description",
+      normalizedName: "description",
       dataType: "string",
     },
     {
       dataSourceId: uuids.dataSource1,
-      sourceColumn: "Target Subreddit",
-      normalizedName: "target_subreddit",
+      sourceColumn: "Display URL",
+      normalizedName: "display_url",
+      dataType: "string",
+    },
+    {
+      dataSourceId: uuids.dataSource1,
+      sourceColumn: "Final URL",
+      normalizedName: "final_url",
       dataType: "string",
     },
   ]);
@@ -411,54 +452,50 @@ async function seed() {
     {
       id: uuids.adTemplate1,
       adGroupTemplateId: uuids.adGroup1,
-      headline: "Get {product_name} for ${sale_price|price}",
-      description: "{product_description}. Shop now!",
+      headline: "{headline}",
+      description: "{description}",
       variables: {
         placeholders: [
-          { name: "product_name", type: "text", sourceColumn: "product_name" },
-          { name: "sale_price", type: "text", sourceColumn: "sale_price" },
-          { name: "price", type: "text", sourceColumn: "price" },
-          {
-            name: "product_description",
-            type: "text",
-            sourceColumn: "product_description",
-          },
+          { name: "headline", type: "text", sourceColumn: "headline" },
+          { name: "description", type: "text", sourceColumn: "description" },
         ],
       },
     },
     {
       id: uuids.adTemplate2,
       adGroupTemplateId: uuids.adGroup1,
-      headline: "Shop {brand} - {product_name}",
-      description: "Premium quality from {brand}. Starting at ${price}.",
+      headline: "Shop {brand} - {product}",
+      description: "{description}. Visit {display_url}",
       variables: {
         placeholders: [
           { name: "brand", type: "text", sourceColumn: "brand" },
-          { name: "product_name", type: "text", sourceColumn: "product_name" },
-          { name: "price", type: "text", sourceColumn: "price" },
+          { name: "product", type: "text", sourceColumn: "product" },
+          { name: "description", type: "text", sourceColumn: "description" },
+          { name: "display_url", type: "text", sourceColumn: "display_url" },
         ],
       },
     },
     {
       id: uuids.adTemplate3,
       adGroupTemplateId: uuids.adGroup2,
-      headline: "Still thinking about {product_name}?",
+      headline: "Still thinking about {product}?",
       description: "Come back and get it before it's gone!",
       variables: {
         placeholders: [
-          { name: "product_name", type: "text", sourceColumn: "product_name" },
+          { name: "product", type: "text", sourceColumn: "product" },
         ],
       },
     },
     {
       id: uuids.adTemplate4,
       adGroupTemplateId: uuids.adGroup3,
-      headline: "{brand} {category} - Shop Now",
-      description: "Find the best {category} from top brands.",
+      headline: "{brand} - {headline}",
+      description: "{description}",
       variables: {
         placeholders: [
           { name: "brand", type: "text", sourceColumn: "brand" },
-          { name: "category", type: "text", sourceColumn: "category" },
+          { name: "headline", type: "text", sourceColumn: "headline" },
+          { name: "description", type: "text", sourceColumn: "description" },
         ],
       },
     },
@@ -471,15 +508,21 @@ async function seed() {
   await db.insert(schema.rules).values([
     {
       id: uuids.rule1,
-      name: "Skip Low Stock Items",
+      name: "Skip Nike Jordan Products",
       type: "filter",
       priority: 10,
       enabled: true,
       conditions: [
         {
-          field: "stock_quantity",
-          operator: "less_than",
-          value: 10,
+          field: "brand",
+          operator: "equals",
+          value: "Nike",
+        },
+        {
+          field: "product",
+          operator: "contains",
+          value: "Jordan",
+          logicalOperator: "AND",
         },
       ],
       actions: [
@@ -494,28 +537,22 @@ async function seed() {
     },
     {
       id: uuids.rule2,
-      name: "Premium Electronics Targeting",
+      name: "Premium Brand Targeting",
       type: "conditional",
       priority: 5,
       enabled: true,
       conditions: [
         {
-          field: "category",
-          operator: "equals",
-          value: "Electronics",
-        },
-        {
-          field: "price",
-          operator: "greater_than",
-          value: 100,
-          logicalOperator: "AND",
+          field: "brand",
+          operator: "in",
+          value: ["Hoka", "On", "Brooks"],
         },
       ],
       actions: [
         {
           type: "set",
           target: "ad_group",
-          value: "Premium Tech",
+          value: "Premium Running",
         },
       ],
       createdAt: new Date("2025-01-11T09:00:00Z"),
@@ -523,22 +560,22 @@ async function seed() {
     },
     {
       id: uuids.rule3,
-      name: "Bundle Product Headlines",
+      name: "Lifestyle Product Headlines",
       type: "transform",
       priority: 1,
       enabled: true,
       conditions: [
         {
-          field: "product_name",
+          field: "product",
           operator: "contains",
-          value: "Bundle",
+          value: "Classic",
         },
       ],
       actions: [
         {
           type: "set",
           target: "headline_prefix",
-          value: "Save on ",
+          value: "Timeless Style: ",
         },
       ],
       createdAt: new Date("2025-01-12T14:00:00Z"),
@@ -629,7 +666,7 @@ async function seed() {
     {
       id: uuids.campaign1,
       templateId: uuids.template1,
-      dataRowId: uuids.dataRow1,
+      dataRowId: dataRowUuid(0), // Nike Air Max 90 - "Run Fast"
       status: "active",
       campaignData: {
         name: "Summer Sale - Nike Air Max 90",
@@ -640,8 +677,8 @@ async function seed() {
             name: "Interest Targeting",
             ads: [
               {
-                headline: "Get Nike Air Max 90 for $119.99",
-                description: "Classic comfort meets modern style. Shop now!",
+                headline: "Run Fast",
+                description: "Best shoe ever",
               },
             ],
           },
@@ -649,7 +686,7 @@ async function seed() {
             name: "Retargeting",
             ads: [
               {
-                headline: "Still thinking about Nike Air Max 90?",
+                headline: "Still thinking about Air Max 90?",
                 description: "Come back and get it before it's gone!",
               },
             ],
@@ -662,10 +699,10 @@ async function seed() {
     {
       id: uuids.campaign2,
       templateId: uuids.template1,
-      dataRowId: uuids.dataRow2,
+      dataRowId: dataRowUuid(19), // Adidas Ultraboost 23 - "Run Faster"
       status: "pending",
       campaignData: {
-        name: "Summer Sale - Adidas Ultraboost",
+        name: "Summer Sale - Adidas Ultraboost 23",
         objective: "CONVERSIONS",
         budget: { type: "daily", amount: 50, currency: "USD" },
         adGroups: [
@@ -673,8 +710,8 @@ async function seed() {
             name: "Interest Targeting",
             ads: [
               {
-                headline: "Get Adidas Ultraboost for $189.99",
-                description: "Energy-returning comfort for every run. Shop now!",
+                headline: "Run Faster",
+                description: "Premium comfort boost",
               },
             ],
           },
@@ -686,10 +723,10 @@ async function seed() {
     {
       id: uuids.campaign3,
       templateId: uuids.template2,
-      dataRowId: uuids.dataRow3,
+      dataRowId: dataRowUuid(80), // ASICS Gel-Kayano 30
       status: "error",
       campaignData: {
-        name: "Winter Campaign - Sony WH-1000XM5",
+        name: "Winter Campaign - ASICS Gel-Kayano 30",
         objective: "AWARENESS",
         budget: { type: "daily", amount: 100, currency: "USD" },
       },
@@ -699,10 +736,10 @@ async function seed() {
     {
       id: uuids.campaign4,
       templateId: uuids.template2,
-      dataRowId: uuids.dataRow4,
+      dataRowId: dataRowUuid(100), // Hoka Clifton 9
       status: "draft",
       campaignData: {
-        name: "Draft Campaign - Apple AirPods",
+        name: "Draft Campaign - Hoka Clifton 9",
         objective: "AWARENESS",
         budget: { type: "daily", amount: 100, currency: "USD" },
       },
@@ -712,10 +749,10 @@ async function seed() {
     {
       id: uuids.campaign5,
       templateId: uuids.template1,
-      dataRowId: uuids.dataRow5,
+      dataRowId: dataRowUuid(35), // Puma Deviate Nitro
       status: "paused",
       campaignData: {
-        name: "Summer Sale - Patagonia Sweater",
+        name: "Summer Sale - Puma Deviate Nitro",
         objective: "CONVERSIONS",
         budget: { type: "daily", amount: 50, currency: "USD" },
       },
@@ -725,10 +762,10 @@ async function seed() {
     {
       id: uuids.campaign6,
       templateId: uuids.template3,
-      dataRowId: uuids.dataRow6,
+      dataRowId: dataRowUuid(113), // On Cloudmonster
       status: "pending",
       campaignData: {
-        name: "Holiday Promo - Gaming Bundle",
+        name: "Holiday Promo - On Cloudmonster",
         objective: "CONVERSIONS",
         budget: { type: "lifetime", amount: 5000, currency: "USD" },
         adGroups: [
@@ -858,9 +895,9 @@ async function seed() {
       priority: 0,
       conditions: [
         {
-          field: "category",
+          field: "brand",
           operator: "equals",
-          value: "Footwear",
+          value: "Nike",
         },
       ],
     },
@@ -881,8 +918,8 @@ async function seed() {
   console.log("\nSeed completed successfully!");
   console.log("\nSeeded data summary:");
   console.log("  - 3 data sources");
-  console.log("  - 6 data rows");
-  console.log("  - 8 column mappings");
+  console.log(`  - ${sampleProductData.length} data rows (11 brands, multiple products)`);
+  console.log("  - 6 column mappings");
   console.log("  - 3 campaign templates");
   console.log("  - 4 ad group templates");
   console.log("  - 4 ad templates");
