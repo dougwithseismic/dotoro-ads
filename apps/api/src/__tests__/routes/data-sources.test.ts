@@ -14,6 +14,7 @@ vi.mock("../../services/db.js", () => {
     },
     dataSources: { id: "id", createdAt: "created_at" },
     dataRows: { id: "id", dataSourceId: "data_source_id", rowIndex: "row_index" },
+    columnMappings: { id: "id", dataSourceId: "data_source_id" },
   };
 });
 
@@ -210,6 +211,40 @@ describe("Data Sources API", () => {
   describe.skip("POST /api/v1/data-sources/:id/upload (requires database)", () => {
     it("should parse uploaded CSV and return analysis", async () => {
       // Integration test required
+    });
+  });
+
+  // Note: Comprehensive tests for GET /api/v1/data-sources/:id with columnMappings and data
+  // are in data-sources-detail.test.ts which has proper database mocking
+
+  describe("GET /api/v1/data-sources/:id/sample", () => {
+    it("should return 400 for invalid UUID format", async () => {
+      const res = await dataSourcesApp.request(
+        "/api/v1/data-sources/not-a-uuid/sample",
+        { method: "GET" }
+      );
+
+      expect(res.status).toBe(400);
+    });
+
+    it("should validate limit query parameter bounds", async () => {
+      // limit = 0 should be invalid (min is 1)
+      const res = await dataSourcesApp.request(
+        `/api/v1/data-sources/${mockDataSourceId}/sample?limit=0`,
+        { method: "GET" }
+      );
+
+      expect(res.status).toBe(400);
+    });
+
+    it("should validate limit query parameter max bound", async () => {
+      // limit > 100 should be invalid
+      const res = await dataSourcesApp.request(
+        `/api/v1/data-sources/${mockDataSourceId}/sample?limit=101`,
+        { method: "GET" }
+      );
+
+      expect(res.status).toBe(400);
     });
   });
 });

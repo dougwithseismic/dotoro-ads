@@ -465,6 +465,39 @@ const columnResponseSchema = z.object({
   sampleValues: z.array(z.string()).optional(),
 });
 
+// Sample data query schema
+const sampleQuerySchema = z.object({
+  limit: z.coerce.number().min(1).max(100).optional().default(10),
+});
+
+// GET /api/v1/data-sources/:id/sample - Get sample rows (for preview/hierarchy config)
+const getSampleRoute = createRoute({
+  method: "get",
+  path: "/api/v1/data-sources/{id}/sample",
+  tags: ["Data Sources"],
+  summary: "Get sample data rows",
+  description:
+    "Returns a limited sample of data rows for preview purposes. Works with both in-memory stored data (recent uploads) and persisted database rows.",
+  request: {
+    params: idParamSchema,
+    query: sampleQuerySchema,
+  },
+  responses: {
+    200: {
+      description: "Sample data rows",
+      content: {
+        "application/json": {
+          schema: z.object({
+            data: z.array(z.record(z.unknown())),
+            total: z.number(),
+          }),
+        },
+      },
+    },
+    ...commonResponses,
+  },
+});
+
 // GET /api/v1/data-sources/:id/columns - Get column info for a data source
 const getColumnsRoute = createRoute({
   method: "get",
@@ -1134,6 +1167,47 @@ function mapColumnType(
       return "unknown";
   }
 }
+
+dataSourcesApp.openapi(getSampleRoute, async (c) => {
+  const { id } = c.req.valid("param");
+  const { limit } = c.req.valid("query");
+
+  // Check if data source exists
+  const [dataSource] = await db
+    .select()
+    .from(dataSources)
+    .where(eq(dataSources.id, id))
+    .limit(1);
+
+  if (!dataSource) {
+    throw createNotFoundError("Data source", id);
+  }
+
+  // Try to get sample from in-memory stored data first (recent uploads)
+  if (hasStoredData(id)) {
+    const { rows, total } = getStoredRows(id, 1, limit);
+    return c.json({ data: rows, total }, 200);
+  }
+
+  // Fall back to database rows
+  const [countResult] = await db
+    .select({ count: count() })
+    .from(dataRows)
+    .where(eq(dataRows.dataSourceId, id));
+  const total = countResult?.count ?? 0;
+
+  const rows = await db
+    .select()
+    .from(dataRows)
+    .where(eq(dataRows.dataSourceId, id))
+    .orderBy(asc(dataRows.rowIndex))
+    .limit(limit);
+
+  // Extract just the rowData (without wrapper metadata)
+  const data = rows.map((row) => row.rowData as Record<string, unknown>);
+
+  return c.json({ data, total }, 200);
+});
 
 dataSourcesApp.openapi(getColumnsRoute, async (c) => {
   const { id } = c.req.valid("param");
