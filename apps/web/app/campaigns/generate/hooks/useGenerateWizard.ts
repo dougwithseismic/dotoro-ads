@@ -8,8 +8,12 @@ import type {
   KeywordConfig,
   DataSourceColumn,
   Platform,
+  BudgetConfig,
 } from '../types';
 import { WIZARD_STEPS, OPTIONAL_STEPS, validateWizardStep } from '../types';
+
+// Type for platformBudgets initialization
+type PlatformBudgetsRecord = Record<Platform, BudgetConfig | null>;
 
 // Action types
 type WizardAction =
@@ -24,6 +28,7 @@ type WizardAction =
   | { type: 'SET_RULES'; payload: string[] }
   | { type: 'TOGGLE_PLATFORM'; payload: Platform }
   | { type: 'SET_PLATFORMS'; payload: Platform[] }
+  | { type: 'SET_PLATFORM_BUDGET'; payload: { platform: Platform; budget: BudgetConfig | null } }
   | { type: 'SET_STEP'; payload: WizardStep }
   | { type: 'NEXT_STEP' }
   | { type: 'PREV_STEP' }
@@ -41,6 +46,7 @@ const initialState: WizardState = {
   keywordConfig: null,
   ruleIds: [],
   selectedPlatforms: [],
+  platformBudgets: {} as PlatformBudgetsRecord,
   generateResult: null,
 };
 
@@ -153,6 +159,15 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
         selectedPlatforms: action.payload,
       };
 
+    case 'SET_PLATFORM_BUDGET':
+      return {
+        ...state,
+        platformBudgets: {
+          ...state.platformBudgets,
+          [action.payload.platform]: action.payload.budget,
+        },
+      };
+
     case 'SET_STEP':
       return { ...state, currentStep: action.payload };
 
@@ -231,6 +246,10 @@ export function useGenerateWizard() {
     dispatch({ type: 'SET_PLATFORMS', payload: platforms });
   }, []);
 
+  const setPlatformBudget = useCallback((platform: Platform, budget: BudgetConfig | null) => {
+    dispatch({ type: 'SET_PLATFORM_BUDGET', payload: { platform, budget } });
+  }, []);
+
   // Navigation actions
   const setStep = useCallback((step: WizardStep) => {
     dispatch({ type: 'SET_STEP', payload: step });
@@ -304,6 +323,7 @@ export function useGenerateWizard() {
     // Platforms
     togglePlatform,
     setPlatforms,
+    setPlatformBudget,
     // Navigation
     setStep,
     nextStep,

@@ -3,12 +3,14 @@ import {
   extractVariables,
   validateVariablesInPattern,
   validateCampaignConfig,
+  validateBudgetConfig,
   validateHierarchyConfig,
   validateKeywordConfig,
   validateWizardStep,
   validatePlatformSelection,
   type DataSourceColumn,
   type CampaignConfig,
+  type BudgetConfig,
   type HierarchyConfig,
   type KeywordConfig,
   type WizardState,
@@ -33,6 +35,7 @@ const createInitialState = (): WizardState => ({
   keywordConfig: null,
   ruleIds: [],
   selectedPlatforms: [],
+  platformBudgets: {},
   generateResult: null,
 });
 
@@ -172,66 +175,80 @@ describe('validateCampaignConfig', () => {
     expect(result.errors).toContain('Variable "{nonexistent_field}" not found in data source columns');
   });
 
-  it('validates budget type', () => {
-    const config: CampaignConfig = {
-      namePattern: '{brand_name}',
-      
-      budget: {
-        type: 'invalid' as 'daily' | 'lifetime',
-        amountPattern: '100',
-        currency: 'USD',
-      },
+});
+
+describe('validateBudgetConfig', () => {
+  it('validates null budget is valid (optional)', () => {
+    const result = validateBudgetConfig(null, sampleColumns);
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('validates valid budget config', () => {
+    const budget: BudgetConfig = {
+      type: 'daily',
+      amountPattern: '100',
+      currency: 'USD',
     };
-    const result = validateCampaignConfig(config, sampleColumns);
+    const result = validateBudgetConfig(budget, sampleColumns);
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('validates budget with variable', () => {
+    const budget: BudgetConfig = {
+      type: 'lifetime',
+      amountPattern: '{budget}',
+      currency: 'EUR',
+    };
+    const result = validateBudgetConfig(budget, sampleColumns);
+    expect(result.valid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+  });
+
+  it('validates budget type', () => {
+    const budget: BudgetConfig = {
+      type: 'invalid' as 'daily' | 'lifetime',
+      amountPattern: '100',
+      currency: 'USD',
+    };
+    const result = validateBudgetConfig(budget, sampleColumns);
     expect(result.valid).toBe(false);
     expect(result.errors).toContain('Invalid budget type: invalid');
   });
 
   it('validates budget amount pattern is required', () => {
-    const config: CampaignConfig = {
-      namePattern: '{brand_name}',
-      
-      budget: {
-        type: 'daily',
-        amountPattern: '',
-        currency: 'USD',
-      },
+    const budget: BudgetConfig = {
+      type: 'daily',
+      amountPattern: '',
+      currency: 'USD',
     };
-    const result = validateCampaignConfig(config, sampleColumns);
+    const result = validateBudgetConfig(budget, sampleColumns);
     expect(result.valid).toBe(false);
     expect(result.errors).toContain('Budget amount pattern is required');
   });
 
   it('validates budget currency is 3 letters', () => {
-    const config: CampaignConfig = {
-      namePattern: '{brand_name}',
-      
-      budget: {
-        type: 'daily',
-        amountPattern: '100',
-        currency: 'US',
-      },
+    const budget: BudgetConfig = {
+      type: 'daily',
+      amountPattern: '100',
+      currency: 'US',
     };
-    const result = validateCampaignConfig(config, sampleColumns);
+    const result = validateBudgetConfig(budget, sampleColumns);
     expect(result.valid).toBe(false);
     expect(result.errors).toContain('Budget currency must be a 3-letter code (e.g., USD)');
   });
 
   it('validates budget amount variable exists', () => {
-    const config: CampaignConfig = {
-      namePattern: '{brand_name}',
-      
-      budget: {
-        type: 'daily',
-        amountPattern: '{nonexistent}',
-        currency: 'USD',
-      },
+    const budget: BudgetConfig = {
+      type: 'daily',
+      amountPattern: '{nonexistent}',
+      currency: 'USD',
     };
-    const result = validateCampaignConfig(config, sampleColumns);
+    const result = validateBudgetConfig(budget, sampleColumns);
     expect(result.valid).toBe(false);
     expect(result.errors).toContain('Variable "{nonexistent}" not found in data source columns');
   });
-
 });
 
 describe('validateHierarchyConfig', () => {

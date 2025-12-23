@@ -11,8 +11,6 @@ interface CampaignConfigProps {
   validation?: ValidationResult;
 }
 
-const CURRENCIES = ["USD", "EUR", "GBP", "CAD", "AUD", "JPY"];
-
 export function CampaignConfig({
   config,
   availableColumns,
@@ -21,28 +19,18 @@ export function CampaignConfig({
 }: CampaignConfigProps) {
   // Local state for input values to support uncontrolled typing behavior
   const [localNamePattern, setLocalNamePattern] = useState(config.namePattern);
-  const [localBudgetAmount, setLocalBudgetAmount] = useState(config.budget?.amountPattern ?? "");
 
   const [showDropdown, setShowDropdown] = useState(false);
   const [dropdownFilter, setDropdownFilter] = useState("");
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const [activeInputField, setActiveInputField] = useState<"name" | "budget" | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
-  const budgetInputRef = useRef<HTMLInputElement>(null);
-  // Single dropdownRef is intentionally shared between name and budget dropdowns.
-  // Only one dropdown is visible at a time (controlled by activeInputField state),
-  // so we can safely reuse the same ref for click-outside detection.
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Sync local state with props when config changes from parent
   useEffect(() => {
     setLocalNamePattern(config.namePattern);
   }, [config.namePattern]);
-
-  useEffect(() => {
-    setLocalBudgetAmount(config.budget?.amountPattern ?? "");
-  }, [config.budget?.amountPattern]);
 
   // Filter columns based on partial variable input
   const filteredColumns = useMemo(() => {
@@ -59,8 +47,7 @@ export function CampaignConfig({
       if (
         dropdownRef.current &&
         !dropdownRef.current.contains(e.target as Node) &&
-        inputRef.current !== e.target &&
-        budgetInputRef.current !== e.target
+        inputRef.current !== e.target
       ) {
         setShowDropdown(false);
         setDropdownFilter("");
@@ -73,21 +60,12 @@ export function CampaignConfig({
   }, []);
 
   // Handle variable autocomplete trigger
-  const handleInputChange = useCallback((
-    value: string,
-    field: "namePattern" | "amountPattern"
-  ) => {
+  const handleInputChange = useCallback((value: string) => {
     // Update local state immediately for responsive UI
-    if (field === "namePattern") {
-      setLocalNamePattern(value);
-    } else {
-      setLocalBudgetAmount(value);
-    }
+    setLocalNamePattern(value);
 
     // Find if we're typing a variable
-    const cursorPosition = field === "namePattern"
-      ? inputRef.current?.selectionStart ?? value.length
-      : budgetInputRef.current?.selectionStart ?? value.length;
+    const cursorPosition = inputRef.current?.selectionStart ?? value.length;
 
     const textBeforeCursor = value.slice(0, cursorPosition);
     const openBraceIndex = textBeforeCursor.lastIndexOf("{");
@@ -98,12 +76,10 @@ export function CampaignConfig({
       const partialVar = textBeforeCursor.slice(openBraceIndex + 1);
       setDropdownFilter(partialVar);
       setShowDropdown(true);
-      setActiveInputField(field === "namePattern" ? "name" : "budget");
       setHighlightedIndex(-1);
     } else if (value.endsWith("{")) {
       setDropdownFilter("");
       setShowDropdown(true);
-      setActiveInputField(field === "namePattern" ? "name" : "budget");
       setHighlightedIndex(-1);
     } else {
       setShowDropdown(false);
@@ -111,24 +87,14 @@ export function CampaignConfig({
     }
 
     // Update config (notify parent)
-    if (field === "namePattern") {
-      onChange({ ...config, namePattern: value });
-    } else if (config.budget) {
-      onChange({
-        ...config,
-        budget: { ...config.budget, amountPattern: value },
-      });
-    }
+    onChange({ ...config, namePattern: value });
   }, [config, onChange]);
 
   // Handle selecting a variable from dropdown
   const selectVariable = useCallback((columnName: string) => {
-    const activeRef = activeInputField === "name" ? inputRef : budgetInputRef;
-    const currentValue = activeInputField === "name"
-      ? localNamePattern
-      : localBudgetAmount;
+    const currentValue = localNamePattern;
 
-    const cursorPosition = activeRef.current?.selectionStart ?? currentValue.length;
+    const cursorPosition = inputRef.current?.selectionStart ?? currentValue.length;
     const textBeforeCursor = currentValue.slice(0, cursorPosition);
     const textAfterCursor = currentValue.slice(cursorPosition);
 
@@ -140,16 +106,8 @@ export function CampaignConfig({
     const newValue = `${beforeBrace}{${columnName}}${textAfterCursor}`;
 
     // Update local state
-    if (activeInputField === "name") {
-      setLocalNamePattern(newValue);
-      onChange({ ...config, namePattern: newValue });
-    } else if (config.budget) {
-      setLocalBudgetAmount(newValue);
-      onChange({
-        ...config,
-        budget: { ...config.budget, amountPattern: newValue },
-      });
-    }
+    setLocalNamePattern(newValue);
+    onChange({ ...config, namePattern: newValue });
 
     setShowDropdown(false);
     setDropdownFilter("");
@@ -157,12 +115,11 @@ export function CampaignConfig({
 
     // Restore focus and set cursor position
     setTimeout(() => {
-      const ref = activeInputField === "name" ? inputRef : budgetInputRef;
-      ref.current?.focus();
+      inputRef.current?.focus();
       const newCursorPos = beforeBrace.length + columnName.length + 2;
-      ref.current?.setSelectionRange(newCursorPos, newCursorPos);
+      inputRef.current?.setSelectionRange(newCursorPos, newCursorPos);
     }, 0);
-  }, [activeInputField, config, localBudgetAmount, localNamePattern, onChange]);
+  }, [config, localNamePattern, onChange]);
 
   // Handle keyboard navigation in dropdown
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -194,42 +151,6 @@ export function CampaignConfig({
     }
   }, [showDropdown, filteredColumns, highlightedIndex, selectVariable]);
 
-  // Handle budget toggle
-  const handleBudgetToggle = useCallback(() => {
-    if (config.budget) {
-      // Disable budget
-      onChange({ ...config, budget: undefined });
-    } else {
-      // Enable budget with defaults
-      onChange({
-        ...config,
-        budget: {
-          type: "daily",
-          amountPattern: "",
-          currency: "USD",
-        },
-      });
-    }
-  }, [config, onChange]);
-
-  // Handle budget type change
-  const handleBudgetTypeChange = useCallback((type: "daily" | "lifetime") => {
-    if (!config.budget) return;
-    onChange({
-      ...config,
-      budget: { ...config.budget, type },
-    });
-  }, [config, onChange]);
-
-  // Handle currency change
-  const handleCurrencyChange = useCallback((currency: string) => {
-    if (!config.budget) return;
-    onChange({
-      ...config,
-      budget: { ...config.budget, currency },
-    });
-  }, [config, onChange]);
-
   // Check if name pattern has validation errors
   const hasNamePatternError = validation?.errors.some(
     e => e.includes("Pattern") || e.includes("pattern") || e.includes("Variable")
@@ -254,7 +175,7 @@ export function CampaignConfig({
             type="text"
             className={`${styles.input} ${hasNamePatternError ? styles.inputInvalid : ""}`}
             value={localNamePattern}
-            onChange={(e) => handleInputChange(e.target.value, "namePattern")}
+            onChange={(e) => handleInputChange(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="{brand_name}-performance-{region}"
             aria-label="Campaign name pattern"
@@ -263,7 +184,7 @@ export function CampaignConfig({
           />
 
           {/* Variable autocomplete dropdown */}
-          {showDropdown && activeInputField === "name" && (
+          {showDropdown && (
             <div
               ref={dropdownRef}
               className={styles.dropdown}
@@ -306,128 +227,6 @@ export function CampaignConfig({
           <p className={styles.noVariablesHint}>
             No variables available. Select a data source first.
           </p>
-        )}
-      </div>
-
-      {/* Budget Configuration Section */}
-      <div className={styles.section}>
-        <h3 className={styles.sectionTitle}>Budget (Optional)</h3>
-
-        <div className={styles.budgetToggle}>
-          <button
-            type="button"
-            className={`${styles.toggle} ${config.budget ? styles.toggleChecked : ""}`}
-            onClick={handleBudgetToggle}
-            role="switch"
-            aria-checked={!!config.budget}
-            aria-label="Enable budget"
-            id="budget-toggle"
-          />
-          <label htmlFor="budget-toggle" className={styles.toggleLabel}>
-            Enable budget
-          </label>
-        </div>
-
-        {config.budget && (
-          <div className={styles.budgetFields}>
-            {/* Budget Type */}
-            <div className={styles.fieldGroup}>
-              <label htmlFor="budget-type" className={styles.fieldLabel}>
-                Budget Type
-              </label>
-              <div className={styles.budgetTypeToggle} id="budget-type">
-                <button
-                  type="button"
-                  className={`${styles.budgetTypeButton} ${config.budget.type === "daily" ? styles.budgetTypeButtonActive : ""}`}
-                  onClick={() => handleBudgetTypeChange("daily")}
-                >
-                  Daily
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.budgetTypeButton} ${config.budget.type === "lifetime" ? styles.budgetTypeButtonActive : ""}`}
-                  onClick={() => handleBudgetTypeChange("lifetime")}
-                >
-                  Lifetime
-                </button>
-              </div>
-            </div>
-
-            {/* Budget Amount */}
-            <div className={styles.fieldGroup}>
-              <label htmlFor="budget-amount" className={styles.fieldLabel}>
-                Budget Amount
-              </label>
-              <div className={styles.inputWrapper}>
-                <input
-                  ref={budgetInputRef}
-                  id="budget-amount"
-                  type="text"
-                  className={styles.input}
-                  value={localBudgetAmount}
-                  onChange={(e) => handleInputChange(e.target.value, "amountPattern")}
-                  onKeyDown={handleKeyDown}
-                  placeholder="100 or {budget}"
-                  aria-label="Budget amount"
-                />
-
-                {/* Variable autocomplete dropdown for budget */}
-                {showDropdown && activeInputField === "budget" && (
-                  <div
-                    ref={dropdownRef}
-                    className={styles.dropdown}
-                    data-testid="variable-dropdown"
-                    role="listbox"
-                    aria-label="Available variables"
-                  >
-                    {filteredColumns.length > 0 ? (
-                      filteredColumns.map((col, index) => (
-                        <button
-                          key={col.name}
-                          type="button"
-                          className={`${styles.dropdownOption} ${index === highlightedIndex ? styles.dropdownOptionHighlighted : ""}`}
-                          onClick={() => selectVariable(col.name)}
-                          data-testid={`variable-option-${col.name}`}
-                          role="option"
-                          aria-selected={index === highlightedIndex}
-                        >
-                          <span className={styles.dropdownOptionName}>{col.name}</span>
-                          <span className={styles.dropdownOptionType}>{col.type}</span>
-                          {col.sampleValues && col.sampleValues.length > 0 && (
-                            <span className={styles.dropdownOptionSamples}>
-                              {col.sampleValues.slice(0, 3).join(", ")}
-                            </span>
-                          )}
-                        </button>
-                      ))
-                    ) : (
-                      <div className={styles.dropdownEmpty}>No matching variables</div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Currency */}
-            <div className={styles.fieldGroup}>
-              <label htmlFor="budget-currency" className={styles.fieldLabel}>
-                Currency
-              </label>
-              <select
-                id="budget-currency"
-                className={styles.select}
-                value={config.budget.currency}
-                onChange={(e) => handleCurrencyChange(e.target.value)}
-                aria-label="Currency"
-              >
-                {CURRENCIES.map(currency => (
-                  <option key={currency} value={currency}>
-                    {currency}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
         )}
       </div>
 

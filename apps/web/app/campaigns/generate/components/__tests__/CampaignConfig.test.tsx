@@ -294,11 +294,11 @@ describe("CampaignConfig", () => {
   });
 
   // ==========================================================================
-  // Budget Configuration Tests
+  // Budget Configuration Tests (Removed - Budget now in PlatformSelector)
   // ==========================================================================
 
-  describe("Budget Configuration", () => {
-    it("renders budget toggle to enable budget", () => {
+  describe("Budget Configuration (Removed)", () => {
+    it("does not render budget toggle", () => {
       render(
         <CampaignConfig
           config={defaultConfig}
@@ -307,28 +307,10 @@ describe("CampaignConfig", () => {
         />
       );
 
-      expect(screen.getByLabelText(/enable budget/i)).toBeInTheDocument();
+      expect(screen.queryByLabelText(/enable budget/i)).not.toBeInTheDocument();
     });
 
-    it("shows budget fields when budget is enabled", async () => {
-      const user = userEvent.setup();
-
-      render(
-        <CampaignConfig
-          config={defaultConfig}
-          availableColumns={mockColumns}
-          onChange={onChange}
-        />
-      );
-
-      const budgetToggle = screen.getByLabelText(/enable budget/i);
-      await user.click(budgetToggle);
-
-      // The onChange will set budget, so we need to re-render with the new config
-      // For this test, we'll test with an already-enabled budget config
-    });
-
-    it("hides budget fields when budget is disabled", () => {
+    it("does not render budget fields", () => {
       render(
         <CampaignConfig
           config={defaultConfig}
@@ -338,173 +320,7 @@ describe("CampaignConfig", () => {
       );
 
       expect(screen.queryByLabelText(/budget amount/i)).not.toBeInTheDocument();
-    });
-
-    it("displays existing budget configuration", () => {
-      const config: CampaignConfigType = {
-        ...defaultConfig,
-        budget: {
-          type: "daily",
-          amountPattern: "100",
-          currency: "USD",
-        },
-      };
-
-      render(
-        <CampaignConfig
-          config={config}
-          availableColumns={mockColumns}
-          onChange={onChange}
-        />
-      );
-
-      // Budget should be enabled and fields visible
-      const budgetToggle = screen.getByRole("switch", { name: /enable budget/i });
-      expect(budgetToggle).toHaveAttribute("aria-checked", "true");
-
-      expect(screen.getByLabelText(/budget amount/i)).toHaveValue("100");
-    });
-
-    it("toggles between daily and lifetime budget types", async () => {
-      const user = userEvent.setup();
-      const config: CampaignConfigType = {
-        ...defaultConfig,
-        budget: {
-          type: "daily",
-          amountPattern: "100",
-          currency: "USD",
-        },
-      };
-
-      render(
-        <CampaignConfig
-          config={config}
-          availableColumns={mockColumns}
-          onChange={onChange}
-        />
-      );
-
-      const lifetimeButton = screen.getByRole("button", { name: /lifetime/i });
-      await user.click(lifetimeButton);
-
-      expect(onChange).toHaveBeenCalledWith(
-        expect.objectContaining({
-          budget: expect.objectContaining({ type: "lifetime" }),
-        })
-      );
-    });
-
-    it("allows variable syntax in budget amount", async () => {
-      const user = userEvent.setup();
-      const config: CampaignConfigType = {
-        ...defaultConfig,
-        budget: {
-          type: "daily",
-          amountPattern: "",
-          currency: "USD",
-        },
-      };
-
-      render(
-        <CampaignConfig
-          config={config}
-          availableColumns={mockColumns}
-          onChange={onChange}
-        />
-      );
-
-      const amountInput = screen.getByLabelText(/budget amount/i);
-      // Use double braces to escape and type the variable syntax
-      await user.type(amountInput, "{{budget}}");
-
-      // Check that onChange was called with budget in the pattern
-      expect(onChange).toHaveBeenCalled();
-    });
-
-    it("shows autocomplete for budget amount field", async () => {
-      const user = userEvent.setup();
-      const config: CampaignConfigType = {
-        ...defaultConfig,
-        budget: {
-          type: "daily",
-          amountPattern: "",
-          currency: "USD",
-        },
-      };
-
-      render(
-        <CampaignConfig
-          config={config}
-          availableColumns={mockColumns}
-          onChange={onChange}
-        />
-      );
-
-      const amountInput = screen.getByLabelText(/budget amount/i);
-      await user.type(amountInput, "{{");
-
-      await waitFor(() => {
-        expect(screen.getByTestId("variable-dropdown")).toBeInTheDocument();
-      });
-
-      // Should show budget variable (number type column)
-      expect(screen.getByText("budget")).toBeInTheDocument();
-    });
-
-    it("allows currency selection", async () => {
-      const user = userEvent.setup();
-      const config: CampaignConfigType = {
-        ...defaultConfig,
-        budget: {
-          type: "daily",
-          amountPattern: "100",
-          currency: "USD",
-        },
-      };
-
-      render(
-        <CampaignConfig
-          config={config}
-          availableColumns={mockColumns}
-          onChange={onChange}
-        />
-      );
-
-      const currencySelect = screen.getByLabelText(/currency/i);
-      await user.selectOptions(currencySelect, "EUR");
-
-      expect(onChange).toHaveBeenCalledWith(
-        expect.objectContaining({
-          budget: expect.objectContaining({ currency: "EUR" }),
-        })
-      );
-    });
-
-    it("removes budget from config when disabled", async () => {
-      const user = userEvent.setup();
-      const config: CampaignConfigType = {
-        ...defaultConfig,
-        budget: {
-          type: "daily",
-          amountPattern: "100",
-          currency: "USD",
-        },
-      };
-
-      render(
-        <CampaignConfig
-          config={config}
-          availableColumns={mockColumns}
-          onChange={onChange}
-        />
-      );
-
-      const budgetToggle = screen.getByLabelText(/enable budget/i);
-      await user.click(budgetToggle);
-
-      expect(onChange).toHaveBeenCalledWith(
-        expect.objectContaining({ budget: undefined })
-      );
+      expect(screen.queryByLabelText(/currency/i)).not.toBeInTheDocument();
     });
   });
 
@@ -600,18 +416,9 @@ describe("CampaignConfig", () => {
 
   describe("Accessibility", () => {
     it("has proper ARIA labels for all inputs", () => {
-      const config: CampaignConfigType = {
-        ...defaultConfig,
-        budget: {
-          type: "daily",
-          amountPattern: "100",
-          currency: "USD",
-        },
-      };
-
       render(
         <CampaignConfig
-          config={config}
+          config={defaultConfig}
           availableColumns={mockColumns}
           onChange={onChange}
         />
@@ -657,10 +464,6 @@ describe("CampaignConfig", () => {
       // Tab through the form elements
       await user.tab();
       expect(screen.getByLabelText(/campaign name pattern/i)).toHaveFocus();
-
-      await user.tab();
-      // Should focus on budget toggle
-      expect(screen.getByLabelText(/enable budget/i)).toHaveFocus();
     });
   });
 

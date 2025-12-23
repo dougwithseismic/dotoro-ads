@@ -52,6 +52,7 @@ export function GenerateWizard() {
     setKeywordConfig,
     toggleRule,
     togglePlatform,
+    setPlatformBudget,
     setStep,
     nextStep,
     prevStep,
@@ -379,7 +380,10 @@ export function GenerateWizard() {
             </p>
             <PlatformSelector
               selectedPlatforms={state.selectedPlatforms}
+              platformBudgets={state.platformBudgets}
+              availableColumns={availableColumns}
               onToggle={togglePlatform}
+              onBudgetChange={setPlatformBudget}
               showError={validationMessage !== null}
             />
           </div>
@@ -399,6 +403,7 @@ export function GenerateWizard() {
                 campaignConfig={state.campaignConfig}
                 hierarchyConfig={state.hierarchyConfig}
                 selectedPlatforms={state.selectedPlatforms}
+                platformBudgets={state.platformBudgets}
                 sampleData={sampleData}
                 onGenerateComplete={setGenerateResult}
               />

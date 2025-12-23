@@ -10,10 +10,10 @@ export type WizardStep =
 
 // Campaign configuration for the new flow
 // Note: Platform selection has been moved to a separate step (selectedPlatforms in WizardState)
+// Note: Budget has been moved to per-platform configuration (platformBudgets in WizardState)
 export interface CampaignConfig {
   namePattern: string;           // e.g., "{brand_name}-performance"
   objective?: string;
-  budget?: BudgetConfig;
 }
 
 export interface BudgetConfig {
@@ -78,6 +78,8 @@ export interface WizardState {
   keywordConfig: KeywordConfig | null;
   // Platform selection (Step 6 - multi-select)
   selectedPlatforms: Platform[];
+  // Per-platform budget configuration (Step 6)
+  platformBudgets: Record<Platform, BudgetConfig | null>;
   // Generation result (Step 7)
   generateResult: GenerateResponse | null;
 }
@@ -267,6 +269,7 @@ export function validateVariablesInPattern(
 /**
  * Validates campaign configuration
  * Note: Platform validation is now handled separately in validatePlatformSelection
+ * Note: Budget validation is now handled separately in validatePlatformBudgets
  */
 export function validateCampaignConfig(
   config: CampaignConfig | null,
@@ -285,24 +288,45 @@ export function validateCampaignConfig(
   errors.push(...patternResult.errors);
   warnings.push(...patternResult.warnings);
 
-  // Validate budget if present
-  if (config.budget) {
-    if (!['daily', 'lifetime'].includes(config.budget.type)) {
-      errors.push(`Invalid budget type: ${config.budget.type}`);
-    }
-    if (!config.budget.amountPattern || config.budget.amountPattern.trim() === '') {
-      errors.push('Budget amount pattern is required');
-    }
-    if (!config.budget.currency || config.budget.currency.length !== 3) {
-      errors.push('Budget currency must be a 3-letter code (e.g., USD)');
-    }
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings,
+  };
+}
 
-    // Validate variables in budget amount pattern
+/**
+ * Validates budget configuration for a single platform
+ */
+export function validateBudgetConfig(
+  budget: BudgetConfig | null,
+  availableColumns: DataSourceColumn[]
+): ValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  // Budget is optional - null is valid
+  if (!budget) {
+    return { valid: true, errors, warnings };
+  }
+
+  if (!['daily', 'lifetime'].includes(budget.type)) {
+    errors.push(`Invalid budget type: ${budget.type}`);
+  }
+  if (!budget.amountPattern || budget.amountPattern.trim() === '') {
+    errors.push('Budget amount pattern is required');
+  }
+  if (!budget.currency || budget.currency.length !== 3) {
+    errors.push('Budget currency must be a 3-letter code (e.g., USD)');
+  }
+
+  // Validate variables in budget amount pattern
+  if (budget.amountPattern && budget.amountPattern.trim() !== '') {
     const budgetPatternResult = validateVariablesInPattern(
-      config.budget.amountPattern,
+      budget.amountPattern,
       availableColumns
     );
-    // Only report errors for budget, not empty pattern (already checked)
+    // Only report variable errors, not empty pattern (already checked)
     const budgetVariableErrors = budgetPatternResult.errors.filter(
       e => !e.includes('cannot be empty')
     );

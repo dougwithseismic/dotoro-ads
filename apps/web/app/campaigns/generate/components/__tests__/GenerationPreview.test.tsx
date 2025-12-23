@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { GenerationPreview } from "../GenerationPreview";
-import type { CampaignConfig, HierarchyConfig, Platform } from "../../types";
+import type { CampaignConfig, HierarchyConfig, Platform, BudgetConfig } from "../../types";
 
 // Mock fetch globally
 const mockFetch = vi.fn();
@@ -21,6 +21,12 @@ const mockHierarchyConfig: HierarchyConfig = {
 
 const mockSelectedPlatforms: Platform[] = ["google"];
 
+const mockPlatformBudgets: Record<Platform, BudgetConfig | null> = {
+  google: null,
+  reddit: null,
+  facebook: null,
+};
+
 const mockSampleData = [
   { brand: "Nike", product: "Air Max", headline: "Run Fast", description: "Best shoe" },
   { brand: "Nike", product: "Jordan", headline: "Jump High", description: "Classic" },
@@ -33,6 +39,7 @@ const defaultProps = {
   campaignConfig: mockCampaignConfig,
   hierarchyConfig: mockHierarchyConfig,
   selectedPlatforms: mockSelectedPlatforms,
+  platformBudgets: mockPlatformBudgets,
   sampleData: mockSampleData,
   onGenerateComplete: vi.fn(),
 };

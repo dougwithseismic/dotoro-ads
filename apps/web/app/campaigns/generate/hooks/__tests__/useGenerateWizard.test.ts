@@ -14,6 +14,7 @@ import type {
   HierarchyConfig,
   KeywordConfig,
   DataSourceColumn,
+  BudgetConfig,
 } from '../../types';
 
 // Test fixtures
@@ -41,12 +42,20 @@ const validKeywordConfig: KeywordConfig = {
   rules: [
     {
       id: 'rule-1',
+      name: 'Product Keywords',
+      scope: 'ad-group',
       coreTermPattern: '{product_name}',
       prefixes: ['buy'],
       suffixes: ['online'],
       matchTypes: ['broad', 'exact'],
     },
   ],
+};
+
+const validBudgetConfig: BudgetConfig = {
+  type: 'daily',
+  amountPattern: '100',
+  currency: 'USD',
 };
 
 describe('wizardReducer', () => {
@@ -221,6 +230,42 @@ describe('wizardReducer', () => {
     });
   });
 
+  describe('SET_PLATFORM_BUDGET action', () => {
+    it('sets budget for a platform', () => {
+      const result = wizardReducer(initialState, {
+        type: 'SET_PLATFORM_BUDGET',
+        payload: { platform: 'google', budget: validBudgetConfig },
+      });
+      expect(result.platformBudgets.google).toEqual(validBudgetConfig);
+    });
+
+    it('sets budget to null to disable', () => {
+      const stateWithBudget = {
+        ...initialState,
+        platformBudgets: { google: validBudgetConfig },
+      };
+      const result = wizardReducer(stateWithBudget as typeof initialState, {
+        type: 'SET_PLATFORM_BUDGET',
+        payload: { platform: 'google', budget: null },
+      });
+      expect(result.platformBudgets.google).toBeNull();
+    });
+
+    it('preserves other platform budgets when setting one', () => {
+      const stateWithBudget = {
+        ...initialState,
+        platformBudgets: { google: validBudgetConfig },
+      };
+      const redditBudget: BudgetConfig = { type: 'lifetime', amountPattern: '500', currency: 'EUR' };
+      const result = wizardReducer(stateWithBudget as typeof initialState, {
+        type: 'SET_PLATFORM_BUDGET',
+        payload: { platform: 'reddit', budget: redditBudget },
+      });
+      expect(result.platformBudgets.google).toEqual(validBudgetConfig);
+      expect(result.platformBudgets.reddit).toEqual(redditBudget);
+    });
+  });
+
   describe('step navigation actions', () => {
     it('sets step directly', () => {
       const result = wizardReducer(initialState, { type: 'SET_STEP', payload: 'rules' });
@@ -349,6 +394,7 @@ describe('useGenerateWizard hook', () => {
     expect(result.current.state.keywordConfig).toBeNull();
     expect(result.current.state.ruleIds).toEqual([]);
     expect(result.current.state.selectedPlatforms).toEqual([]);
+    expect(result.current.state.platformBudgets).toEqual({});
     expect(result.current.state.generateResult).toBeNull();
   });
 
@@ -442,6 +488,33 @@ describe('useGenerateWizard hook', () => {
       const { result } = renderHook(() => useGenerateWizard());
       act(() => result.current.setRules(['r1', 'r2', 'r3']));
       expect(result.current.state.ruleIds).toEqual(['r1', 'r2', 'r3']);
+    });
+  });
+
+  describe('platform budget actions', () => {
+    it('setPlatformBudget sets budget for a platform', () => {
+      const { result } = renderHook(() => useGenerateWizard());
+      act(() => result.current.setPlatformBudget('google', validBudgetConfig));
+      expect(result.current.state.platformBudgets.google).toEqual(validBudgetConfig);
+    });
+
+    it('setPlatformBudget can set multiple platform budgets', () => {
+      const { result } = renderHook(() => useGenerateWizard());
+      const redditBudget: BudgetConfig = { type: 'lifetime', amountPattern: '500', currency: 'EUR' };
+      act(() => {
+        result.current.setPlatformBudget('google', validBudgetConfig);
+        result.current.setPlatformBudget('reddit', redditBudget);
+      });
+      expect(result.current.state.platformBudgets.google).toEqual(validBudgetConfig);
+      expect(result.current.state.platformBudgets.reddit).toEqual(redditBudget);
+    });
+
+    it('setPlatformBudget can clear budget with null', () => {
+      const { result } = renderHook(() => useGenerateWizard());
+      act(() => result.current.setPlatformBudget('google', validBudgetConfig));
+      expect(result.current.state.platformBudgets.google).toEqual(validBudgetConfig);
+      act(() => result.current.setPlatformBudget('google', null));
+      expect(result.current.state.platformBudgets.google).toBeNull();
     });
   });
 

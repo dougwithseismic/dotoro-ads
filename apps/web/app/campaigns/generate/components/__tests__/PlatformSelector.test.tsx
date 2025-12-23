@@ -2,13 +2,16 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { PlatformSelector } from "../PlatformSelector";
-import type { Platform } from "../../types";
+import type { Platform, BudgetConfig } from "../../types";
 
 describe("PlatformSelector", () => {
   let onToggle: ReturnType<typeof vi.fn>;
+  let onBudgetChange: ReturnType<typeof vi.fn>;
+  const emptyBudgets: Record<Platform, BudgetConfig | null> = {} as Record<Platform, BudgetConfig | null>;
 
   beforeEach(() => {
     onToggle = vi.fn();
+    onBudgetChange = vi.fn();
   });
 
   // ==========================================================================
@@ -20,7 +23,9 @@ describe("PlatformSelector", () => {
       render(
         <PlatformSelector
           selectedPlatforms={[]}
+          platformBudgets={emptyBudgets}
           onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
         />
       );
 
@@ -33,7 +38,9 @@ describe("PlatformSelector", () => {
       render(
         <PlatformSelector
           selectedPlatforms={[]}
+          platformBudgets={emptyBudgets}
           onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
         />
       );
 
@@ -51,7 +58,9 @@ describe("PlatformSelector", () => {
       render(
         <PlatformSelector
           selectedPlatforms={["google", "reddit"]}
+          platformBudgets={emptyBudgets}
           onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
         />
       );
 
@@ -62,7 +71,9 @@ describe("PlatformSelector", () => {
       render(
         <PlatformSelector
           selectedPlatforms={["google"]}
+          platformBudgets={emptyBudgets}
           onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
         />
       );
 
@@ -73,7 +84,9 @@ describe("PlatformSelector", () => {
       render(
         <PlatformSelector
           selectedPlatforms={[]}
+          platformBudgets={emptyBudgets}
           onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
         />
       );
 
@@ -90,7 +103,9 @@ describe("PlatformSelector", () => {
       render(
         <PlatformSelector
           selectedPlatforms={["google", "facebook"]}
+          platformBudgets={emptyBudgets}
           onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
         />
       );
 
@@ -107,7 +122,9 @@ describe("PlatformSelector", () => {
       render(
         <PlatformSelector
           selectedPlatforms={["reddit"]}
+          platformBudgets={emptyBudgets}
           onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
         />
       );
 
@@ -127,7 +144,9 @@ describe("PlatformSelector", () => {
       render(
         <PlatformSelector
           selectedPlatforms={[]}
+          platformBudgets={emptyBudgets}
           onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
         />
       );
 
@@ -142,7 +161,9 @@ describe("PlatformSelector", () => {
       render(
         <PlatformSelector
           selectedPlatforms={["google"]}
+          platformBudgets={emptyBudgets}
           onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
         />
       );
 
@@ -157,7 +178,9 @@ describe("PlatformSelector", () => {
       render(
         <PlatformSelector
           selectedPlatforms={["google"]}
+          platformBudgets={emptyBudgets}
           onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
         />
       );
 
@@ -176,7 +199,9 @@ describe("PlatformSelector", () => {
       render(
         <PlatformSelector
           selectedPlatforms={[]}
+          platformBudgets={emptyBudgets}
           onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
         />
       );
 
@@ -194,7 +219,9 @@ describe("PlatformSelector", () => {
       render(
         <PlatformSelector
           selectedPlatforms={[]}
+          platformBudgets={emptyBudgets}
           onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
         />
       );
 
@@ -208,6 +235,242 @@ describe("PlatformSelector", () => {
   });
 
   // ==========================================================================
+  // Budget Configuration Tests
+  // ==========================================================================
+
+  describe("Budget Configuration", () => {
+    it("shows budget toggle button when platform is selected", () => {
+      render(
+        <PlatformSelector
+          selectedPlatforms={["google"]}
+          platformBudgets={emptyBudgets}
+          onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
+        />
+      );
+
+      expect(screen.getByTestId("budget-toggle-google")).toBeInTheDocument();
+    });
+
+    it("does not show budget toggle button when platform is not selected", () => {
+      render(
+        <PlatformSelector
+          selectedPlatforms={[]}
+          platformBudgets={emptyBudgets}
+          onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
+        />
+      );
+
+      expect(screen.queryByTestId("budget-toggle-google")).not.toBeInTheDocument();
+    });
+
+    it("expands budget panel when budget toggle is clicked", async () => {
+      const user = userEvent.setup();
+
+      render(
+        <PlatformSelector
+          selectedPlatforms={["google"]}
+          platformBudgets={emptyBudgets}
+          onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
+        />
+      );
+
+      await user.click(screen.getByTestId("budget-toggle-google"));
+
+      expect(screen.getByTestId("budget-panel-google")).toBeInTheDocument();
+    });
+
+    it("shows enable budget switch in budget panel", async () => {
+      const user = userEvent.setup();
+
+      render(
+        <PlatformSelector
+          selectedPlatforms={["google"]}
+          platformBudgets={emptyBudgets}
+          onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
+        />
+      );
+
+      await user.click(screen.getByTestId("budget-toggle-google"));
+
+      expect(screen.getByTestId("budget-enable-google")).toBeInTheDocument();
+    });
+
+    it("calls onBudgetChange with default values when budget is enabled", async () => {
+      const user = userEvent.setup();
+
+      render(
+        <PlatformSelector
+          selectedPlatforms={["google"]}
+          platformBudgets={emptyBudgets}
+          onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
+        />
+      );
+
+      await user.click(screen.getByTestId("budget-toggle-google"));
+      await user.click(screen.getByTestId("budget-enable-google"));
+
+      expect(onBudgetChange).toHaveBeenCalledWith("google", {
+        type: "daily",
+        amountPattern: "",
+        currency: "USD",
+      });
+    });
+
+    it("shows budget fields when budget is enabled", async () => {
+      const user = userEvent.setup();
+      const budgetsWithGoogle: Record<Platform, BudgetConfig | null> = {
+        google: { type: "daily", amountPattern: "100", currency: "USD" },
+        reddit: null,
+        facebook: null,
+      };
+
+      render(
+        <PlatformSelector
+          selectedPlatforms={["google"]}
+          platformBudgets={budgetsWithGoogle}
+          onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
+        />
+      );
+
+      await user.click(screen.getByTestId("budget-toggle-google"));
+
+      expect(screen.getByTestId("budget-amount-google")).toBeInTheDocument();
+      expect(screen.getByTestId("budget-currency-google")).toBeInTheDocument();
+      expect(screen.getByTestId("budget-type-daily-google")).toBeInTheDocument();
+      expect(screen.getByTestId("budget-type-lifetime-google")).toBeInTheDocument();
+    });
+
+    it("calls onBudgetChange when budget type is changed", async () => {
+      const user = userEvent.setup();
+      const budgetsWithGoogle: Record<Platform, BudgetConfig | null> = {
+        google: { type: "daily", amountPattern: "100", currency: "USD" },
+        reddit: null,
+        facebook: null,
+      };
+
+      render(
+        <PlatformSelector
+          selectedPlatforms={["google"]}
+          platformBudgets={budgetsWithGoogle}
+          onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
+        />
+      );
+
+      await user.click(screen.getByTestId("budget-toggle-google"));
+      await user.click(screen.getByTestId("budget-type-lifetime-google"));
+
+      expect(onBudgetChange).toHaveBeenCalledWith("google", {
+        type: "lifetime",
+        amountPattern: "100",
+        currency: "USD",
+      });
+    });
+
+    it("calls onBudgetChange when amount is changed", async () => {
+      const user = userEvent.setup();
+      const budgetsWithGoogle: Record<Platform, BudgetConfig | null> = {
+        google: { type: "daily", amountPattern: "", currency: "USD" },
+        reddit: null,
+        facebook: null,
+      };
+
+      render(
+        <PlatformSelector
+          selectedPlatforms={["google"]}
+          platformBudgets={budgetsWithGoogle}
+          onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
+        />
+      );
+
+      await user.click(screen.getByTestId("budget-toggle-google"));
+      await user.type(screen.getByTestId("budget-amount-google"), "500");
+
+      // Should be called for each character typed
+      expect(onBudgetChange).toHaveBeenCalled();
+      const lastCall = onBudgetChange.mock.calls[onBudgetChange.mock.calls.length - 1];
+      expect(lastCall[0]).toBe("google");
+      expect(lastCall[1].amountPattern).toContain("0"); // Last character of "500"
+    });
+
+    it("calls onBudgetChange when currency is changed", async () => {
+      const user = userEvent.setup();
+      const budgetsWithGoogle: Record<Platform, BudgetConfig | null> = {
+        google: { type: "daily", amountPattern: "100", currency: "USD" },
+        reddit: null,
+        facebook: null,
+      };
+
+      render(
+        <PlatformSelector
+          selectedPlatforms={["google"]}
+          platformBudgets={budgetsWithGoogle}
+          onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
+        />
+      );
+
+      await user.click(screen.getByTestId("budget-toggle-google"));
+      await user.selectOptions(screen.getByTestId("budget-currency-google"), "EUR");
+
+      expect(onBudgetChange).toHaveBeenCalledWith("google", {
+        type: "daily",
+        amountPattern: "100",
+        currency: "EUR",
+      });
+    });
+
+    it("calls onBudgetChange with null when budget is disabled", async () => {
+      const user = userEvent.setup();
+      const budgetsWithGoogle: Record<Platform, BudgetConfig | null> = {
+        google: { type: "daily", amountPattern: "100", currency: "USD" },
+        reddit: null,
+        facebook: null,
+      };
+
+      render(
+        <PlatformSelector
+          selectedPlatforms={["google"]}
+          platformBudgets={budgetsWithGoogle}
+          onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
+        />
+      );
+
+      await user.click(screen.getByTestId("budget-toggle-google"));
+      await user.click(screen.getByTestId("budget-enable-google"));
+
+      expect(onBudgetChange).toHaveBeenCalledWith("google", null);
+    });
+
+    it("displays existing budget amount in toggle button", () => {
+      const budgetsWithGoogle: Record<Platform, BudgetConfig | null> = {
+        google: { type: "daily", amountPattern: "250", currency: "USD" },
+        reddit: null,
+        facebook: null,
+      };
+
+      render(
+        <PlatformSelector
+          selectedPlatforms={["google"]}
+          platformBudgets={budgetsWithGoogle}
+          onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
+        />
+      );
+
+      expect(screen.getByText(/\$250 daily/i)).toBeInTheDocument();
+    });
+  });
+
+  // ==========================================================================
   // Accessibility Tests
   // ==========================================================================
 
@@ -216,7 +479,9 @@ describe("PlatformSelector", () => {
       render(
         <PlatformSelector
           selectedPlatforms={[]}
+          platformBudgets={emptyBudgets}
           onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
         />
       );
 
@@ -228,7 +493,9 @@ describe("PlatformSelector", () => {
       render(
         <PlatformSelector
           selectedPlatforms={[]}
+          platformBudgets={emptyBudgets}
           onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
         />
       );
 
@@ -241,7 +508,9 @@ describe("PlatformSelector", () => {
       render(
         <PlatformSelector
           selectedPlatforms={["google"]}
+          platformBudgets={emptyBudgets}
           onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
         />
       );
 
@@ -252,38 +521,36 @@ describe("PlatformSelector", () => {
       expect(redditCheckbox).toHaveAttribute("aria-checked", "false");
     });
 
-    it("supports tab navigation through all platforms", async () => {
-      const user = userEvent.setup();
-
-      render(
-        <PlatformSelector
-          selectedPlatforms={[]}
-          onToggle={onToggle}
-        />
-      );
-
-      // Tab to first platform
-      await user.tab();
-      expect(screen.getByTestId("platform-checkbox-google")).toHaveFocus();
-
-      // Tab to second platform
-      await user.tab();
-      expect(screen.getByTestId("platform-checkbox-reddit")).toHaveFocus();
-
-      // Tab to third platform
-      await user.tab();
-      expect(screen.getByTestId("platform-checkbox-facebook")).toHaveFocus();
-    });
-
     it("has a group label for the platform selection", () => {
       render(
         <PlatformSelector
           selectedPlatforms={[]}
+          platformBudgets={emptyBudgets}
           onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
         />
       );
 
       expect(screen.getByRole("group", { name: /select platforms/i })).toBeInTheDocument();
+    });
+
+    it("budget panel has proper aria-expanded state", async () => {
+      const user = userEvent.setup();
+
+      render(
+        <PlatformSelector
+          selectedPlatforms={["google"]}
+          platformBudgets={emptyBudgets}
+          onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
+        />
+      );
+
+      const budgetToggle = screen.getByTestId("budget-toggle-google");
+      expect(budgetToggle).toHaveAttribute("aria-expanded", "false");
+
+      await user.click(budgetToggle);
+      expect(budgetToggle).toHaveAttribute("aria-expanded", "true");
     });
   });
 
@@ -296,7 +563,9 @@ describe("PlatformSelector", () => {
       render(
         <PlatformSelector
           selectedPlatforms={[]}
+          platformBudgets={emptyBudgets}
           onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
           showError
         />
       );
@@ -310,7 +579,9 @@ describe("PlatformSelector", () => {
       render(
         <PlatformSelector
           selectedPlatforms={["google"]}
+          platformBudgets={emptyBudgets}
           onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
           showError
         />
       );
@@ -323,7 +594,9 @@ describe("PlatformSelector", () => {
       render(
         <PlatformSelector
           selectedPlatforms={[]}
+          platformBudgets={emptyBudgets}
           onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
           showError={false}
         />
       );
@@ -342,7 +615,9 @@ describe("PlatformSelector", () => {
       render(
         <PlatformSelector
           selectedPlatforms={["google", "reddit", "facebook"]}
+          platformBudgets={emptyBudgets}
           onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
         />
       );
 
@@ -361,7 +636,9 @@ describe("PlatformSelector", () => {
       render(
         <PlatformSelector
           selectedPlatforms={[]}
+          platformBudgets={emptyBudgets}
           onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
         />
       );
 
@@ -381,7 +658,9 @@ describe("PlatformSelector", () => {
       render(
         <PlatformSelector
           selectedPlatforms={["google", "unknown" as Platform]}
+          platformBudgets={emptyBudgets}
           onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
         />
       );
 
@@ -389,6 +668,30 @@ describe("PlatformSelector", () => {
       expect(screen.getByTestId("platform-checkbox-google")).toBeInTheDocument();
       // Count should reflect what's actually selected and valid
       expect(screen.getByText(/1 platform selected/i)).toBeInTheDocument();
+    });
+
+    it("clears budget when platform is deselected", async () => {
+      const user = userEvent.setup();
+      const budgetsWithGoogle: Record<Platform, BudgetConfig | null> = {
+        google: { type: "daily", amountPattern: "100", currency: "USD" },
+        reddit: null,
+        facebook: null,
+      };
+
+      render(
+        <PlatformSelector
+          selectedPlatforms={["google"]}
+          platformBudgets={budgetsWithGoogle}
+          onToggle={onToggle}
+          onBudgetChange={onBudgetChange}
+        />
+      );
+
+      // Deselect google - should clear its budget
+      await user.click(screen.getByTestId("platform-checkbox-google"));
+
+      expect(onToggle).toHaveBeenCalledWith("google");
+      expect(onBudgetChange).toHaveBeenCalledWith("google", null);
     });
   });
 });

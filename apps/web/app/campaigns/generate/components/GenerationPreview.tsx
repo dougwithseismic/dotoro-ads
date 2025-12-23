@@ -10,6 +10,7 @@ import {
   type CampaignConfig,
   type HierarchyConfig,
   type Platform,
+  type BudgetConfig,
 } from "../types";
 import styles from "../GenerateWizard.module.css";
 
@@ -19,6 +20,7 @@ export interface GenerationPreviewProps {
   campaignConfig: CampaignConfig;
   hierarchyConfig: HierarchyConfig;
   selectedPlatforms: Platform[];
+  platformBudgets: Record<Platform, BudgetConfig | null>;
   sampleData: Record<string, unknown>[];
   warnings?: PreviewWarning[];
   onGenerateComplete: (result: GenerateResponse) => void;
@@ -39,6 +41,7 @@ export function GenerationPreview(props: GenerationPreviewProps) {
     campaignConfig,
     hierarchyConfig,
     selectedPlatforms,
+    platformBudgets,
     sampleData,
     warnings,
     onGenerateComplete,
@@ -96,18 +99,27 @@ export function GenerationPreview(props: GenerationPreviewProps) {
       setGenerating(true);
       setGenerateError(null);
 
+      // Filter out null budgets for the request
+      const budgetsForRequest: Record<string, BudgetConfig> = {};
+      for (const platform of selectedPlatforms) {
+        const budget = platformBudgets[platform];
+        if (budget) {
+          budgetsForRequest[platform] = budget;
+        }
+      }
+
       const request = {
         dataSourceId,
         campaignConfig: {
           namePattern: campaignConfig.namePattern,
           objective: campaignConfig.objective,
-          budget: campaignConfig.budget,
         },
         hierarchyConfig: {
           adGroupNamePattern: hierarchyConfig.adGroupNamePattern,
           adMapping: hierarchyConfig.adMapping,
         },
         selectedPlatforms,
+        platformBudgets: Object.keys(budgetsForRequest).length > 0 ? budgetsForRequest : undefined,
         ruleIds: ruleIds.length > 0 ? ruleIds : undefined,
       };
 
@@ -136,7 +148,7 @@ export function GenerationPreview(props: GenerationPreviewProps) {
     } finally {
       setGenerating(false);
     }
-  }, [dataSourceId, campaignConfig, hierarchyConfig, selectedPlatforms, ruleIds, onGenerateComplete]);
+  }, [dataSourceId, campaignConfig, hierarchyConfig, selectedPlatforms, platformBudgets, ruleIds, onGenerateComplete]);
 
   // Success state after generation
   if (generateResult) {

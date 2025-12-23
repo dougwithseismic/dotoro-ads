@@ -33,6 +33,19 @@
   gap: 12px;
 }
 
+/* Platform wrapper for card + budget panel */
+.platformWrapper {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Platform card row to hold card and budget toggle side by side */
+.platformCardRow {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
 /* Platform card (checkbox style) */
 .platformCard {
   display: flex;
@@ -219,4 +232,218 @@
   .platformCard {
     min-height: 72px;
   }
+}
+
+/* Budget toggle button separate from platform card */
+.budgetToggleButton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 12px;
+  border: 2px solid rgba(var(--gray-rgb), 0.2);
+  border-radius: 12px;
+  background: rgba(var(--gray-rgb), 0.02);
+  cursor: pointer;
+  font-family: var(--font-geist-sans);
+  font-size: 11px;
+  color: rgba(var(--gray-rgb), 0.7);
+  transition: all 0.15s ease;
+  min-width: 80px;
+}
+
+.budgetToggleButton:hover {
+  border-color: rgba(var(--gray-rgb), 0.3);
+  background: rgba(var(--gray-rgb), 0.1);
+}
+
+.budgetToggleText {
+  white-space: nowrap;
+}
+
+.budgetChevron {
+  width: 14px;
+  height: 14px;
+  transition: transform 0.2s ease;
+}
+
+.budgetChevronExpanded {
+  transform: rotate(180deg);
+}
+
+/* Budget panel */
+.budgetPanel {
+  padding: 16px 20px;
+  margin-top: -2px;
+  border: 2px solid rgba(var(--gray-rgb), 0.2);
+  border-top: 1px dashed rgba(var(--gray-rgb), 0.2);
+  border-radius: 0 0 12px 12px;
+  background: rgba(var(--gray-rgb), 0.02);
+}
+
+.budgetEnableRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.budgetSwitch {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  border: none;
+  border-radius: 11px;
+  background: rgba(var(--gray-rgb), 0.2);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.budgetSwitch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+  transition: transform 0.2s;
+}
+
+.budgetSwitchChecked {
+  background: #0070f3;
+}
+
+.budgetSwitchChecked::after {
+  transform: translateX(18px);
+}
+
+.budgetEnableLabel {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.budgetFields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(var(--gray-rgb), 0.1);
+}
+
+.budgetFieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.budgetFieldLabel {
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(var(--gray-rgb), 0.7);
+}
+
+.budgetTypeToggle {
+  display: flex;
+  gap: 0;
+  border: 1px solid rgba(var(--gray-rgb), 0.2);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.budgetTypeButton {
+  flex: 1;
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(var(--gray-rgb), 0.6);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.budgetTypeButton:not(:last-child) {
+  border-right: 1px solid rgba(var(--gray-rgb), 0.2);
+}
+
+.budgetTypeButton:hover {
+  background: rgba(var(--gray-rgb), 0.05);
+}
+
+.budgetTypeButtonActive {
+  background: #0070f3;
+  color: white;
+}
+
+.budgetTypeButtonActive:hover {
+  background: #0060df;
+}
+
+.budgetInput {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(var(--gray-rgb), 0.2);
+  border-radius: 8px;
+  background: var(--background);
+  font-family: var(--font-geist-mono);
+  font-size: 14px;
+  color: var(--foreground);
+  transition: border-color 0.15s;
+}
+
+.budgetInput:focus {
+  outline: none;
+  border-color: #0070f3;
+}
+
+.budgetInput::placeholder {
+  color: rgba(var(--gray-rgb), 0.4);
+}
+
+.budgetHint {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  color: rgba(var(--gray-rgb), 0.5);
+  margin: 0;
+}
+
+.budgetSelect {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(var(--gray-rgb), 0.2);
+  border-radius: 8px;
+  background: var(--background);
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  color: var(--foreground);
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.budgetSelect:focus {
+  outline: none;
+  border-color: #0070f3;
+}
+
+/* Platform-specific budget panel colors */
+.platformCardGoogle.platformCardSelected + .budgetPanel,
+.platformWrapper:has(.platformCardGoogle.platformCardSelected) .budgetPanel {
+  border-color: rgba(66, 133, 244, 0.3);
+}
+
+.platformCardReddit.platformCardSelected + .budgetPanel,
+.platformWrapper:has(.platformCardReddit.platformCardSelected) .budgetPanel {
+  border-color: rgba(255, 69, 0, 0.3);
+}
+
+.platformCardFacebook.platformCardSelected + .budgetPanel,
+.platformWrapper:has(.platformCardFacebook.platformCardSelected) .budgetPanel {
+  border-color: rgba(24, 119, 242, 0.3);
 }

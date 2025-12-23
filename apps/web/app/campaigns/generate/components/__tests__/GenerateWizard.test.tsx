@@ -385,9 +385,8 @@ describe("GenerateWizard", () => {
       // Should have campaign name pattern input
       expect(screen.getByLabelText(/campaign name pattern/i)).toBeInTheDocument();
 
-      // Platform selector is now on its own step, not in CampaignConfig
-      // Instead verify budget toggle is present
-      expect(screen.getByLabelText(/enable budget/i)).toBeInTheDocument();
+      // Budget has been moved to the Platform step, so it should not be here
+      expect(screen.queryByLabelText(/enable budget/i)).not.toBeInTheDocument();
     });
 
     it("passes available columns to CampaignConfig component", async () => {
