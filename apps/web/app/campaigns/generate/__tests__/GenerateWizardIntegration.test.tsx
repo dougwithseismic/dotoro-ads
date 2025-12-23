@@ -222,11 +222,13 @@ describe("Campaign Generation Wizard Integration", () => {
 
     const stepIndicator = screen.getByRole("navigation", { name: /wizard progress/i });
 
+    // Step order: data-source, rules, campaign-config, hierarchy, platform, preview (6 steps)
+    // Note: Keywords step was removed in Phase 6 - keywords are now at ad group level in HierarchyConfig
     expect(within(stepIndicator).getByText("Data Source")).toBeInTheDocument();
+    expect(within(stepIndicator).getByText("Rules")).toBeInTheDocument();
     expect(within(stepIndicator).getByText("Campaign Config")).toBeInTheDocument();
     expect(within(stepIndicator).getByText("Ad Structure")).toBeInTheDocument();
-    expect(within(stepIndicator).getByText("Keywords")).toBeInTheDocument();
-    expect(within(stepIndicator).getByText("Rules")).toBeInTheDocument();
+    expect(within(stepIndicator).getByText("Platforms")).toBeInTheDocument();
     expect(within(stepIndicator).getByText("Preview & Generate")).toBeInTheDocument();
   });
 

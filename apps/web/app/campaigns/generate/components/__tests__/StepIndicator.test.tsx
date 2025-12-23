@@ -9,7 +9,7 @@ describe("StepIndicator", () => {
     mockOnStepClick.mockClear();
   });
 
-  it("renders all 7 steps", () => {
+  it("renders all 6 steps", () => {
     render(
       <StepIndicator currentStep="data-source" onStepClick={mockOnStepClick} />
     );
@@ -17,7 +17,6 @@ describe("StepIndicator", () => {
     expect(screen.getByText("Data Source")).toBeInTheDocument();
     expect(screen.getByText("Campaign Config")).toBeInTheDocument();
     expect(screen.getByText("Ad Structure")).toBeInTheDocument();
-    expect(screen.getByText("Keywords")).toBeInTheDocument();
     expect(screen.getByText("Rules")).toBeInTheDocument();
     expect(screen.getByText("Platforms")).toBeInTheDocument();
     expect(screen.getByText("Preview & Generate")).toBeInTheDocument();
@@ -104,7 +103,7 @@ describe("StepIndicator", () => {
     );
 
     const upcomingStep = screen.getByRole("button", {
-      name: /step 5.*keywords/i,
+      name: /step 5.*platforms/i,
     });
     fireEvent.click(upcomingStep);
 
@@ -138,7 +137,7 @@ describe("StepIndicator", () => {
       <StepIndicator currentStep="campaign-config" onStepClick={mockOnStepClick} />
     );
 
-    // Check various step labels - order: data-source, rules, campaign-config, hierarchy, keywords, platform, preview
+    // Check various step labels - order: data-source, rules, campaign-config, hierarchy, platform, preview
     expect(
       screen.getByRole("button", { name: /step 1.*data source.*completed/i })
     ).toBeInTheDocument();
@@ -152,13 +151,10 @@ describe("StepIndicator", () => {
       screen.getByRole("button", { name: /step 4.*ad structure/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /step 5.*keywords/i })
+      screen.getByRole("button", { name: /step 5.*platforms/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /step 6.*platforms/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /step 7.*preview.*generate/i })
+      screen.getByRole("button", { name: /step 6.*preview.*generate/i })
     ).toBeInTheDocument();
   });
 
@@ -188,7 +184,7 @@ describe("StepIndicator", () => {
     );
 
     const upcomingStep = screen.getByRole("button", {
-      name: /step 5.*keywords/i,
+      name: /step 5.*platforms/i,
     });
 
     fireEvent.keyDown(upcomingStep, { key: "Enter" });

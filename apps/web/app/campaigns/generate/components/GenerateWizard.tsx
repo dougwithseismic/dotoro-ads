@@ -5,7 +5,6 @@ import { StepIndicator } from "./StepIndicator";
 import { DataSourceSelector } from "./DataSourceSelector";
 import { CampaignConfig } from "./CampaignConfig";
 import { HierarchyConfig } from "./HierarchyConfig";
-import { KeywordConfig } from "./KeywordConfig";
 import { RuleSelector } from "./RuleSelector";
 import { PlatformSelector } from "./PlatformSelector";
 import { GenerationPreview } from "./GenerationPreview";
@@ -46,7 +45,6 @@ export function GenerateWizard() {
     setDataSource,
     setCampaignConfig,
     setHierarchyConfig,
-    setKeywordConfig,
     toggleRule,
     togglePlatform,
     setPlatformBudget,
@@ -60,7 +58,7 @@ export function GenerateWizard() {
     canSkip,
   } = useGenerateWizard();
 
-  const { currentStep, dataSourceId, campaignConfig, hierarchyConfig, keywordConfig, availableColumns } = state;
+  const { currentStep, dataSourceId, campaignConfig, hierarchyConfig, availableColumns } = state;
 
   const isFirstStep = currentStep === WIZARD_STEPS[0];
   const isLastStep = currentStep === WIZARD_STEPS[WIZARD_STEPS.length - 1];
@@ -223,7 +221,8 @@ export function GenerateWizard() {
           }
           break;
         }
-        // keywords and rules are optional - no validation message needed
+        // rules step is optional - no validation message needed
+        // Note: keywords are configured at ad group level in the hierarchy step
       }
       return null;
     },
@@ -338,21 +337,6 @@ export function GenerateWizard() {
               sampleData={sampleData}
               onChange={handleHierarchyConfigChange}
               validation={hierarchyConfig ? getHierarchyValidation() : undefined}
-            />
-          </div>
-        );
-
-      case "keywords":
-        return (
-          <div className={styles.stepContent} data-testid="step-content">
-            <h2 className={styles.stepTitle}>{STEP_LABELS[currentStep]}</h2>
-            <p className={styles.stepDescription}>
-              Optionally configure keyword generation rules.
-            </p>
-            <KeywordConfig
-              config={keywordConfig}
-              availableColumns={availableColumns}
-              onChange={setKeywordConfig}
             />
           </div>
         );

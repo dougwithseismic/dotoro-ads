@@ -5,7 +5,6 @@ import type {
   GenerateResponse,
   CampaignConfig,
   HierarchyConfig,
-  KeywordConfig,
   DataSourceColumn,
   Platform,
   BudgetConfig,
@@ -22,8 +21,6 @@ type WizardAction =
   | { type: 'UPDATE_CAMPAIGN_CONFIG'; payload: Partial<CampaignConfig> }
   | { type: 'SET_HIERARCHY_CONFIG'; payload: HierarchyConfig }
   | { type: 'UPDATE_HIERARCHY_CONFIG'; payload: Partial<HierarchyConfig> }
-  | { type: 'SET_KEYWORD_CONFIG'; payload: KeywordConfig | null }
-  | { type: 'UPDATE_KEYWORD_CONFIG'; payload: Partial<KeywordConfig> }
   | { type: 'TOGGLE_RULE'; payload: string }
   | { type: 'SET_RULES'; payload: string[] }
   | { type: 'TOGGLE_PLATFORM'; payload: Platform }
@@ -43,7 +40,6 @@ const initialState: WizardState = {
   availableColumns: [],
   campaignConfig: null,
   hierarchyConfig: null,
-  keywordConfig: null,
   ruleIds: [],
   selectedPlatforms: [],
   platformBudgets: {} as PlatformBudgetsRecord,
@@ -80,7 +76,6 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
         // Reset dependent configs when data source changes
         campaignConfig: null,
         hierarchyConfig: null,
-        keywordConfig: null,
       };
 
     case 'SET_AVAILABLE_COLUMNS':
@@ -114,20 +109,6 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
         ...state,
         hierarchyConfig: state.hierarchyConfig
           ? { ...state.hierarchyConfig, ...action.payload }
-          : null,
-      };
-
-    case 'SET_KEYWORD_CONFIG':
-      return {
-        ...state,
-        keywordConfig: action.payload,
-      };
-
-    case 'UPDATE_KEYWORD_CONFIG':
-      return {
-        ...state,
-        keywordConfig: state.keywordConfig
-          ? { ...state.keywordConfig, ...action.payload }
           : null,
       };
 
@@ -219,15 +200,6 @@ export function useGenerateWizard() {
     dispatch({ type: 'UPDATE_HIERARCHY_CONFIG', payload: config });
   }, []);
 
-  // Keyword config actions
-  const setKeywordConfig = useCallback((config: KeywordConfig | null) => {
-    dispatch({ type: 'SET_KEYWORD_CONFIG', payload: config });
-  }, []);
-
-  const updateKeywordConfig = useCallback((config: Partial<KeywordConfig>) => {
-    dispatch({ type: 'UPDATE_KEYWORD_CONFIG', payload: config });
-  }, []);
-
   // Rule actions
   const toggleRule = useCallback((id: string) => {
     dispatch({ type: 'TOGGLE_RULE', payload: id });
@@ -314,9 +286,6 @@ export function useGenerateWizard() {
     // Hierarchy config
     setHierarchyConfig,
     updateHierarchyConfig,
-    // Keyword config
-    setKeywordConfig,
-    updateKeywordConfig,
     // Rules
     toggleRule,
     setRules,

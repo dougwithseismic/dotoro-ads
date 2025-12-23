@@ -2,11 +2,10 @@
 export type WizardStep =
   | 'data-source'      // Step 1: Select data source
   | 'rules'            // Step 2: Filtering/modification rules (optional, now before config)
-  | 'campaign-config'  // Step 3: Campaign name pattern (platform moved to step 6)
-  | 'hierarchy'        // Step 4: Ad group + ad configuration
-  | 'keywords'         // Step 5: Keyword rules (optional)
-  | 'platform'         // Step 6: Multi-platform selection
-  | 'preview';         // Step 7: Final preview + generate
+  | 'campaign-config'  // Step 3: Campaign name pattern (platform moved to step 5)
+  | 'hierarchy'        // Step 4: Ad group + ad configuration (keywords at ad group level)
+  | 'platform'         // Step 5: Multi-platform selection
+  | 'preview';         // Step 6: Final preview + generate
 
 // Campaign configuration for the new flow
 // Note: Platform selection has been moved to a separate step (selectedPlatforms in WizardState)
@@ -37,6 +36,7 @@ export interface AdGroupDefinition {
   id: string;
   namePattern: string;         // Pattern like "{product_name}" or static text
   ads: AdDefinition[];         // Multiple ads per group
+  keywords?: string[];         // Optional keywords at ad group level (simple strings)
 }
 
 // Hierarchy configuration for ad group and ad mapping
@@ -127,15 +127,13 @@ export interface WizardState {
   ruleIds: string[];
   // Campaign configuration (Step 3)
   campaignConfig: CampaignConfig | null;
-  // Hierarchy configuration (Step 4)
+  // Hierarchy configuration (Step 4) - keywords are now at ad group level
   hierarchyConfig: HierarchyConfig | null;
-  // Keyword configuration (Step 5 - optional)
-  keywordConfig: KeywordConfig | null;
-  // Platform selection (Step 6 - multi-select)
+  // Platform selection (Step 5 - multi-select)
   selectedPlatforms: Platform[];
-  // Per-platform budget configuration (Step 6)
+  // Per-platform budget configuration (Step 5)
   platformBudgets: Record<Platform, BudgetConfig | null>;
-  // Generation result (Step 7)
+  // Generation result (Step 6)
   generateResult: GenerateResponse | null;
 }
 
@@ -144,7 +142,6 @@ export const WIZARD_STEPS: WizardStep[] = [
   'rules',
   'campaign-config',
   'hierarchy',
-  'keywords',
   'platform',
   'preview',
 ];
@@ -153,14 +150,13 @@ export const STEP_LABELS: Record<WizardStep, string> = {
   'data-source': 'Data Source',
   'campaign-config': 'Campaign Config',
   'hierarchy': 'Ad Structure',
-  'keywords': 'Keywords',
   'rules': 'Rules',
   'platform': 'Platforms',
   'preview': 'Preview & Generate',
 };
 
 // Steps that are optional and can be skipped
-export const OPTIONAL_STEPS: WizardStep[] = ['keywords', 'rules'];
+export const OPTIONAL_STEPS: WizardStep[] = ['rules'];
 
 // Entity types for selectors
 export type Platform = 'reddit' | 'google' | 'facebook';
@@ -608,9 +604,6 @@ export function validateWizardStep(
 
     case 'hierarchy':
       return validateHierarchyConfig(state.hierarchyConfig, state.availableColumns);
-
-    case 'keywords':
-      return validateKeywordConfig(state.keywordConfig, state.availableColumns);
 
     case 'rules':
       // Rules are optional

@@ -37,7 +37,6 @@ const createInitialState = (): WizardState => ({
   availableColumns: [],
   campaignConfig: null,
   hierarchyConfig: null,
-  keywordConfig: null,
   ruleIds: [],
   selectedPlatforms: [],
   platformBudgets: {},
@@ -814,35 +813,8 @@ describe('validateWizardStep', () => {
     });
   });
 
-  describe('keywords step', () => {
-    it('returns valid when keywords are disabled', () => {
-      const state = createInitialState();
-      state.availableColumns = sampleColumns;
-      const result = validateWizardStep('keywords', state);
-      expect(result.valid).toBe(true);
-    });
-
-    it('validates enabled keyword config', () => {
-      const state = createInitialState();
-      state.availableColumns = sampleColumns;
-      state.keywordConfig = {
-        enabled: true,
-        rules: [
-          {
-            id: 'rule-1',
-            name: 'Test Rule',
-            scope: 'campaign',
-            coreTermPattern: '{product_name}',
-            prefixes: [],
-            suffixes: [],
-            matchTypes: ['broad'],
-          },
-        ],
-      };
-      const result = validateWizardStep('keywords', state);
-      expect(result.valid).toBe(true);
-    });
-  });
+  // NOTE: Keywords step was removed in Phase 6 - keywords are now at ad group level in HierarchyConfig
+  // The validateKeywordConfig function still exists for potential future use but is not used in the wizard flow
 
   describe('rules step', () => {
     it('always returns valid (rules are optional)', () => {

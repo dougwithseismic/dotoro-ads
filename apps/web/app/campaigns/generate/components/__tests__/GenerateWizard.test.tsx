@@ -52,11 +52,144 @@ const mockColumns = [
   { name: "description", type: "string" },
 ];
 
-// Mock sample data response for hierarchy preview
+// Mock sample data response for hierarchy preview (~120 rows)
 const mockSampleData = [
-  { brand_name: "Nike", product_name: "Air Max", headline: "Run Fast", description: "Best shoe" },
-  { brand_name: "Nike", product_name: "Jordan", headline: "Jump High", description: "Classic" },
-  { brand_name: "Adidas", product_name: "Ultraboost", headline: "Speed Up", description: "Premium" },
+  // Nike - Running (10 rows)
+  { brand_name: "Nike", product_name: "Air Max 90", headline: "Run Fast", description: "Best shoe ever" },
+  { brand_name: "Nike", product_name: "Air Max 90", headline: "Speed Up Your Run", description: "Top rated running shoe" },
+  { brand_name: "Nike", product_name: "Air Max 90", headline: "Classic Comfort", description: "Iconic design meets modern tech" },
+  { brand_name: "Nike", product_name: "Air Max 270", headline: "Max Air Cushioning", description: "Feel the difference" },
+  { brand_name: "Nike", product_name: "Air Max 270", headline: "All Day Comfort", description: "Walk in clouds" },
+  { brand_name: "Nike", product_name: "Free Run", headline: "Natural Movement", description: "Like running barefoot" },
+  { brand_name: "Nike", product_name: "Free Run", headline: "Flexible Freedom", description: "Move without limits" },
+  { brand_name: "Nike", product_name: "Pegasus 40", headline: "Trusted by Runners", description: "40 years of excellence" },
+  { brand_name: "Nike", product_name: "Pegasus 40", headline: "Your Daily Trainer", description: "Mile after mile" },
+  { brand_name: "Nike", product_name: "Pegasus 40", headline: "Responsive Cushion", description: "Spring in every step" },
+  // Nike - Basketball (6 rows)
+  { brand_name: "Nike", product_name: "Jordan 1", headline: "Jump High", description: "Classic basketball icon" },
+  { brand_name: "Nike", product_name: "Jordan 1", headline: "Legendary Style", description: "Since 1985" },
+  { brand_name: "Nike", product_name: "Jordan 1", headline: "Street Meets Court", description: "Versatile classics" },
+  { brand_name: "Nike", product_name: "LeBron 21", headline: "King of the Court", description: "Dominate every game" },
+  { brand_name: "Nike", product_name: "LeBron 21", headline: "Built for Champions", description: "Elite performance" },
+  { brand_name: "Nike", product_name: "KD 16", headline: "Smooth Operator", description: "Precision on court" },
+  // Nike - Training (3 rows)
+  { brand_name: "Nike", product_name: "Metcon 9", headline: "Train Harder", description: "Built for CrossFit" },
+  { brand_name: "Nike", product_name: "Metcon 9", headline: "Stability First", description: "Lift with confidence" },
+  { brand_name: "Nike", product_name: "SuperRep", headline: "HIIT Ready", description: "Move in any direction" },
+  // Adidas - Running (8 rows)
+  { brand_name: "Adidas", product_name: "Ultraboost 23", headline: "Run Faster", description: "Premium comfort boost" },
+  { brand_name: "Adidas", product_name: "Ultraboost 23", headline: "Energy Returns", description: "Boost technology" },
+  { brand_name: "Adidas", product_name: "Ultraboost 23", headline: "Endless Energy", description: "Run longer, recover faster" },
+  { brand_name: "Adidas", product_name: "Ultraboost Light", headline: "Lighter Than Ever", description: "Same boost, less weight" },
+  { brand_name: "Adidas", product_name: "Adizero SL", headline: "Speed Training", description: "Race day ready" },
+  { brand_name: "Adidas", product_name: "Adizero SL", headline: "Fast Gets Faster", description: "Break your PR" },
+  { brand_name: "Adidas", product_name: "Supernova", headline: "Dream Runner", description: "Comfort for every mile" },
+  { brand_name: "Adidas", product_name: "Supernova", headline: "Supportive Ride", description: "Perfect for beginners" },
+  // Adidas - Lifestyle (7 rows)
+  { brand_name: "Adidas", product_name: "Stan Smith", headline: "Timeless Style", description: "Since 1971" },
+  { brand_name: "Adidas", product_name: "Stan Smith", headline: "Clean & Classic", description: "Goes with everything" },
+  { brand_name: "Adidas", product_name: "Samba", headline: "Street Icon", description: "From pitch to pavement" },
+  { brand_name: "Adidas", product_name: "Samba", headline: "Retro Vibes", description: "Classic never fades" },
+  { brand_name: "Adidas", product_name: "Samba", headline: "Cult Favorite", description: "The shoe everyone wants" },
+  { brand_name: "Adidas", product_name: "Gazelle", headline: "70s Revival", description: "Vintage aesthetic" },
+  { brand_name: "Adidas", product_name: "Gazelle", headline: "Suede Classic", description: "Soft touch luxury" },
+  // Puma - Running (5 rows)
+  { brand_name: "Puma", product_name: "Deviate Nitro", headline: "Nitro Powered", description: "Maximum propulsion" },
+  { brand_name: "Puma", product_name: "Deviate Nitro", headline: "Race to Win", description: "Elite carbon plate" },
+  { brand_name: "Puma", product_name: "Velocity Nitro", headline: "Daily Speed", description: "Train fast every day" },
+  { brand_name: "Puma", product_name: "Velocity Nitro", headline: "Grip & Go", description: "All surface traction" },
+  { brand_name: "Puma", product_name: "Magnify Nitro", headline: "Plush Ride", description: "Maximum cushion" },
+  // Puma - Lifestyle (5 rows)
+  { brand_name: "Puma", product_name: "Suede Classic", headline: "Iconic Since 68", description: "Hip-hop heritage" },
+  { brand_name: "Puma", product_name: "Suede Classic", headline: "Street Legend", description: "Culture classic" },
+  { brand_name: "Puma", product_name: "RS-X", headline: "Chunky Cool", description: "Bold design statement" },
+  { brand_name: "Puma", product_name: "RS-X", headline: "Reinvention", description: "Running system reimagined" },
+  { brand_name: "Puma", product_name: "Palermo", headline: "Italian Flair", description: "Soccer meets street" },
+  // Under Armour - Running & Training (8 rows)
+  { brand_name: "Under Armour", product_name: "HOVR Machina", headline: "Zero Gravity Feel", description: "Energy return technology" },
+  { brand_name: "Under Armour", product_name: "HOVR Machina", headline: "Connected Running", description: "Track every step" },
+  { brand_name: "Under Armour", product_name: "HOVR Phantom", headline: "Plush Performance", description: "Soft yet responsive" },
+  { brand_name: "Under Armour", product_name: "HOVR Phantom", headline: "All Day Runner", description: "Comfort for miles" },
+  { brand_name: "Under Armour", product_name: "Charged Assert", headline: "Budget Champion", description: "Great value performer" },
+  { brand_name: "Under Armour", product_name: "Project Rock", headline: "Dwayne's Pick", description: "Train like The Rock" },
+  { brand_name: "Under Armour", product_name: "Project Rock", headline: "Built Different", description: "Heavy lifting ready" },
+  { brand_name: "Under Armour", product_name: "TriBase Reign", headline: "Ground Contact", description: "Feel the floor" },
+  // New Balance - Running (8 rows)
+  { brand_name: "New Balance", product_name: "Fresh Foam 1080", headline: "Plush Perfection", description: "Premium daily trainer" },
+  { brand_name: "New Balance", product_name: "Fresh Foam 1080", headline: "Cloud-Like Comfort", description: "Ultra soft ride" },
+  { brand_name: "New Balance", product_name: "Fresh Foam 1080", headline: "Editor's Choice", description: "Award winning cushion" },
+  { brand_name: "New Balance", product_name: "FuelCell Rebel", headline: "Light & Fast", description: "Springy propulsion" },
+  { brand_name: "New Balance", product_name: "FuelCell Rebel", headline: "Speed Machine", description: "Built for fast" },
+  { brand_name: "New Balance", product_name: "FuelCell SC Elite", headline: "Race Day Carbon", description: "Elite performance" },
+  { brand_name: "New Balance", product_name: "880v14", headline: "Reliable Runner", description: "Trusted classic" },
+  { brand_name: "New Balance", product_name: "880v14", headline: "Everyday Excellence", description: "Never lets you down" },
+  // New Balance - Lifestyle (7 rows)
+  { brand_name: "New Balance", product_name: "550", headline: "Basketball Heritage", description: "80s court style" },
+  { brand_name: "New Balance", product_name: "550", headline: "Streetwear Essential", description: "Clean silhouette" },
+  { brand_name: "New Balance", product_name: "550", headline: "Hype Worthy", description: "Everyone wants these" },
+  { brand_name: "New Balance", product_name: "574", headline: "Original Classic", description: "Everyday icon" },
+  { brand_name: "New Balance", product_name: "574", headline: "Timeless Design", description: "Never out of style" },
+  { brand_name: "New Balance", product_name: "2002R", headline: "Y2K Revival", description: "Retro future style" },
+  { brand_name: "New Balance", product_name: "2002R", headline: "Premium Materials", description: "Suede & mesh" },
+  // Reebok - Running/Training (5 rows)
+  { brand_name: "Reebok", product_name: "Nano X4", headline: "CrossFit Ready", description: "Official CF shoe" },
+  { brand_name: "Reebok", product_name: "Nano X4", headline: "WOD Warrior", description: "Do it all trainer" },
+  { brand_name: "Reebok", product_name: "Nano X4", headline: "Box Jump Stable", description: "Land with confidence" },
+  { brand_name: "Reebok", product_name: "Floatride Energy", headline: "Lightweight Run", description: "Fast & comfortable" },
+  { brand_name: "Reebok", product_name: "Floatride Energy", headline: "Tempo Trainer", description: "Speed work ready" },
+  // Reebok - Lifestyle (5 rows)
+  { brand_name: "Reebok", product_name: "Classic Leather", headline: "80s Original", description: "Retro running style" },
+  { brand_name: "Reebok", product_name: "Classic Leather", headline: "Heritage Style", description: "Clean & simple" },
+  { brand_name: "Reebok", product_name: "Club C", headline: "Tennis Heritage", description: "Court classic" },
+  { brand_name: "Reebok", product_name: "Club C", headline: "Clean White", description: "Goes with anything" },
+  { brand_name: "Reebok", product_name: "Pump Omni", headline: "Pump It Up", description: "Iconic tech returns" },
+  // ASICS - Running (9 rows)
+  { brand_name: "ASICS", product_name: "Gel-Kayano 30", headline: "Stability King", description: "30 years of support" },
+  { brand_name: "ASICS", product_name: "Gel-Kayano 30", headline: "Overpronation Fix", description: "Guided gait support" },
+  { brand_name: "ASICS", product_name: "Gel-Nimbus 25", headline: "Cloud Nine Run", description: "Maximum cushion" },
+  { brand_name: "ASICS", product_name: "Gel-Nimbus 25", headline: "Plush Landing", description: "Soft impact absorption" },
+  { brand_name: "ASICS", product_name: "Gel-Nimbus 25", headline: "Long Run Ready", description: "Marathon favorite" },
+  { brand_name: "ASICS", product_name: "Novablast 4", headline: "Bouncy Fun", description: "Trampoline feel" },
+  { brand_name: "ASICS", product_name: "Novablast 4", headline: "Energy Return", description: "FF Blast Plus foam" },
+  { brand_name: "ASICS", product_name: "GT-2000 12", headline: "Reliable Support", description: "Everyday stability" },
+  { brand_name: "ASICS", product_name: "Metaspeed Sky+", headline: "Carbon Racer", description: "Sub-2 hour tech" },
+  // Saucony - Running (7 rows)
+  { brand_name: "Saucony", product_name: "Endorphin Speed", headline: "Daily Speedster", description: "Nylon plate power" },
+  { brand_name: "Saucony", product_name: "Endorphin Speed", headline: "Tempo King", description: "Fast day favorite" },
+  { brand_name: "Saucony", product_name: "Endorphin Pro", headline: "Race Day Elite", description: "Carbon plate racer" },
+  { brand_name: "Saucony", product_name: "Triumph 21", headline: "Plush Comfort", description: "Max cushion trainer" },
+  { brand_name: "Saucony", product_name: "Triumph 21", headline: "PWRRUN+ Cloud", description: "Softest Saucony ever" },
+  { brand_name: "Saucony", product_name: "Guide 16", headline: "Guided Ride", description: "Light stability" },
+  { brand_name: "Saucony", product_name: "Kinvara 14", headline: "Minimal & Fast", description: "Natural feel runner" },
+  // Brooks - Running (8 rows)
+  { brand_name: "Brooks", product_name: "Ghost 15", headline: "Smooth Operator", description: "Neutral daily trainer" },
+  { brand_name: "Brooks", product_name: "Ghost 15", headline: "DNA Loft Comfort", description: "Soft transitions" },
+  { brand_name: "Brooks", product_name: "Ghost 15", headline: "Best Seller", description: "Fan favorite shoe" },
+  { brand_name: "Brooks", product_name: "Glycerin 20", headline: "Premium Plush", description: "Luxury cushioning" },
+  { brand_name: "Brooks", product_name: "Glycerin 20", headline: "Super Soft", description: "Pillow-like ride" },
+  { brand_name: "Brooks", product_name: "Adrenaline GTS 23", headline: "GuideRails Support", description: "Motion control" },
+  { brand_name: "Brooks", product_name: "Adrenaline GTS 23", headline: "Podiatrist Pick", description: "Doctor recommended" },
+  { brand_name: "Brooks", product_name: "Hyperion Tempo", headline: "Speed Session", description: "Tempo day essential" },
+  // Hoka - Running (11 rows)
+  { brand_name: "Hoka", product_name: "Clifton 9", headline: "Marshmallow Run", description: "Light & cushioned" },
+  { brand_name: "Hoka", product_name: "Clifton 9", headline: "Cloud Walking", description: "Maximalist comfort" },
+  { brand_name: "Hoka", product_name: "Clifton 9", headline: "Nurse Favorite", description: "All day on feet" },
+  { brand_name: "Hoka", product_name: "Bondi 8", headline: "Max Cushion", description: "Ultra plush ride" },
+  { brand_name: "Hoka", product_name: "Bondi 8", headline: "Standing Support", description: "Perfect for workers" },
+  { brand_name: "Hoka", product_name: "Bondi 8", headline: "Thick & Comfy", description: "Signature Hoka stack" },
+  { brand_name: "Hoka", product_name: "Mach 5", headline: "Light Speed", description: "Fast but cushioned" },
+  { brand_name: "Hoka", product_name: "Mach 5", headline: "Daily Racer", description: "Speed meets comfort" },
+  { brand_name: "Hoka", product_name: "Speedgoat 5", headline: "Trail Beast", description: "Off-road champion" },
+  { brand_name: "Hoka", product_name: "Speedgoat 5", headline: "Mountain Ready", description: "Vibram grip traction" },
+  { brand_name: "Hoka", product_name: "Arahi 6", headline: "Stable & Light", description: "J-Frame support" },
+  // On - Running (7 rows)
+  { brand_name: "On", product_name: "Cloudmonster", headline: "Monster Cushion", description: "Maximum CloudTec" },
+  { brand_name: "On", product_name: "Cloudmonster", headline: "Big Stack Energy", description: "Bouncy cloud pods" },
+  { brand_name: "On", product_name: "Cloudsurfer", headline: "Swiss Engineering", description: "Helion foam tech" },
+  { brand_name: "On", product_name: "Cloudsurfer", headline: "Smooth Ride", description: "Seamless transition" },
+  { brand_name: "On", product_name: "Cloud 5", headline: "Everyday Essential", description: "Light & versatile" },
+  { brand_name: "On", product_name: "Cloud 5", headline: "Travel Companion", description: "Pack light, go far" },
+  { brand_name: "On", product_name: "Cloudflow 4", headline: "Race Ready", description: "Fast & responsive" },
 ];
 
 // Mock preview response for preview step
@@ -152,14 +285,13 @@ describe("GenerateWizard", () => {
       expect(screen.getByRole("heading", { name: "Select Data Source" })).toBeInTheDocument();
     });
 
-    it("shows step indicator with all 7 steps", async () => {
+    it("shows step indicator with all 6 steps", async () => {
       render(<GenerateWizard />);
 
-      // All 7 step labels should be visible
+      // All 6 step labels should be visible (keywords removed)
       expect(screen.getByText("Data Source")).toBeInTheDocument();
       expect(screen.getByText("Campaign Config")).toBeInTheDocument();
       expect(screen.getByText("Ad Structure")).toBeInTheDocument();
-      expect(screen.getByText("Keywords")).toBeInTheDocument();
       expect(screen.getByText("Rules")).toBeInTheDocument();
       expect(screen.getByText("Platforms")).toBeInTheDocument();
       expect(screen.getByText("Preview & Generate")).toBeInTheDocument();
@@ -582,21 +714,6 @@ describe("GenerateWizard", () => {
         expect(screen.getByRole("heading", { name: "Campaign Config" })).toBeInTheDocument();
       });
     });
-  });
-
-  // ==========================================================================
-  // Keywords Step Tests (Optional Step)
-  // ==========================================================================
-
-  // Note: These tests require navigating through hierarchy step which involves complex form interactions.
-  // The step navigation and component rendering is validated in the earlier tests.
-  // Full flow integration testing is better suited for E2E tests.
-  describe.skip("Keywords Step (Optional)", () => {
-    it("renders KeywordConfig placeholder on keywords step", () => {});
-    it("has Next button enabled since keywords are optional", () => {});
-    it("shows Skip button for optional step", () => {});
-    it("can skip to rules step", () => {});
-    it("can navigate to rules step with Next button", () => {});
   });
 
   // ==========================================================================

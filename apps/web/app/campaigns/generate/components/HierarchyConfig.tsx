@@ -685,6 +685,34 @@ export function HierarchyConfig({
                 + Add Ad
               </button>
             </div>
+
+            {/* Keywords Section */}
+            <div className={styles.keywordsSection} data-testid={`keywords-section-${adGroup.id}`}>
+              <h4 className={styles.adsSectionTitle}>Keywords (optional)</h4>
+              <div className={styles.fieldGroup}>
+                <label htmlFor={`ad-group-keywords-${adGroup.id}`} className={styles.fieldLabel}>
+                  Keywords<span className={styles.optionalMark}>(optional)</span>
+                </label>
+                <textarea
+                  id={`ad-group-keywords-${adGroup.id}`}
+                  className={styles.textarea}
+                  value={(adGroup.keywords || []).join('\n')}
+                  onChange={(e) => {
+                    const keywords = e.target.value
+                      .split('\n')
+                      .map(k => k.trim())
+                      .filter(k => k.length > 0);
+                    updateAdGroup(adGroup.id, { keywords: keywords.length > 0 ? keywords : undefined });
+                  }}
+                  placeholder="Enter keywords, one per line"
+                  rows={3}
+                  aria-describedby={`ad-group-keywords-hint-${adGroup.id}`}
+                />
+                <p id={`ad-group-keywords-hint-${adGroup.id}`} className={styles.inputHint}>
+                  Enter one keyword per line. Keywords are optional and will be associated with this ad group.
+                </p>
+              </div>
+            </div>
           </div>
         )}
       </div>

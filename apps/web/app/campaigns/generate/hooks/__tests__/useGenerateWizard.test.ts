@@ -12,7 +12,6 @@ import {
 import type {
   CampaignConfig,
   HierarchyConfig,
-  KeywordConfig,
   DataSourceColumn,
   BudgetConfig,
 } from '../../types';
@@ -41,21 +40,6 @@ const validHierarchyConfig: HierarchyConfig = {
   }],
 };
 
-const validKeywordConfig: KeywordConfig = {
-  enabled: true,
-  rules: [
-    {
-      id: 'rule-1',
-      name: 'Product Keywords',
-      scope: 'ad-group',
-      coreTermPattern: '{product_name}',
-      prefixes: ['buy'],
-      suffixes: ['online'],
-      matchTypes: ['broad', 'exact'],
-    },
-  ],
-};
-
 const validBudgetConfig: BudgetConfig = {
   type: 'daily',
   amountPattern: '100',
@@ -79,7 +63,6 @@ describe('wizardReducer', () => {
         dataSourceId: 'old-ds',
         campaignConfig: validCampaignConfig,
         hierarchyConfig: validHierarchyConfig,
-        keywordConfig: validKeywordConfig,
       };
       const result = wizardReducer(stateWithConfigs, {
         type: 'SET_DATA_SOURCE',
@@ -88,7 +71,6 @@ describe('wizardReducer', () => {
       expect(result.dataSourceId).toBe('new-ds');
       expect(result.campaignConfig).toBeNull();
       expect(result.hierarchyConfig).toBeNull();
-      expect(result.keywordConfig).toBeNull();
     });
   });
 
@@ -159,45 +141,6 @@ describe('wizardReducer', () => {
         payload: { adGroupNamePattern: '{brand_name}' },
       });
       expect(result.hierarchyConfig).toBeNull();
-    });
-  });
-
-  describe('SET_KEYWORD_CONFIG action', () => {
-    it('sets keyword config', () => {
-      const result = wizardReducer(initialState, {
-        type: 'SET_KEYWORD_CONFIG',
-        payload: validKeywordConfig,
-      });
-      expect(result.keywordConfig).toEqual(validKeywordConfig);
-    });
-
-    it('sets keyword config to null', () => {
-      const stateWithConfig = { ...initialState, keywordConfig: validKeywordConfig };
-      const result = wizardReducer(stateWithConfig, {
-        type: 'SET_KEYWORD_CONFIG',
-        payload: null,
-      });
-      expect(result.keywordConfig).toBeNull();
-    });
-  });
-
-  describe('UPDATE_KEYWORD_CONFIG action', () => {
-    it('updates keyword config when it exists', () => {
-      const stateWithConfig = { ...initialState, keywordConfig: validKeywordConfig };
-      const result = wizardReducer(stateWithConfig, {
-        type: 'UPDATE_KEYWORD_CONFIG',
-        payload: { enabled: false },
-      });
-      expect(result.keywordConfig?.enabled).toBe(false);
-      expect(result.keywordConfig?.rules).toEqual(validKeywordConfig.rules);
-    });
-
-    it('does nothing when keyword config is null', () => {
-      const result = wizardReducer(initialState, {
-        type: 'UPDATE_KEYWORD_CONFIG',
-        payload: { enabled: false },
-      });
-      expect(result.keywordConfig).toBeNull();
     });
   });
 
@@ -282,7 +225,7 @@ describe('wizardReducer', () => {
     });
 
     it('goes to previous step', () => {
-      const state = { ...initialState, currentStep: 'keywords' as const };
+      const state = { ...initialState, currentStep: 'platform' as const };
       const result = wizardReducer(state, { type: 'PREV_STEP' });
       expect(result.currentStep).toBe('hierarchy');
     });
@@ -337,12 +280,11 @@ describe('wizardReducer', () => {
 describe('step navigation helpers', () => {
   describe('getNextStep', () => {
     it('returns correct next steps', () => {
-      // Order: data-source, rules, campaign-config, hierarchy, keywords, platform, preview
+      // Order: data-source, rules, campaign-config, hierarchy, platform, preview
       expect(getNextStep('data-source')).toBe('rules');
       expect(getNextStep('rules')).toBe('campaign-config');
       expect(getNextStep('campaign-config')).toBe('hierarchy');
-      expect(getNextStep('hierarchy')).toBe('keywords');
-      expect(getNextStep('keywords')).toBe('platform');
+      expect(getNextStep('hierarchy')).toBe('platform');
       expect(getNextStep('platform')).toBe('preview');
       expect(getNextStep('preview')).toBe('preview');
     });
@@ -350,10 +292,9 @@ describe('step navigation helpers', () => {
 
   describe('getPreviousStep', () => {
     it('returns correct previous steps', () => {
-      // Order: data-source, rules, campaign-config, hierarchy, keywords, platform, preview
+      // Order: data-source, rules, campaign-config, hierarchy, platform, preview
       expect(getPreviousStep('preview')).toBe('platform');
-      expect(getPreviousStep('platform')).toBe('keywords');
-      expect(getPreviousStep('keywords')).toBe('hierarchy');
+      expect(getPreviousStep('platform')).toBe('hierarchy');
       expect(getPreviousStep('hierarchy')).toBe('campaign-config');
       expect(getPreviousStep('campaign-config')).toBe('rules');
       expect(getPreviousStep('rules')).toBe('data-source');
@@ -363,14 +304,13 @@ describe('step navigation helpers', () => {
 
   describe('getStepIndex', () => {
     it('returns correct index for each step', () => {
-      // Order: data-source(0), rules(1), campaign-config(2), hierarchy(3), keywords(4), platform(5), preview(6)
+      // Order: data-source(0), rules(1), campaign-config(2), hierarchy(3), platform(4), preview(5)
       expect(getStepIndex('data-source')).toBe(0);
       expect(getStepIndex('rules')).toBe(1);
       expect(getStepIndex('campaign-config')).toBe(2);
       expect(getStepIndex('hierarchy')).toBe(3);
-      expect(getStepIndex('keywords')).toBe(4);
-      expect(getStepIndex('platform')).toBe(5);
-      expect(getStepIndex('preview')).toBe(6);
+      expect(getStepIndex('platform')).toBe(4);
+      expect(getStepIndex('preview')).toBe(5);
     });
   });
 
@@ -380,7 +320,6 @@ describe('step navigation helpers', () => {
       expect(isOptionalStep('rules')).toBe(true);
       expect(isOptionalStep('campaign-config')).toBe(false);
       expect(isOptionalStep('hierarchy')).toBe(false);
-      expect(isOptionalStep('keywords')).toBe(true);
       expect(isOptionalStep('platform')).toBe(false);
       expect(isOptionalStep('preview')).toBe(false);
     });
@@ -395,7 +334,6 @@ describe('useGenerateWizard hook', () => {
     expect(result.current.state.availableColumns).toEqual([]);
     expect(result.current.state.campaignConfig).toBeNull();
     expect(result.current.state.hierarchyConfig).toBeNull();
-    expect(result.current.state.keywordConfig).toBeNull();
     expect(result.current.state.ruleIds).toEqual([]);
     expect(result.current.state.selectedPlatforms).toEqual([]);
     expect(result.current.state.platformBudgets).toEqual({});
@@ -452,28 +390,6 @@ describe('useGenerateWizard hook', () => {
       act(() => result.current.setHierarchyConfig(validHierarchyConfig));
       act(() => result.current.updateHierarchyConfig({ adGroupNamePattern: '{brand_name}' }));
       expect(result.current.state.hierarchyConfig?.adGroupNamePattern).toBe('{brand_name}');
-    });
-  });
-
-  describe('keyword config actions', () => {
-    it('setKeywordConfig updates keywordConfig', () => {
-      const { result } = renderHook(() => useGenerateWizard());
-      act(() => result.current.setKeywordConfig(validKeywordConfig));
-      expect(result.current.state.keywordConfig).toEqual(validKeywordConfig);
-    });
-
-    it('setKeywordConfig can set to null', () => {
-      const { result } = renderHook(() => useGenerateWizard());
-      act(() => result.current.setKeywordConfig(validKeywordConfig));
-      act(() => result.current.setKeywordConfig(null));
-      expect(result.current.state.keywordConfig).toBeNull();
-    });
-
-    it('updateKeywordConfig partially updates config', () => {
-      const { result } = renderHook(() => useGenerateWizard());
-      act(() => result.current.setKeywordConfig(validKeywordConfig));
-      act(() => result.current.updateKeywordConfig({ enabled: false }));
-      expect(result.current.state.keywordConfig?.enabled).toBe(false);
     });
   });
 
@@ -537,7 +453,7 @@ describe('useGenerateWizard hook', () => {
 
     it('prevStep goes to previous step', () => {
       const { result } = renderHook(() => useGenerateWizard());
-      act(() => result.current.setStep('keywords'));
+      act(() => result.current.setStep('platform'));
       act(() => result.current.prevStep());
       expect(result.current.state.currentStep).toBe('hierarchy');
     });
@@ -622,8 +538,6 @@ describe('useGenerateWizard hook', () => {
 
     it('canSkip returns true for optional steps', () => {
       const { result } = renderHook(() => useGenerateWizard());
-      act(() => result.current.setStep('keywords'));
-      expect(result.current.canSkip()).toBe(true);
       act(() => result.current.setStep('rules'));
       expect(result.current.canSkip()).toBe(true);
     });
@@ -644,14 +558,14 @@ describe('useGenerateWizard hook', () => {
       expect(result.current.getCurrentStepIndex()).toBe(1);
     });
 
-    it('getTotalSteps returns 7', () => {
+    it('getTotalSteps returns 6', () => {
       const { result } = renderHook(() => useGenerateWizard());
-      expect(result.current.getTotalSteps()).toBe(7);
+      expect(result.current.getTotalSteps()).toBe(6);
     });
 
     it('getProgress returns correct percentage', () => {
       const { result } = renderHook(() => useGenerateWizard());
-      expect(result.current.getProgress()).toBeCloseTo(14.29, 1); // 1/7 steps
+      expect(result.current.getProgress()).toBeCloseTo(16.67, 1); // 1/6 steps
       act(() => result.current.setStep('preview'));
       expect(result.current.getProgress()).toBe(100);
     });
@@ -679,25 +593,20 @@ describe('useGenerateWizard hook', () => {
       expect(result.current.canProceed()).toBe(true);
       act(() => result.current.nextStep());
 
-      // Step 4: Hierarchy
+      // Step 4: Hierarchy (keywords now at ad group level)
       expect(result.current.state.currentStep).toBe('hierarchy');
       act(() => result.current.setHierarchyConfig(validHierarchyConfig));
       expect(result.current.canProceed()).toBe(true);
       act(() => result.current.nextStep());
 
-      // Step 5: Keywords (optional)
-      expect(result.current.state.currentStep).toBe('keywords');
-      expect(result.current.canSkip()).toBe(true);
-      act(() => result.current.nextStep());
-
-      // Step 6: Platform selection
+      // Step 5: Platform selection
       expect(result.current.state.currentStep).toBe('platform');
       expect(result.current.canProceed()).toBe(false); // No platforms selected
       act(() => result.current.togglePlatform('google'));
       expect(result.current.canProceed()).toBe(true);
       act(() => result.current.nextStep());
 
-      // Step 7: Preview
+      // Step 6: Preview
       expect(result.current.state.currentStep).toBe('preview');
       expect(result.current.canGoBack()).toBe(true);
 
