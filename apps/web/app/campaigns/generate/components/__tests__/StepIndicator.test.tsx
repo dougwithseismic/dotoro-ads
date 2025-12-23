@@ -9,7 +9,7 @@ describe("StepIndicator", () => {
     mockOnStepClick.mockClear();
   });
 
-  it("renders all 6 steps", () => {
+  it("renders all 7 steps", () => {
     render(
       <StepIndicator currentStep="data-source" onStepClick={mockOnStepClick} />
     );
@@ -19,6 +19,7 @@ describe("StepIndicator", () => {
     expect(screen.getByText("Ad Structure")).toBeInTheDocument();
     expect(screen.getByText("Keywords")).toBeInTheDocument();
     expect(screen.getByText("Rules")).toBeInTheDocument();
+    expect(screen.getByText("Platforms")).toBeInTheDocument();
     expect(screen.getByText("Preview & Generate")).toBeInTheDocument();
   });
 
@@ -137,7 +138,7 @@ describe("StepIndicator", () => {
       <StepIndicator currentStep="campaign-config" onStepClick={mockOnStepClick} />
     );
 
-    // Check various step labels - new order: data-source, rules, campaign-config, hierarchy, keywords, preview
+    // Check various step labels - order: data-source, rules, campaign-config, hierarchy, keywords, platform, preview
     expect(
       screen.getByRole("button", { name: /step 1.*data source.*completed/i })
     ).toBeInTheDocument();
@@ -154,7 +155,10 @@ describe("StepIndicator", () => {
       screen.getByRole("button", { name: /step 5.*keywords/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /step 6.*preview.*generate/i })
+      screen.getByRole("button", { name: /step 6.*platforms/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /step 7.*preview.*generate/i })
     ).toBeInTheDocument();
   });
 

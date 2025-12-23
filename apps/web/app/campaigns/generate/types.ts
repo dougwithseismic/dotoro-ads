@@ -2,15 +2,16 @@
 export type WizardStep =
   | 'data-source'      // Step 1: Select data source
   | 'rules'            // Step 2: Filtering/modification rules (optional, now before config)
-  | 'campaign-config'  // Step 3: Campaign name pattern + platform
+  | 'campaign-config'  // Step 3: Campaign name pattern (platform moved to step 6)
   | 'hierarchy'        // Step 4: Ad group + ad configuration
   | 'keywords'         // Step 5: Keyword rules (optional)
-  | 'preview';         // Step 6: Final preview + generate
+  | 'platform'         // Step 6: Multi-platform selection
+  | 'preview';         // Step 7: Final preview + generate
 
 // Campaign configuration for the new flow
+// Note: Platform selection has been moved to a separate step (selectedPlatforms in WizardState)
 export interface CampaignConfig {
   namePattern: string;           // e.g., "{brand_name}-performance"
-  platform: Platform;
   objective?: string;
   budget?: BudgetConfig;
 }
@@ -75,7 +76,9 @@ export interface WizardState {
   hierarchyConfig: HierarchyConfig | null;
   // Keyword configuration (Step 5 - optional)
   keywordConfig: KeywordConfig | null;
-  // Generation result (Step 6)
+  // Platform selection (Step 6 - multi-select)
+  selectedPlatforms: Platform[];
+  // Generation result (Step 7)
   generateResult: GenerateResponse | null;
 }
 
@@ -85,6 +88,7 @@ export const WIZARD_STEPS: WizardStep[] = [
   'campaign-config',
   'hierarchy',
   'keywords',
+  'platform',
   'preview',
 ];
 
@@ -94,6 +98,7 @@ export const STEP_LABELS: Record<WizardStep, string> = {
   'hierarchy': 'Ad Structure',
   'keywords': 'Keywords',
   'rules': 'Rules',
+  'platform': 'Platforms',
   'preview': 'Preview & Generate',
 };
 
@@ -261,6 +266,7 @@ export function validateVariablesInPattern(
 
 /**
  * Validates campaign configuration
+ * Note: Platform validation is now handled separately in validatePlatformSelection
  */
 export function validateCampaignConfig(
   config: CampaignConfig | null,
@@ -278,12 +284,6 @@ export function validateCampaignConfig(
   const patternResult = validateVariablesInPattern(config.namePattern, availableColumns);
   errors.push(...patternResult.errors);
   warnings.push(...patternResult.warnings);
-
-  // Validate platform
-  const validPlatforms: Platform[] = ['reddit', 'google', 'facebook'];
-  if (!validPlatforms.includes(config.platform)) {
-    errors.push(`Invalid platform: ${config.platform}`);
-  }
 
   // Validate budget if present
   if (config.budget) {
@@ -307,6 +307,35 @@ export function validateCampaignConfig(
       e => !e.includes('cannot be empty')
     );
     errors.push(...budgetVariableErrors);
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings,
+  };
+}
+
+/**
+ * Validates platform selection (multi-select)
+ */
+export function validatePlatformSelection(
+  selectedPlatforms: Platform[]
+): ValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  if (!selectedPlatforms || selectedPlatforms.length === 0) {
+    errors.push('At least one platform must be selected');
+    return { valid: false, errors, warnings };
+  }
+
+  // Validate each platform is a known platform
+  const validPlatforms: Platform[] = ['reddit', 'google', 'facebook'];
+  for (const platform of selectedPlatforms) {
+    if (!validPlatforms.includes(platform)) {
+      errors.push(`Invalid platform: ${platform}`);
+    }
   }
 
   return {
@@ -447,6 +476,9 @@ export function validateWizardStep(
       // Rules are optional
       return { valid: true, errors: [], warnings: [] };
 
+    case 'platform':
+      return validatePlatformSelection(state.selectedPlatforms);
+
     case 'preview':
       // Preview requires all previous steps to be valid
       const dataSourceResult = validateWizardStep('data-source', state);
@@ -457,6 +489,9 @@ export function validateWizardStep(
 
       const hierarchyResult = validateWizardStep('hierarchy', state);
       if (!hierarchyResult.valid) return hierarchyResult;
+
+      const platformResult = validateWizardStep('platform', state);
+      if (!platformResult.valid) return platformResult;
 
       return { valid: true, errors: [], warnings: [] };
 

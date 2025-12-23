@@ -7,6 +7,7 @@ import { CampaignConfig } from "./CampaignConfig";
 import { HierarchyConfig } from "./HierarchyConfig";
 import { KeywordConfig } from "./KeywordConfig";
 import { RuleSelector } from "./RuleSelector";
+import { PlatformSelector } from "./PlatformSelector";
 import { GenerationPreview } from "./GenerationPreview";
 import { ValidationMessage } from "./ValidationMessage";
 import { useGenerateWizard } from "../hooks/useGenerateWizard";
@@ -18,6 +19,7 @@ import {
   OPTIONAL_STEPS,
   validateCampaignConfig,
   validateHierarchyConfig,
+  validatePlatformSelection,
   CampaignConfig as CampaignConfigType,
   HierarchyConfig as HierarchyConfigType,
 } from "../types";
@@ -30,7 +32,6 @@ function getStepIndex(step: WizardStep): number {
 // Default initial campaign config
 const DEFAULT_CAMPAIGN_CONFIG: CampaignConfigType = {
   namePattern: "",
-  platform: "google",
 };
 
 // Default initial hierarchy config
@@ -50,6 +51,7 @@ export function GenerateWizard() {
     setHierarchyConfig,
     setKeywordConfig,
     toggleRule,
+    togglePlatform,
     setStep,
     nextStep,
     prevStep,
@@ -216,11 +218,18 @@ export function GenerateWizard() {
           }
           break;
         }
+        case "platform": {
+          const platformValidation = validatePlatformSelection(state.selectedPlatforms);
+          if (!platformValidation.valid) {
+            return "Please select at least one platform to continue";
+          }
+          break;
+        }
         // keywords and rules are optional - no validation message needed
       }
       return null;
     },
-    [dataSourceId, campaignConfig, hierarchyConfig, availableColumns]
+    [dataSourceId, campaignConfig, hierarchyConfig, availableColumns, state.selectedPlatforms]
   );
 
   const handleNext = useCallback(() => {
@@ -294,7 +303,7 @@ export function GenerateWizard() {
           <div className={styles.stepContent} data-testid="step-content">
             <h2 className={styles.stepTitle}>{STEP_LABELS[currentStep]}</h2>
             <p className={styles.stepDescription}>
-              Configure your campaign name pattern and platform settings.
+              Configure your campaign name pattern and budget settings.
             </p>
             {columnsLoading && (
               <div className={styles.loadingMessage}>Loading columns...</div>
@@ -361,6 +370,21 @@ export function GenerateWizard() {
           </div>
         );
 
+      case "platform":
+        return (
+          <div className={styles.stepContent} data-testid="step-content">
+            <h2 className={styles.stepTitle}>{STEP_LABELS[currentStep]}</h2>
+            <p className={styles.stepDescription}>
+              Select one or more platforms to generate campaigns for.
+            </p>
+            <PlatformSelector
+              selectedPlatforms={state.selectedPlatforms}
+              onToggle={togglePlatform}
+              showError={validationMessage !== null}
+            />
+          </div>
+        );
+
       case "preview":
         return (
           <div className={styles.stepContent} data-testid="step-content">
@@ -368,18 +392,19 @@ export function GenerateWizard() {
             <p className={styles.stepDescription}>
               Review your generated campaigns before creating them.
             </p>
-            {state.campaignConfig && state.hierarchyConfig ? (
+            {state.campaignConfig && state.hierarchyConfig && state.selectedPlatforms.length > 0 ? (
               <GenerationPreview
                 dataSourceId={state.dataSourceId ?? ""}
                 ruleIds={state.ruleIds}
                 campaignConfig={state.campaignConfig}
                 hierarchyConfig={state.hierarchyConfig}
+                selectedPlatforms={state.selectedPlatforms}
                 sampleData={sampleData}
                 onGenerateComplete={setGenerateResult}
               />
             ) : (
               <div className={styles.errorMessage}>
-                Please configure your campaign before previewing.
+                Please configure your campaign and select platforms before previewing.
               </div>
             )}
           </div>

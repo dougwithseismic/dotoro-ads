@@ -152,15 +152,16 @@ describe("GenerateWizard", () => {
       expect(screen.getByRole("heading", { name: "Select Data Source" })).toBeInTheDocument();
     });
 
-    it("shows step indicator with all 6 steps", async () => {
+    it("shows step indicator with all 7 steps", async () => {
       render(<GenerateWizard />);
 
-      // All 6 step labels should be visible
+      // All 7 step labels should be visible
       expect(screen.getByText("Data Source")).toBeInTheDocument();
       expect(screen.getByText("Campaign Config")).toBeInTheDocument();
       expect(screen.getByText("Ad Structure")).toBeInTheDocument();
       expect(screen.getByText("Keywords")).toBeInTheDocument();
       expect(screen.getByText("Rules")).toBeInTheDocument();
+      expect(screen.getByText("Platforms")).toBeInTheDocument();
       expect(screen.getByText("Preview & Generate")).toBeInTheDocument();
     });
 
@@ -384,10 +385,9 @@ describe("GenerateWizard", () => {
       // Should have campaign name pattern input
       expect(screen.getByLabelText(/campaign name pattern/i)).toBeInTheDocument();
 
-      // Should have platform selector
-      expect(screen.getByTestId("platform-card-google")).toBeInTheDocument();
-      expect(screen.getByTestId("platform-card-reddit")).toBeInTheDocument();
-      expect(screen.getByTestId("platform-card-facebook")).toBeInTheDocument();
+      // Platform selector is now on its own step, not in CampaignConfig
+      // Instead verify budget toggle is present
+      expect(screen.getByLabelText(/enable budget/i)).toBeInTheDocument();
     });
 
     it("passes available columns to CampaignConfig component", async () => {

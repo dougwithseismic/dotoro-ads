@@ -9,6 +9,7 @@ import {
   type GenerateResponse,
   type CampaignConfig,
   type HierarchyConfig,
+  type Platform,
 } from "../types";
 import styles from "../GenerateWizard.module.css";
 
@@ -17,6 +18,7 @@ export interface GenerationPreviewProps {
   ruleIds: string[];
   campaignConfig: CampaignConfig;
   hierarchyConfig: HierarchyConfig;
+  selectedPlatforms: Platform[];
   sampleData: Record<string, unknown>[];
   warnings?: PreviewWarning[];
   onGenerateComplete: (result: GenerateResponse) => void;
@@ -36,6 +38,7 @@ export function GenerationPreview(props: GenerationPreviewProps) {
     ruleIds,
     campaignConfig,
     hierarchyConfig,
+    selectedPlatforms,
     sampleData,
     warnings,
     onGenerateComplete,
@@ -97,7 +100,6 @@ export function GenerationPreview(props: GenerationPreviewProps) {
         dataSourceId,
         campaignConfig: {
           namePattern: campaignConfig.namePattern,
-          platform: campaignConfig.platform,
           objective: campaignConfig.objective,
           budget: campaignConfig.budget,
         },
@@ -105,6 +107,7 @@ export function GenerationPreview(props: GenerationPreviewProps) {
           adGroupNamePattern: hierarchyConfig.adGroupNamePattern,
           adMapping: hierarchyConfig.adMapping,
         },
+        selectedPlatforms,
         ruleIds: ruleIds.length > 0 ? ruleIds : undefined,
       };
 
@@ -133,7 +136,7 @@ export function GenerationPreview(props: GenerationPreviewProps) {
     } finally {
       setGenerating(false);
     }
-  }, [dataSourceId, campaignConfig, hierarchyConfig, ruleIds, onGenerateComplete]);
+  }, [dataSourceId, campaignConfig, hierarchyConfig, selectedPlatforms, ruleIds, onGenerateComplete]);
 
   // Success state after generation
   if (generateResult) {

@@ -14,7 +14,6 @@ const mockColumns: DataSourceColumn[] = [
 
 const defaultConfig: CampaignConfigType = {
   namePattern: "",
-  platform: "google",
 };
 
 describe("CampaignConfig", () => {
@@ -291,100 +290,6 @@ describe("CampaignConfig", () => {
 
       const input = screen.getByLabelText(/campaign name pattern/i) as HTMLInputElement;
       expect(input.placeholder).toContain("{brand_name}");
-    });
-  });
-
-  // ==========================================================================
-  // Platform Selector Tests
-  // ==========================================================================
-
-  describe("Platform Selector", () => {
-    it("renders platform selection cards", () => {
-      render(
-        <CampaignConfig
-          config={defaultConfig}
-          availableColumns={mockColumns}
-          onChange={onChange}
-        />
-      );
-
-      expect(screen.getByTestId("platform-card-google")).toBeInTheDocument();
-      expect(screen.getByTestId("platform-card-reddit")).toBeInTheDocument();
-      expect(screen.getByTestId("platform-card-facebook")).toBeInTheDocument();
-    });
-
-    it("highlights the selected platform", () => {
-      const config: CampaignConfigType = {
-        ...defaultConfig,
-        platform: "reddit",
-      };
-
-      render(
-        <CampaignConfig
-          config={config}
-          availableColumns={mockColumns}
-          onChange={onChange}
-        />
-      );
-
-      const redditCard = screen.getByTestId("platform-card-reddit");
-      expect(redditCard).toHaveAttribute("aria-selected", "true");
-
-      const googleCard = screen.getByTestId("platform-card-google");
-      expect(googleCard).toHaveAttribute("aria-selected", "false");
-    });
-
-    it("calls onChange when platform is selected", async () => {
-      const user = userEvent.setup();
-
-      render(
-        <CampaignConfig
-          config={defaultConfig}
-          availableColumns={mockColumns}
-          onChange={onChange}
-        />
-      );
-
-      await user.click(screen.getByTestId("platform-card-facebook"));
-
-      expect(onChange).toHaveBeenCalledWith(
-        expect.objectContaining({ platform: "facebook" })
-      );
-    });
-
-    it("displays platform-specific hints", () => {
-      render(
-        <CampaignConfig
-          config={defaultConfig}
-          availableColumns={mockColumns}
-          onChange={onChange}
-        />
-      );
-
-      // Each platform card should have a description
-      expect(screen.getByText(/google ads/i)).toBeInTheDocument();
-      expect(screen.getByText(/reddit ads/i)).toBeInTheDocument();
-      expect(screen.getByText(/facebook ads/i)).toBeInTheDocument();
-    });
-
-    it("supports keyboard navigation between platform cards", async () => {
-      const user = userEvent.setup();
-
-      render(
-        <CampaignConfig
-          config={defaultConfig}
-          availableColumns={mockColumns}
-          onChange={onChange}
-        />
-      );
-
-      const googleCard = screen.getByTestId("platform-card-google");
-      googleCard.focus();
-
-      await user.keyboard("{ArrowRight}");
-
-      // Should move focus to reddit
-      expect(screen.getByTestId("platform-card-reddit")).toHaveFocus();
     });
   });
 
@@ -713,7 +618,6 @@ describe("CampaignConfig", () => {
       );
 
       expect(screen.getByLabelText(/campaign name pattern/i)).toHaveAttribute("aria-describedby");
-      expect(screen.getByRole("listbox", { name: /select platform/i })).toBeInTheDocument();
     });
 
     it("announces autocomplete options to screen readers", async () => {
@@ -755,8 +659,8 @@ describe("CampaignConfig", () => {
       expect(screen.getByLabelText(/campaign name pattern/i)).toHaveFocus();
 
       await user.tab();
-      // Should focus on first platform card
-      expect(screen.getByTestId("platform-card-google")).toHaveFocus();
+      // Should focus on budget toggle
+      expect(screen.getByLabelText(/enable budget/i)).toHaveFocus();
     });
   });
 

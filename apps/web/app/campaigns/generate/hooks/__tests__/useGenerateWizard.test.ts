@@ -26,7 +26,6 @@ const sampleColumns: DataSourceColumn[] = [
 
 const validCampaignConfig: CampaignConfig = {
   namePattern: '{brand_name}-performance',
-  platform: 'google',
 };
 
 const validHierarchyConfig: HierarchyConfig = {
@@ -105,16 +104,16 @@ describe('wizardReducer', () => {
       const stateWithConfig = { ...initialState, campaignConfig: validCampaignConfig };
       const result = wizardReducer(stateWithConfig, {
         type: 'UPDATE_CAMPAIGN_CONFIG',
-        payload: { platform: 'facebook' },
+        payload: { objective: 'conversions' },
       });
-      expect(result.campaignConfig?.platform).toBe('facebook');
+      expect(result.campaignConfig?.objective).toBe('conversions');
       expect(result.campaignConfig?.namePattern).toBe(validCampaignConfig.namePattern);
     });
 
     it('does nothing when campaign config is null', () => {
       const result = wizardReducer(initialState, {
         type: 'UPDATE_CAMPAIGN_CONFIG',
-        payload: { platform: 'facebook' },
+        payload: { objective: 'conversions' },
       });
       expect(result.campaignConfig).toBeNull();
     });
@@ -289,20 +288,22 @@ describe('wizardReducer', () => {
 describe('step navigation helpers', () => {
   describe('getNextStep', () => {
     it('returns correct next steps', () => {
-      // New order: data-source, rules, campaign-config, hierarchy, keywords, preview
+      // Order: data-source, rules, campaign-config, hierarchy, keywords, platform, preview
       expect(getNextStep('data-source')).toBe('rules');
       expect(getNextStep('rules')).toBe('campaign-config');
       expect(getNextStep('campaign-config')).toBe('hierarchy');
       expect(getNextStep('hierarchy')).toBe('keywords');
-      expect(getNextStep('keywords')).toBe('preview');
+      expect(getNextStep('keywords')).toBe('platform');
+      expect(getNextStep('platform')).toBe('preview');
       expect(getNextStep('preview')).toBe('preview');
     });
   });
 
   describe('getPreviousStep', () => {
     it('returns correct previous steps', () => {
-      // New order: data-source, rules, campaign-config, hierarchy, keywords, preview
-      expect(getPreviousStep('preview')).toBe('keywords');
+      // Order: data-source, rules, campaign-config, hierarchy, keywords, platform, preview
+      expect(getPreviousStep('preview')).toBe('platform');
+      expect(getPreviousStep('platform')).toBe('keywords');
       expect(getPreviousStep('keywords')).toBe('hierarchy');
       expect(getPreviousStep('hierarchy')).toBe('campaign-config');
       expect(getPreviousStep('campaign-config')).toBe('rules');
@@ -313,13 +314,14 @@ describe('step navigation helpers', () => {
 
   describe('getStepIndex', () => {
     it('returns correct index for each step', () => {
-      // New order: data-source(0), rules(1), campaign-config(2), hierarchy(3), keywords(4), preview(5)
+      // Order: data-source(0), rules(1), campaign-config(2), hierarchy(3), keywords(4), platform(5), preview(6)
       expect(getStepIndex('data-source')).toBe(0);
       expect(getStepIndex('rules')).toBe(1);
       expect(getStepIndex('campaign-config')).toBe(2);
       expect(getStepIndex('hierarchy')).toBe(3);
       expect(getStepIndex('keywords')).toBe(4);
-      expect(getStepIndex('preview')).toBe(5);
+      expect(getStepIndex('platform')).toBe(5);
+      expect(getStepIndex('preview')).toBe(6);
     });
   });
 
@@ -330,6 +332,7 @@ describe('step navigation helpers', () => {
       expect(isOptionalStep('campaign-config')).toBe(false);
       expect(isOptionalStep('hierarchy')).toBe(false);
       expect(isOptionalStep('keywords')).toBe(true);
+      expect(isOptionalStep('platform')).toBe(false);
       expect(isOptionalStep('preview')).toBe(false);
     });
   });
@@ -345,6 +348,7 @@ describe('useGenerateWizard hook', () => {
     expect(result.current.state.hierarchyConfig).toBeNull();
     expect(result.current.state.keywordConfig).toBeNull();
     expect(result.current.state.ruleIds).toEqual([]);
+    expect(result.current.state.selectedPlatforms).toEqual([]);
     expect(result.current.state.generateResult).toBeNull();
   });
 
@@ -380,8 +384,8 @@ describe('useGenerateWizard hook', () => {
     it('updateCampaignConfig partially updates config', () => {
       const { result } = renderHook(() => useGenerateWizard());
       act(() => result.current.setCampaignConfig(validCampaignConfig));
-      act(() => result.current.updateCampaignConfig({ platform: 'facebook' }));
-      expect(result.current.state.campaignConfig?.platform).toBe('facebook');
+      act(() => result.current.updateCampaignConfig({ objective: 'conversions' }));
+      expect(result.current.state.campaignConfig?.objective).toBe('conversions');
       expect(result.current.state.campaignConfig?.namePattern).toBe(validCampaignConfig.namePattern);
     });
   });
@@ -563,14 +567,14 @@ describe('useGenerateWizard hook', () => {
       expect(result.current.getCurrentStepIndex()).toBe(1);
     });
 
-    it('getTotalSteps returns 6', () => {
+    it('getTotalSteps returns 7', () => {
       const { result } = renderHook(() => useGenerateWizard());
-      expect(result.current.getTotalSteps()).toBe(6);
+      expect(result.current.getTotalSteps()).toBe(7);
     });
 
     it('getProgress returns correct percentage', () => {
       const { result } = renderHook(() => useGenerateWizard());
-      expect(result.current.getProgress()).toBeCloseTo(16.67, 1);
+      expect(result.current.getProgress()).toBeCloseTo(14.29, 1); // 1/7 steps
       act(() => result.current.setStep('preview'));
       expect(result.current.getProgress()).toBe(100);
     });
@@ -609,7 +613,14 @@ describe('useGenerateWizard hook', () => {
       expect(result.current.canSkip()).toBe(true);
       act(() => result.current.nextStep());
 
-      // Step 6: Preview
+      // Step 6: Platform selection
+      expect(result.current.state.currentStep).toBe('platform');
+      expect(result.current.canProceed()).toBe(false); // No platforms selected
+      act(() => result.current.togglePlatform('google'));
+      expect(result.current.canProceed()).toBe(true);
+      act(() => result.current.nextStep());
+
+      // Step 7: Preview
       expect(result.current.state.currentStep).toBe('preview');
       expect(result.current.canGoBack()).toBe(true);
 
@@ -618,6 +629,7 @@ describe('useGenerateWizard hook', () => {
       expect(result.current.state.campaignConfig).toEqual(validCampaignConfig);
       expect(result.current.state.hierarchyConfig).toEqual(validHierarchyConfig);
       expect(result.current.state.ruleIds).toEqual(['r1']);
+      expect(result.current.state.selectedPlatforms).toEqual(['google']);
     });
   });
 });

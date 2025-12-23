@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import type { CampaignConfig as CampaignConfigType, DataSourceColumn, ValidationResult, Platform } from "../types";
+import type { CampaignConfig as CampaignConfigType, DataSourceColumn, ValidationResult } from "../types";
 import styles from "./CampaignConfig.module.css";
 
 interface CampaignConfigProps {
@@ -10,19 +10,6 @@ interface CampaignConfigProps {
   onChange: (config: CampaignConfigType) => void;
   validation?: ValidationResult;
 }
-
-interface PlatformInfo {
-  id: Platform;
-  name: string;
-  hint: string;
-  icon: string;
-}
-
-const PLATFORMS: PlatformInfo[] = [
-  { id: "google", name: "Google", hint: "Google Ads campaigns", icon: "G" },
-  { id: "reddit", name: "Reddit", hint: "Reddit Ads campaigns", icon: "R" },
-  { id: "facebook", name: "Facebook", hint: "Facebook Ads campaigns", icon: "f" },
-];
 
 const CURRENCIES = ["USD", "EUR", "GBP", "CAD", "AUD", "JPY"];
 
@@ -207,39 +194,6 @@ export function CampaignConfig({
     }
   }, [showDropdown, filteredColumns, highlightedIndex, selectVariable]);
 
-  // Handle platform selection
-  const handlePlatformSelect = useCallback((platform: Platform) => {
-    onChange({ ...config, platform });
-  }, [config, onChange]);
-
-  // Handle platform keyboard navigation
-  const handlePlatformKeyDown = useCallback((
-    e: React.KeyboardEvent<HTMLButtonElement>,
-    currentIndex: number
-  ) => {
-    let newIndex = currentIndex;
-
-    switch (e.key) {
-      case "ArrowRight":
-      case "ArrowDown":
-        e.preventDefault();
-        newIndex = Math.min(currentIndex + 1, PLATFORMS.length - 1);
-        break;
-      case "ArrowLeft":
-      case "ArrowUp":
-        e.preventDefault();
-        newIndex = Math.max(currentIndex - 1, 0);
-        break;
-      default:
-        return;
-    }
-
-    if (newIndex !== currentIndex) {
-      const buttons = document.querySelectorAll<HTMLButtonElement>('[data-testid^="platform-card-"]');
-      buttons[newIndex]?.focus();
-    }
-  }, []);
-
   // Handle budget toggle
   const handleBudgetToggle = useCallback(() => {
     if (config.budget) {
@@ -353,42 +307,6 @@ export function CampaignConfig({
             No variables available. Select a data source first.
           </p>
         )}
-      </div>
-
-      {/* Platform Selector Section */}
-      <div className={styles.section}>
-        <h3 className={styles.sectionTitle}>Platform</h3>
-        <p className={styles.sectionDescription}>
-          Select the advertising platform for your campaigns.
-        </p>
-
-        <div
-          className={styles.platformGrid}
-          role="listbox"
-          aria-label="Select platform"
-        >
-          {PLATFORMS.map((platform, index) => {
-            const isSelected = config.platform === platform.id;
-            const platformClass = `platformCard${platform.name}` as keyof typeof styles;
-
-            return (
-              <button
-                key={platform.id}
-                type="button"
-                className={`${styles.platformCard} ${isSelected ? styles.platformCardSelected : ""} ${isSelected ? styles[platformClass] : ""}`}
-                onClick={() => handlePlatformSelect(platform.id)}
-                onKeyDown={(e) => handlePlatformKeyDown(e, index)}
-                data-testid={`platform-card-${platform.id}`}
-                role="option"
-                aria-selected={isSelected}
-              >
-                <div className={styles.platformIcon}>{platform.icon}</div>
-                <div className={styles.platformName}>{platform.name}</div>
-                <div className={styles.platformHint}>{platform.hint}</div>
-              </button>
-            );
-          })}
-        </div>
       </div>
 
       {/* Budget Configuration Section */}

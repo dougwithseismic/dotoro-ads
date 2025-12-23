@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { GenerationPreview } from "../GenerationPreview";
-import type { CampaignConfig, HierarchyConfig } from "../../types";
+import type { CampaignConfig, HierarchyConfig, Platform } from "../../types";
 
 // Mock fetch globally
 const mockFetch = vi.fn();
@@ -9,7 +9,6 @@ global.fetch = mockFetch;
 
 const mockCampaignConfig: CampaignConfig = {
   namePattern: "{brand}-performance",
-  platform: "google",
 };
 
 const mockHierarchyConfig: HierarchyConfig = {
@@ -19,6 +18,8 @@ const mockHierarchyConfig: HierarchyConfig = {
     description: "{description}",
   },
 };
+
+const mockSelectedPlatforms: Platform[] = ["google"];
 
 const mockSampleData = [
   { brand: "Nike", product: "Air Max", headline: "Run Fast", description: "Best shoe" },
@@ -31,6 +32,7 @@ const defaultProps = {
   ruleIds: [] as string[],
   campaignConfig: mockCampaignConfig,
   hierarchyConfig: mockHierarchyConfig,
+  selectedPlatforms: mockSelectedPlatforms,
   sampleData: mockSampleData,
   onGenerateComplete: vi.fn(),
 };
@@ -163,6 +165,7 @@ describe("GenerationPreview", () => {
       expect(requestBody.dataSourceId).toBe("datasource-1");
       expect(requestBody.campaignConfig.namePattern).toBe("{brand}-performance");
       expect(requestBody.hierarchyConfig.adGroupNamePattern).toBe("{product}");
+      expect(requestBody.selectedPlatforms).toEqual(["google"]);
     });
 
     it("includes ruleIds in request when provided", async () => {

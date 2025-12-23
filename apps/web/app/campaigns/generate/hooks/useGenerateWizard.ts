@@ -7,6 +7,7 @@ import type {
   HierarchyConfig,
   KeywordConfig,
   DataSourceColumn,
+  Platform,
 } from '../types';
 import { WIZARD_STEPS, OPTIONAL_STEPS, validateWizardStep } from '../types';
 
@@ -21,6 +22,8 @@ type WizardAction =
   | { type: 'UPDATE_KEYWORD_CONFIG'; payload: Partial<KeywordConfig> }
   | { type: 'TOGGLE_RULE'; payload: string }
   | { type: 'SET_RULES'; payload: string[] }
+  | { type: 'TOGGLE_PLATFORM'; payload: Platform }
+  | { type: 'SET_PLATFORMS'; payload: Platform[] }
   | { type: 'SET_STEP'; payload: WizardStep }
   | { type: 'NEXT_STEP' }
   | { type: 'PREV_STEP' }
@@ -37,6 +40,7 @@ const initialState: WizardState = {
   hierarchyConfig: null,
   keywordConfig: null,
   ruleIds: [],
+  selectedPlatforms: [],
   generateResult: null,
 };
 
@@ -135,6 +139,20 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
         ruleIds: action.payload,
       };
 
+    case 'TOGGLE_PLATFORM':
+      return {
+        ...state,
+        selectedPlatforms: state.selectedPlatforms.includes(action.payload)
+          ? state.selectedPlatforms.filter(p => p !== action.payload)
+          : [...state.selectedPlatforms, action.payload],
+      };
+
+    case 'SET_PLATFORMS':
+      return {
+        ...state,
+        selectedPlatforms: action.payload,
+      };
+
     case 'SET_STEP':
       return { ...state, currentStep: action.payload };
 
@@ -202,6 +220,15 @@ export function useGenerateWizard() {
 
   const setRules = useCallback((ruleIds: string[]) => {
     dispatch({ type: 'SET_RULES', payload: ruleIds });
+  }, []);
+
+  // Platform actions
+  const togglePlatform = useCallback((platform: Platform) => {
+    dispatch({ type: 'TOGGLE_PLATFORM', payload: platform });
+  }, []);
+
+  const setPlatforms = useCallback((platforms: Platform[]) => {
+    dispatch({ type: 'SET_PLATFORMS', payload: platforms });
   }, []);
 
   // Navigation actions
@@ -274,6 +301,9 @@ export function useGenerateWizard() {
     // Rules
     toggleRule,
     setRules,
+    // Platforms
+    togglePlatform,
+    setPlatforms,
     // Navigation
     setStep,
     nextStep,

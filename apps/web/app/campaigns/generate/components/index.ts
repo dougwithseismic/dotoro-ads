@@ -2,6 +2,7 @@ export { GenerateWizard } from "./GenerateWizard";
 export { StepIndicator } from "./StepIndicator";
 export { DataSourceSelector } from "./DataSourceSelector";
 export { RuleSelector } from "./RuleSelector";
+export { PlatformSelector } from "./PlatformSelector";
 export { GenerationStats } from "./GenerationStats";
 export { PreviewCampaignCard } from "./PreviewCampaignCard";
 export { GenerationPreview } from "./GenerationPreview";

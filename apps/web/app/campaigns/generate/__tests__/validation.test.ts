@@ -6,6 +6,7 @@ import {
   validateHierarchyConfig,
   validateKeywordConfig,
   validateWizardStep,
+  validatePlatformSelection,
   type DataSourceColumn,
   type CampaignConfig,
   type HierarchyConfig,
@@ -31,6 +32,7 @@ const createInitialState = (): WizardState => ({
   hierarchyConfig: null,
   keywordConfig: null,
   ruleIds: [],
+  selectedPlatforms: [],
   generateResult: null,
 });
 
@@ -123,7 +125,7 @@ describe('validateCampaignConfig', () => {
   it('validates valid campaign config without budget', () => {
     const config: CampaignConfig = {
       namePattern: '{brand_name}-performance',
-      platform: 'google',
+      
     };
     const result = validateCampaignConfig(config, sampleColumns);
     expect(result.valid).toBe(true);
@@ -133,7 +135,7 @@ describe('validateCampaignConfig', () => {
   it('validates valid campaign config with budget', () => {
     const config: CampaignConfig = {
       namePattern: '{brand_name}-performance',
-      platform: 'google',
+      
       budget: {
         type: 'daily',
         amountPattern: '{budget}',
@@ -144,20 +146,16 @@ describe('validateCampaignConfig', () => {
     expect(result.valid).toBe(true);
   });
 
-  it('returns error for invalid platform', () => {
-    const config = {
-      namePattern: '{brand_name}-performance',
-      platform: 'invalid' as CampaignConfig['platform'],
-    };
-    const result = validateCampaignConfig(config, sampleColumns);
+  // Platform validation moved to validatePlatformSelection - test that instead
+  it('validates platform selection requires at least one', () => {
+    const result = validatePlatformSelection([]);
     expect(result.valid).toBe(false);
-    expect(result.errors).toContain('Invalid platform: invalid');
+    expect(result.errors).toContain('At least one platform must be selected');
   });
 
   it('returns error for empty name pattern', () => {
     const config: CampaignConfig = {
       namePattern: '',
-      platform: 'google',
     };
     const result = validateCampaignConfig(config, sampleColumns);
     expect(result.valid).toBe(false);
@@ -167,7 +165,7 @@ describe('validateCampaignConfig', () => {
   it('returns error for invalid variable in name pattern', () => {
     const config: CampaignConfig = {
       namePattern: '{nonexistent_field}',
-      platform: 'google',
+      
     };
     const result = validateCampaignConfig(config, sampleColumns);
     expect(result.valid).toBe(false);
@@ -177,7 +175,7 @@ describe('validateCampaignConfig', () => {
   it('validates budget type', () => {
     const config: CampaignConfig = {
       namePattern: '{brand_name}',
-      platform: 'google',
+      
       budget: {
         type: 'invalid' as 'daily' | 'lifetime',
         amountPattern: '100',
@@ -192,7 +190,7 @@ describe('validateCampaignConfig', () => {
   it('validates budget amount pattern is required', () => {
     const config: CampaignConfig = {
       namePattern: '{brand_name}',
-      platform: 'google',
+      
       budget: {
         type: 'daily',
         amountPattern: '',
@@ -207,7 +205,7 @@ describe('validateCampaignConfig', () => {
   it('validates budget currency is 3 letters', () => {
     const config: CampaignConfig = {
       namePattern: '{brand_name}',
-      platform: 'google',
+      
       budget: {
         type: 'daily',
         amountPattern: '100',
@@ -222,7 +220,7 @@ describe('validateCampaignConfig', () => {
   it('validates budget amount variable exists', () => {
     const config: CampaignConfig = {
       namePattern: '{brand_name}',
-      platform: 'google',
+      
       budget: {
         type: 'daily',
         amountPattern: '{nonexistent}',
@@ -234,17 +232,6 @@ describe('validateCampaignConfig', () => {
     expect(result.errors).toContain('Variable "{nonexistent}" not found in data source columns');
   });
 
-  it('accepts all valid platforms', () => {
-    const platforms: CampaignConfig['platform'][] = ['reddit', 'google', 'facebook'];
-    for (const platform of platforms) {
-      const config: CampaignConfig = {
-        namePattern: '{brand_name}',
-        platform,
-      };
-      const result = validateCampaignConfig(config, sampleColumns);
-      expect(result.valid).toBe(true);
-    }
-  });
 });
 
 describe('validateHierarchyConfig', () => {
@@ -553,7 +540,7 @@ describe('validateWizardStep', () => {
       state.availableColumns = sampleColumns;
       state.campaignConfig = {
         namePattern: '{brand_name}-performance',
-        platform: 'google',
+        
       };
       const result = validateWizardStep('campaign-config', state);
       expect(result.valid).toBe(true);
@@ -642,7 +629,7 @@ describe('validateWizardStep', () => {
       state.availableColumns = sampleColumns;
       state.campaignConfig = {
         namePattern: '{brand_name}',
-        platform: 'google',
+        
       };
       const result = validateWizardStep('preview', state);
       expect(result.valid).toBe(false);
@@ -655,7 +642,6 @@ describe('validateWizardStep', () => {
       state.availableColumns = sampleColumns;
       state.campaignConfig = {
         namePattern: '{brand_name}',
-        platform: 'google',
       };
       state.hierarchyConfig = {
         adGroupNamePattern: '{product_name}',
@@ -664,6 +650,7 @@ describe('validateWizardStep', () => {
           description: '{description}',
         },
       };
+      state.selectedPlatforms = ['google'];
       const result = validateWizardStep('preview', state);
       expect(result.valid).toBe(true);
     });
