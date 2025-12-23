@@ -241,3 +241,26 @@ export const dataRowsListResponseSchema = z.object({
 });
 
 export type DataRowsListResponse = z.infer<typeof dataRowsListResponseSchema>;
+
+/**
+ * Simplified Column Mapping for Detail Response
+ * Matches frontend ColumnMapping type expectations
+ */
+export const columnMappingDetailSchema = z.object({
+  sourceColumn: z.string(),
+  normalizedName: z.string(),
+  dataType: z.string(),
+});
+
+export type ColumnMappingDetail = z.infer<typeof columnMappingDetailSchema>;
+
+/**
+ * Data Source Detail Schema - Extended response with data preview and column mappings
+ */
+export const dataSourceDetailSchema = dataSourceSchema.extend({
+  data: z.array(z.record(z.unknown())),
+  columnMappings: z.array(columnMappingDetailSchema),
+  columns: z.array(z.string()),
+});
+
+export type DataSourceDetailResponse = z.infer<typeof dataSourceDetailSchema>;

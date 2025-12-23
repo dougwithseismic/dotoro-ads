@@ -180,6 +180,25 @@
   font-style: italic;
 }
 
+.emptyState {
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.emptyState p {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  color: rgba(var(--gray-rgb), 0.6);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.emptyState p:first-child {
+  font-weight: 500;
+  color: rgba(var(--gray-rgb), 0.8);
+  margin-bottom: 4px;
+}
+
 @media (prefers-color-scheme: dark) {
   .inputError {
     border-color: #ef4444;

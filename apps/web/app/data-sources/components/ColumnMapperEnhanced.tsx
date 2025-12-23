@@ -5,7 +5,7 @@ import type { ColumnMapping } from "../types";
 import styles from "./ColumnMapperEnhanced.module.css";
 
 interface ColumnMapperEnhancedProps {
-  mappings: ColumnMapping[];
+  mappings?: ColumnMapping[];
   onChange: (mappings: ColumnMapping[]) => void;
   disabled?: boolean;
 }
@@ -89,7 +89,7 @@ function getSuggestion(sourceColumn: string): {
 }
 
 export function ColumnMapperEnhanced({
-  mappings,
+  mappings = [],
   onChange,
   disabled = false,
 }: ColumnMapperEnhancedProps) {
@@ -151,6 +151,17 @@ export function ColumnMapperEnhanced({
     );
     onChange(newMappings);
   };
+
+  if (mappings.length === 0) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.emptyState}>
+          <p>No column mappings available.</p>
+          <p>Upload data with columns to configure mappings.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.container}>

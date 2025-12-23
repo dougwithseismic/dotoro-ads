@@ -15,6 +15,7 @@ import {
   validateRequestSchema,
   validationResponseSchema,
   analyzeResponseSchema,
+  dataSourceDetailSchema,
 } from "../schemas/data-sources.js";
 import { idParamSchema, paginationSchema } from "../schemas/common.js";
 import { commonResponses, createPaginatedResponse } from "../lib/openapi.js";
@@ -35,7 +36,7 @@ import {
   clearAllStoredData,
 } from "../services/data-ingestion.js";
 import type { ValidationRule } from "@repo/core";
-import { db, dataSources, dataRows, transforms } from "../services/db.js";
+import { db, dataSources, dataRows, transforms, columnMappings } from "../services/db.js";
 import type { DataSourceStatus } from "../schemas/data-sources.js";
 
 // ============================================================================
@@ -201,16 +202,16 @@ const getDataSourceRoute = createRoute({
   path: "/api/v1/data-sources/{id}",
   tags: ["Data Sources"],
   summary: "Get a data source by ID",
-  description: "Returns the details of a specific data source",
+  description: "Returns the details of a specific data source including column mappings and preview data",
   request: {
     params: idParamSchema,
   },
   responses: {
     200: {
-      description: "Data source details",
+      description: "Data source details with column mappings and data preview",
       content: {
         "application/json": {
-          schema: dataSourceSchema,
+          schema: dataSourceDetailSchema,
         },
       },
     },
@@ -457,6 +458,39 @@ const analyzeDataSourceRoute = createRoute({
   },
 });
 
+// Column response schema matching frontend DataSourceColumn type
+const columnResponseSchema = z.object({
+  name: z.string(),
+  type: z.enum(["string", "number", "boolean", "date", "unknown"]),
+  sampleValues: z.array(z.string()).optional(),
+});
+
+// GET /api/v1/data-sources/:id/columns - Get column info for a data source
+const getColumnsRoute = createRoute({
+  method: "get",
+  path: "/api/v1/data-sources/{id}/columns",
+  tags: ["Data Sources"],
+  summary: "Get column info",
+  description:
+    "Returns column information including name, type, and sample values for a data source. Works with both in-memory stored data (recent uploads) and persisted database rows.",
+  request: {
+    params: idParamSchema,
+  },
+  responses: {
+    200: {
+      description: "Column information",
+      content: {
+        "application/json": {
+          schema: z.object({
+            data: z.array(columnResponseSchema),
+          }),
+        },
+      },
+    },
+    ...commonResponses,
+  },
+});
+
 // ============================================================================
 // Route Handlers
 // ============================================================================
@@ -543,6 +577,7 @@ dataSourcesApp.openapi(createDataSourceRoute, async (c) => {
 
 dataSourcesApp.openapi(getDataSourceRoute, async (c) => {
   const { id } = c.req.valid("param");
+  const PREVIEW_LIMIT = 20;
 
   const [dataSource] = await db
     .select()
@@ -554,8 +589,68 @@ dataSourcesApp.openapi(getDataSourceRoute, async (c) => {
     throw createNotFoundError("Data source", id);
   }
 
-  const rowCount = await computeRowCount(id);
+  // Check if we have in-memory data first (to determine query strategy)
+  const useInMemoryData = hasStoredData(id);
+
+  // Parallelize independent queries for performance
+  const [rowCount, mappingsData, dbRows] = await Promise.all([
+    computeRowCount(id),
+    db.select().from(columnMappings).where(eq(columnMappings.dataSourceId, id)),
+    // Only query database rows if we don't have in-memory data
+    useInMemoryData
+      ? Promise.resolve(null)
+      : db
+          .select()
+          .from(dataRows)
+          .where(eq(dataRows.dataSourceId, id))
+          .orderBy(asc(dataRows.rowIndex))
+          .limit(PREVIEW_LIMIT),
+  ]);
+
   const status = deriveStatus(rowCount, dataSource.config);
+
+  // Transform to simplified format matching frontend expectations
+  const columnMappingsResult = mappingsData.map((m) => ({
+    sourceColumn: m.sourceColumn,
+    normalizedName: m.normalizedName,
+    dataType: m.dataType,
+  }));
+
+  // Fetch preview data (first 20 rows)
+  let previewData: Record<string, unknown>[] = [];
+  let columns: string[] = [];
+
+  // Try in-memory store first (for recently uploaded data)
+  if (useInMemoryData) {
+    try {
+      const { rows } = getStoredRows(id, 1, PREVIEW_LIMIT);
+      previewData = rows;
+      // Extract column names from first row
+      if (rows.length > 0) {
+        columns = Object.keys(rows[0] as Record<string, unknown>);
+      }
+    } catch {
+      // Fall back to database if in-memory retrieval fails
+      const rows = await db
+        .select()
+        .from(dataRows)
+        .where(eq(dataRows.dataSourceId, id))
+        .orderBy(asc(dataRows.rowIndex))
+        .limit(PREVIEW_LIMIT);
+
+      previewData = rows.map((row) => row.rowData as Record<string, unknown>);
+      if (rows.length > 0 && rows[0]?.rowData) {
+        columns = Object.keys(rows[0].rowData as Record<string, unknown>);
+      }
+    }
+  } else if (dbRows) {
+    // Use already-fetched database rows
+    previewData = dbRows.map((row) => row.rowData as Record<string, unknown>);
+    // Extract column names from first row
+    if (dbRows.length > 0 && dbRows[0]?.rowData) {
+      columns = Object.keys(dbRows[0].rowData as Record<string, unknown>);
+    }
+  }
 
   return c.json(
     {
@@ -568,6 +663,9 @@ dataSourcesApp.openapi(getDataSourceRoute, async (c) => {
       status,
       createdAt: dataSource.createdAt.toISOString(),
       updatedAt: dataSource.updatedAt.toISOString(),
+      columnMappings: columnMappingsResult,
+      data: previewData,
+      columns,
     },
     200
   );
@@ -1015,6 +1113,102 @@ dataSourcesApp.openapi(analyzeDataSourceRoute, async (c) => {
   }
 
   return c.json({ columns: storedData.columns }, 200);
+});
+
+// Map core ColumnType to frontend-compatible type
+function mapColumnType(
+  coreType: string
+): "string" | "number" | "boolean" | "date" | "unknown" {
+  switch (coreType) {
+    case "string":
+    case "email":
+    case "url":
+      return "string";
+    case "number":
+      return "number";
+    case "boolean":
+      return "boolean";
+    case "date":
+      return "date";
+    default:
+      return "unknown";
+  }
+}
+
+dataSourcesApp.openapi(getColumnsRoute, async (c) => {
+  const { id } = c.req.valid("param");
+
+  // Check if data source exists
+  const [dataSource] = await db
+    .select()
+    .from(dataSources)
+    .where(eq(dataSources.id, id))
+    .limit(1);
+
+  if (!dataSource) {
+    throw createNotFoundError("Data source", id);
+  }
+
+  // Try to get columns from in-memory stored data first (recent uploads with column analysis)
+  if (hasStoredData(id)) {
+    const storedData = getStoredDataSource(id);
+    if (storedData?.columns) {
+      // Return full column info including type and sample values
+      const columns = storedData.columns.map((col) => ({
+        name: col.suggestedName,
+        type: mapColumnType(col.detectedType),
+        sampleValues: col.sampleValues,
+      }));
+      return c.json({ data: columns }, 200);
+    }
+  }
+
+  // Fall back to extracting columns from database rows
+  // Get first few rows to extract sample values
+  const sampleRows = await db
+    .select()
+    .from(dataRows)
+    .where(eq(dataRows.dataSourceId, id))
+    .orderBy(asc(dataRows.rowIndex))
+    .limit(5);
+
+  if (sampleRows.length === 0) {
+    // No data available - return empty columns
+    return c.json({ data: [] }, 200);
+  }
+
+  // Extract columns with type inference and sample values from the rows
+  const firstRow = sampleRows[0]!.rowData as Record<string, unknown>;
+  const columnNames = Object.keys(firstRow);
+
+  const columns = columnNames.map((name) => {
+    // Collect sample values from the sample rows
+    const sampleValues: string[] = [];
+    for (const row of sampleRows) {
+      const rowData = row.rowData as Record<string, unknown>;
+      const value = rowData[name];
+      if (value != null && sampleValues.length < 3) {
+        sampleValues.push(String(value));
+      }
+    }
+
+    // Infer type from sample values
+    let inferredType: "string" | "number" | "boolean" | "date" | "unknown" = "string";
+    const firstValue = firstRow[name];
+    if (typeof firstValue === "number") {
+      inferredType = "number";
+    } else if (typeof firstValue === "boolean") {
+      inferredType = "boolean";
+    }
+
+    return {
+      name,
+      type: inferredType,
+      sampleValues,
+    };
+  });
+
+  return c.json({ data: columns }, 200);
 });
 
 // Error handler for API exceptions

@@ -107,7 +107,7 @@ async function seed() {
         encoding: "utf-8",
         delimiter: ",",
         hasHeader: true,
-        rowCount: 2847,
+        // Note: rowCount is computed dynamically from actual data rows
       },
       createdAt: new Date("2025-01-10T09:00:00Z"),
       updatedAt: new Date("2025-01-15T14:30:00Z"),
@@ -121,7 +121,7 @@ async function seed() {
         encoding: "utf-8",
         delimiter: ",",
         hasHeader: true,
-        rowCount: 156,
+        // Note: No rows seeded for this data source
       },
       createdAt: new Date("2025-01-08T10:00:00Z"),
       updatedAt: new Date("2025-01-08T10:00:00Z"),
@@ -132,7 +132,7 @@ async function seed() {
       type: "manual",
       config: {
         description: "Manual entry for holiday campaign data",
-        rowCount: 24,
+        // Note: No rows seeded for this data source
       },
       createdAt: new Date("2025-01-05T16:00:00Z"),
       updatedAt: new Date("2025-01-12T09:00:00Z"),
