@@ -170,9 +170,9 @@ describe("Campaign Generation Wizard Integration", () => {
 
     await user.click(screen.getByRole("button", { name: /go to next step/i }));
 
-    // Step 2: Campaign config
+    // Step 2: Rules (now before campaign config)
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "Campaign Config" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Rules" })).toBeInTheDocument();
     });
   });
 
@@ -197,7 +197,7 @@ describe("Campaign Generation Wizard Integration", () => {
     const stepIndicator = screen.getByRole("navigation", { name: /wizard progress/i });
     expect(within(stepIndicator).getByRole("button", { name: /step 1.*current/i })).toBeInTheDocument();
 
-    // Complete step 1 and move to step 2
+    // Complete step 1 and move to step 2 (now rules)
     await waitFor(() => screen.getByTestId("datasource-list"));
     await user.click(screen.getByTestId("datasource-card-ds1"));
 
@@ -213,7 +213,7 @@ describe("Campaign Generation Wizard Integration", () => {
       expect(within(stepIndicator).getByRole("button", { name: /step 1.*completed/i })).toBeInTheDocument();
     });
 
-    // Step 2 should be current
+    // Step 2 (rules) should be current
     expect(within(stepIndicator).getByRole("button", { name: /step 2.*current/i })).toBeInTheDocument();
   });
 
@@ -241,7 +241,7 @@ describe("Campaign Generation Wizard Integration", () => {
     // Verify selection
     expect(screen.getByTestId("datasource-card-ds1")).toHaveAttribute("aria-selected", "true");
 
-    // Go to step 2
+    // Go to step 2 (rules)
     await waitFor(() => {
       const nextButton = screen.getByRole("button", { name: /go to next step/i });
       expect(nextButton).not.toBeDisabled();
@@ -250,7 +250,7 @@ describe("Campaign Generation Wizard Integration", () => {
     await user.click(screen.getByRole("button", { name: /go to next step/i }));
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "Campaign Config" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Rules" })).toBeInTheDocument();
     });
 
     // Go back to step 1
@@ -265,7 +265,7 @@ describe("Campaign Generation Wizard Integration", () => {
     const user = userEvent.setup();
     render(<GenerateCampaignsPage />);
 
-    // Navigate to step 2
+    // Navigate to step 2 (rules)
     await waitFor(() => screen.getByTestId("datasource-list"));
     await user.click(screen.getByTestId("datasource-card-ds1"));
 
@@ -277,7 +277,7 @@ describe("Campaign Generation Wizard Integration", () => {
     await user.click(screen.getByRole("button", { name: /go to next step/i }));
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "Campaign Config" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Rules" })).toBeInTheDocument();
     });
 
     // Click on step 1 in the indicator

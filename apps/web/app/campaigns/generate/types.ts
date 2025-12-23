@@ -1,10 +1,10 @@
 // Campaign Builder wizard steps
 export type WizardStep =
-  | 'data-source'      // Step 1: Select data source (moved first)
-  | 'campaign-config'  // Step 2: Campaign name pattern + platform
-  | 'hierarchy'        // Step 3: Ad group + ad configuration
-  | 'keywords'         // Step 4: Keyword rules (optional)
-  | 'rules'            // Step 5: Filtering/modification rules
+  | 'data-source'      // Step 1: Select data source
+  | 'rules'            // Step 2: Filtering/modification rules (optional, now before config)
+  | 'campaign-config'  // Step 3: Campaign name pattern + platform
+  | 'hierarchy'        // Step 4: Ad group + ad configuration
+  | 'keywords'         // Step 5: Keyword rules (optional)
   | 'preview';         // Step 6: Final preview + generate
 
 // Campaign configuration for the new flow
@@ -67,24 +67,24 @@ export interface WizardState {
   // Data source selection (Step 1)
   dataSourceId: string | null;
   availableColumns: DataSourceColumn[];
-  // Campaign configuration (Step 2)
-  campaignConfig: CampaignConfig | null;
-  // Hierarchy configuration (Step 3)
-  hierarchyConfig: HierarchyConfig | null;
-  // Keyword configuration (Step 4 - optional)
-  keywordConfig: KeywordConfig | null;
-  // Rules selection (Step 5)
+  // Rules selection (Step 2 - optional, filter data before config)
   ruleIds: string[];
+  // Campaign configuration (Step 3)
+  campaignConfig: CampaignConfig | null;
+  // Hierarchy configuration (Step 4)
+  hierarchyConfig: HierarchyConfig | null;
+  // Keyword configuration (Step 5 - optional)
+  keywordConfig: KeywordConfig | null;
   // Generation result (Step 6)
   generateResult: GenerateResponse | null;
 }
 
 export const WIZARD_STEPS: WizardStep[] = [
   'data-source',
+  'rules',
   'campaign-config',
   'hierarchy',
   'keywords',
-  'rules',
   'preview',
 ];
 

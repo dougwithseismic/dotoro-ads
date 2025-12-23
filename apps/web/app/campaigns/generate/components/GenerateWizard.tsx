@@ -355,7 +355,7 @@ export function GenerateWizard() {
           <div className={styles.stepContent} data-testid="step-content">
             <h2 className={styles.stepTitle}>{STEP_LABELS[currentStep]}</h2>
             <p className={styles.stepDescription}>
-              Optionally apply rules to filter or modify your generated campaigns.
+              Filter your data before configuring campaigns. Rules help you work with a refined dataset.
             </p>
             <RuleSelector selectedIds={state.ruleIds} onToggle={toggleRule} />
           </div>

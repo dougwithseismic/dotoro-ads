@@ -317,7 +317,7 @@ describe("GenerateWizard", () => {
       consoleSpy.mockRestore();
     });
 
-    it("can navigate to campaign-config step when data source is selected", async () => {
+    it("can navigate to rules step when data source is selected", async () => {
       render(<GenerateWizard />);
 
       await waitFor(() => {
@@ -336,9 +336,9 @@ describe("GenerateWizard", () => {
       // Click Next
       fireEvent.click(screen.getByRole("button", { name: /go to next step/i }));
 
-      // Should now be on campaign-config step (step 2 in new flow)
+      // Should now be on rules step (step 2 in new flow)
       await waitFor(() => {
-        expect(screen.getByRole("heading", { name: "Campaign Config" })).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: "Rules" })).toBeInTheDocument();
       });
     });
   });
@@ -355,7 +355,7 @@ describe("GenerateWizard", () => {
         expect(screen.getByTestId("datasource-list")).toBeInTheDocument();
       });
 
-      // Select data source and navigate to campaign config
+      // Select data source
       fireEvent.click(screen.getByTestId("datasource-card-ds1"));
 
       await waitFor(() => {
@@ -363,6 +363,14 @@ describe("GenerateWizard", () => {
         expect(nextButton).not.toBeDisabled();
       });
 
+      // Navigate to rules (step 2)
+      fireEvent.click(screen.getByRole("button", { name: /go to next step/i }));
+
+      await waitFor(() => {
+        expect(screen.getByRole("heading", { name: "Rules" })).toBeInTheDocument();
+      });
+
+      // Navigate to campaign config (step 3) - rules is optional so can proceed
       fireEvent.click(screen.getByRole("button", { name: /go to next step/i }));
 
       await waitFor(() => {
@@ -453,7 +461,7 @@ describe("GenerateWizard", () => {
       });
     });
 
-    it("can navigate back to data source step", async () => {
+    it("can navigate back to rules step", async () => {
       await navigateToCampaignConfigStep();
 
       // Back button should be enabled
@@ -463,9 +471,9 @@ describe("GenerateWizard", () => {
       // Click back
       fireEvent.click(backButton);
 
-      // Should be back on data source step
+      // Should be back on rules step
       await waitFor(() => {
-        expect(screen.getByRole("heading", { name: "Select Data Source" })).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: "Rules" })).toBeInTheDocument();
       });
     });
   });
@@ -492,7 +500,14 @@ describe("GenerateWizard", () => {
 
       fireEvent.click(screen.getByRole("button", { name: /go to next step/i }));
 
-      // Step 2: Configure campaign
+      // Step 2: Rules (optional - skip)
+      await waitFor(() => {
+        expect(screen.getByRole("heading", { name: "Rules" })).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: /go to next step/i }));
+
+      // Step 3: Configure campaign
       await waitFor(() => {
         expect(screen.getByRole("heading", { name: "Campaign Config" })).toBeInTheDocument();
       });
@@ -507,7 +522,7 @@ describe("GenerateWizard", () => {
 
       fireEvent.click(screen.getByRole("button", { name: /go to next step/i }));
 
-      // Now on hierarchy step
+      // Now on hierarchy step (step 4)
       await waitFor(() => {
         expect(screen.getByRole("heading", { name: "Ad Structure" })).toBeInTheDocument();
       });
@@ -617,7 +632,7 @@ describe("GenerateWizard", () => {
     it("can navigate back from later steps", async () => {
       render(<GenerateWizard />);
 
-      // Select data source and go to step 2
+      // Select data source and go to step 2 (rules)
       await waitFor(() => {
         expect(screen.getByTestId("datasource-list")).toBeInTheDocument();
       });
@@ -631,9 +646,9 @@ describe("GenerateWizard", () => {
 
       fireEvent.click(screen.getByRole("button", { name: /go to next step/i }));
 
-      // Verify we're on step 2
+      // Verify we're on step 2 (rules)
       await waitFor(() => {
-        expect(screen.getByRole("heading", { name: "Campaign Config" })).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: "Rules" })).toBeInTheDocument();
       });
 
       // Back button should be enabled
@@ -654,7 +669,7 @@ describe("GenerateWizard", () => {
     it("allows clicking on completed steps in step indicator", async () => {
       render(<GenerateWizard />);
 
-      // Navigate to step 2
+      // Navigate to step 2 (rules)
       await waitFor(() => {
         expect(screen.getByTestId("datasource-list")).toBeInTheDocument();
       });
@@ -667,7 +682,7 @@ describe("GenerateWizard", () => {
       fireEvent.click(screen.getByRole("button", { name: /go to next step/i }));
 
       await waitFor(() => {
-        expect(screen.getByRole("heading", { name: "Campaign Config" })).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: "Rules" })).toBeInTheDocument();
       });
 
       // Click on step 1 in the indicator
@@ -716,7 +731,7 @@ describe("GenerateWizard", () => {
     it("prevents proceeding from campaign config with empty pattern by disabling Next", async () => {
       render(<GenerateWizard />);
 
-      // Navigate to campaign config step
+      // Navigate to campaign config step (now step 3)
       await waitFor(() => {
         expect(screen.getByTestId("datasource-list")).toBeInTheDocument();
       });
@@ -728,7 +743,13 @@ describe("GenerateWizard", () => {
       });
       fireEvent.click(screen.getByRole("button", { name: /go to next step/i }));
 
-      // On campaign config step
+      // On rules step (step 2) - skip
+      await waitFor(() => {
+        expect(screen.getByRole("heading", { name: "Rules" })).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByRole("button", { name: /go to next step/i }));
+
+      // On campaign config step (step 3)
       await waitFor(() => {
         expect(screen.getByRole("heading", { name: "Campaign Config" })).toBeInTheDocument();
       });
@@ -741,7 +762,7 @@ describe("GenerateWizard", () => {
     it("prevents proceeding from hierarchy config with empty fields by disabling Next", async () => {
       render(<GenerateWizard />);
 
-      // Navigate to hierarchy step
+      // Navigate to hierarchy step (step 4)
       await waitFor(() => {
         expect(screen.getByTestId("datasource-list")).toBeInTheDocument();
       });
@@ -753,7 +774,13 @@ describe("GenerateWizard", () => {
       });
       fireEvent.click(screen.getByRole("button", { name: /go to next step/i }));
 
-      // Campaign config
+      // Rules step (step 2) - skip
+      await waitFor(() => {
+        expect(screen.getByRole("heading", { name: "Rules" })).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByRole("button", { name: /go to next step/i }));
+
+      // Campaign config (step 3)
       await waitFor(() => {
         expect(screen.getByRole("heading", { name: "Campaign Config" })).toBeInTheDocument();
       });
@@ -765,7 +792,7 @@ describe("GenerateWizard", () => {
       });
       fireEvent.click(screen.getByRole("button", { name: /go to next step/i }));
 
-      // On hierarchy step
+      // On hierarchy step (step 4)
       await waitFor(() => {
         expect(screen.getByRole("heading", { name: "Ad Structure" })).toBeInTheDocument();
       });

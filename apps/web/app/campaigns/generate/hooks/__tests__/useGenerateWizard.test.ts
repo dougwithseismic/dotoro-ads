@@ -230,13 +230,13 @@ describe('wizardReducer', () => {
 
     it('advances to next step', () => {
       const result = wizardReducer(initialState, { type: 'NEXT_STEP' });
-      expect(result.currentStep).toBe('campaign-config');
+      expect(result.currentStep).toBe('rules');
     });
 
     it('goes to previous step', () => {
-      const state = { ...initialState, currentStep: 'rules' as const };
+      const state = { ...initialState, currentStep: 'keywords' as const };
       const result = wizardReducer(state, { type: 'PREV_STEP' });
-      expect(result.currentStep).toBe('keywords');
+      expect(result.currentStep).toBe('hierarchy');
     });
 
     it('does not go before first step', () => {
@@ -289,33 +289,36 @@ describe('wizardReducer', () => {
 describe('step navigation helpers', () => {
   describe('getNextStep', () => {
     it('returns correct next steps', () => {
-      expect(getNextStep('data-source')).toBe('campaign-config');
+      // New order: data-source, rules, campaign-config, hierarchy, keywords, preview
+      expect(getNextStep('data-source')).toBe('rules');
+      expect(getNextStep('rules')).toBe('campaign-config');
       expect(getNextStep('campaign-config')).toBe('hierarchy');
       expect(getNextStep('hierarchy')).toBe('keywords');
-      expect(getNextStep('keywords')).toBe('rules');
-      expect(getNextStep('rules')).toBe('preview');
+      expect(getNextStep('keywords')).toBe('preview');
       expect(getNextStep('preview')).toBe('preview');
     });
   });
 
   describe('getPreviousStep', () => {
     it('returns correct previous steps', () => {
-      expect(getPreviousStep('preview')).toBe('rules');
-      expect(getPreviousStep('rules')).toBe('keywords');
+      // New order: data-source, rules, campaign-config, hierarchy, keywords, preview
+      expect(getPreviousStep('preview')).toBe('keywords');
       expect(getPreviousStep('keywords')).toBe('hierarchy');
       expect(getPreviousStep('hierarchy')).toBe('campaign-config');
-      expect(getPreviousStep('campaign-config')).toBe('data-source');
+      expect(getPreviousStep('campaign-config')).toBe('rules');
+      expect(getPreviousStep('rules')).toBe('data-source');
       expect(getPreviousStep('data-source')).toBe('data-source');
     });
   });
 
   describe('getStepIndex', () => {
     it('returns correct index for each step', () => {
+      // New order: data-source(0), rules(1), campaign-config(2), hierarchy(3), keywords(4), preview(5)
       expect(getStepIndex('data-source')).toBe(0);
-      expect(getStepIndex('campaign-config')).toBe(1);
-      expect(getStepIndex('hierarchy')).toBe(2);
-      expect(getStepIndex('keywords')).toBe(3);
-      expect(getStepIndex('rules')).toBe(4);
+      expect(getStepIndex('rules')).toBe(1);
+      expect(getStepIndex('campaign-config')).toBe(2);
+      expect(getStepIndex('hierarchy')).toBe(3);
+      expect(getStepIndex('keywords')).toBe(4);
       expect(getStepIndex('preview')).toBe(5);
     });
   });
@@ -323,10 +326,10 @@ describe('step navigation helpers', () => {
   describe('isOptionalStep', () => {
     it('identifies optional steps correctly', () => {
       expect(isOptionalStep('data-source')).toBe(false);
+      expect(isOptionalStep('rules')).toBe(true);
       expect(isOptionalStep('campaign-config')).toBe(false);
       expect(isOptionalStep('hierarchy')).toBe(false);
       expect(isOptionalStep('keywords')).toBe(true);
-      expect(isOptionalStep('rules')).toBe(true);
       expect(isOptionalStep('preview')).toBe(false);
     });
   });
@@ -448,14 +451,14 @@ describe('useGenerateWizard hook', () => {
     it('nextStep advances to next step', () => {
       const { result } = renderHook(() => useGenerateWizard());
       act(() => result.current.nextStep());
-      expect(result.current.state.currentStep).toBe('campaign-config');
+      expect(result.current.state.currentStep).toBe('rules');
     });
 
     it('prevStep goes to previous step', () => {
       const { result } = renderHook(() => useGenerateWizard());
-      act(() => result.current.setStep('rules'));
+      act(() => result.current.setStep('keywords'));
       act(() => result.current.prevStep());
-      expect(result.current.state.currentStep).toBe('keywords');
+      expect(result.current.state.currentStep).toBe('hierarchy');
     });
   });
 
@@ -500,7 +503,8 @@ describe('useGenerateWizard hook', () => {
       const { result } = renderHook(() => useGenerateWizard());
       act(() => {
         result.current.setDataSource('ds1', sampleColumns);
-        result.current.nextStep();
+        result.current.nextStep(); // -> rules (optional, always valid)
+        result.current.nextStep(); // -> campaign-config
       });
       expect(result.current.state.currentStep).toBe('campaign-config');
       expect(result.current.canProceed()).toBe(false);
@@ -510,7 +514,8 @@ describe('useGenerateWizard hook', () => {
       const { result } = renderHook(() => useGenerateWizard());
       act(() => {
         result.current.setDataSource('ds1', sampleColumns);
-        result.current.nextStep();
+        result.current.nextStep(); // -> rules
+        result.current.nextStep(); // -> campaign-config
         result.current.setCampaignConfig(validCampaignConfig);
       });
       expect(result.current.canProceed()).toBe(true);
@@ -581,27 +586,27 @@ describe('useGenerateWizard hook', () => {
       expect(result.current.canProceed()).toBe(true);
       act(() => result.current.nextStep());
 
-      // Step 2: Campaign Config
+      // Step 2: Rules (optional - now right after data source)
+      expect(result.current.state.currentStep).toBe('rules');
+      expect(result.current.canSkip()).toBe(true);
+      act(() => result.current.toggleRule('r1'));
+      act(() => result.current.nextStep());
+
+      // Step 3: Campaign Config
       expect(result.current.state.currentStep).toBe('campaign-config');
       act(() => result.current.setCampaignConfig(validCampaignConfig));
       expect(result.current.canProceed()).toBe(true);
       act(() => result.current.nextStep());
 
-      // Step 3: Hierarchy
+      // Step 4: Hierarchy
       expect(result.current.state.currentStep).toBe('hierarchy');
       act(() => result.current.setHierarchyConfig(validHierarchyConfig));
       expect(result.current.canProceed()).toBe(true);
       act(() => result.current.nextStep());
 
-      // Step 4: Keywords (optional)
+      // Step 5: Keywords (optional)
       expect(result.current.state.currentStep).toBe('keywords');
       expect(result.current.canSkip()).toBe(true);
-      act(() => result.current.nextStep());
-
-      // Step 5: Rules (optional)
-      expect(result.current.state.currentStep).toBe('rules');
-      expect(result.current.canSkip()).toBe(true);
-      act(() => result.current.toggleRule('r1'));
       act(() => result.current.nextStep());
 
       // Step 6: Preview
