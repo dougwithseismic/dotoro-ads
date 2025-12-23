@@ -600,4 +600,210 @@ describe("HierarchyPreview", () => {
       });
     });
   });
+
+  // ==========================================================================
+  // Character Limit Warning Tests
+  // ==========================================================================
+
+  describe("Character Limit Warnings", () => {
+    // Sample data with content exceeding Google limits (headline: 30, description: 90)
+    const longContentSampleData: Record<string, unknown>[] = [
+      {
+        brand: "Nike",
+        product: "Air Max",
+        headline: "This is a very long headline that exceeds the 30 character limit for Google Ads",
+        description: "This is a very long description that exceeds the 90 character limit for Google Ads. It contains more than ninety characters to trigger a warning.",
+      },
+    ];
+
+    // Sample data within limits
+    const shortContentSampleData: Record<string, unknown>[] = [
+      {
+        brand: "Nike",
+        product: "Air Max",
+        headline: "Short headline",
+        description: "Short description within limits",
+      },
+    ];
+
+    it("shows character limit section when content exceeds platform limits", () => {
+      render(
+        <HierarchyPreview
+          campaignConfig={defaultCampaignConfig}
+          hierarchyConfig={createValidHierarchyConfig()}
+          sampleData={longContentSampleData}
+          selectedPlatforms={["google"]}
+        />
+      );
+
+      expect(screen.getByTestId("char-limit-section")).toBeInTheDocument();
+      expect(screen.getByTestId("char-limit-header")).toBeInTheDocument();
+    });
+
+    it("hides character limit section when content is within limits", () => {
+      render(
+        <HierarchyPreview
+          campaignConfig={defaultCampaignConfig}
+          hierarchyConfig={createValidHierarchyConfig()}
+          sampleData={shortContentSampleData}
+          selectedPlatforms={["google"]}
+        />
+      );
+
+      expect(screen.queryByTestId("char-limit-section")).not.toBeInTheDocument();
+    });
+
+    it("hides character limit section when no platforms selected", () => {
+      render(
+        <HierarchyPreview
+          campaignConfig={defaultCampaignConfig}
+          hierarchyConfig={createValidHierarchyConfig()}
+          sampleData={longContentSampleData}
+          selectedPlatforms={[]}
+        />
+      );
+
+      expect(screen.queryByTestId("char-limit-section")).not.toBeInTheDocument();
+    });
+
+    it("displays correct platform badge for character limit warnings", () => {
+      render(
+        <HierarchyPreview
+          campaignConfig={defaultCampaignConfig}
+          hierarchyConfig={createValidHierarchyConfig()}
+          sampleData={longContentSampleData}
+          selectedPlatforms={["google"]}
+        />
+      );
+
+      expect(screen.getByTestId("char-limit-platform-google")).toBeInTheDocument();
+      expect(screen.getByText("google:", { exact: false })).toBeInTheDocument();
+    });
+
+    it("shows warnings for multiple platforms", () => {
+      // Use data that exceeds limits for both platforms
+      const multiPlatformLongData: Record<string, unknown>[] = [
+        {
+          brand: "Nike",
+          product: "Air Max",
+          headline: "This is a very long headline that exceeds limits for all platforms",
+          description: "This is a very long description that definitely exceeds the 90 character limit for Google Ads and other platforms.",
+        },
+      ];
+
+      render(
+        <HierarchyPreview
+          campaignConfig={defaultCampaignConfig}
+          hierarchyConfig={createValidHierarchyConfig()}
+          sampleData={multiPlatformLongData}
+          selectedPlatforms={["google", "facebook"]}
+        />
+      );
+
+      expect(screen.getByTestId("char-limit-section")).toBeInTheDocument();
+      // Should show google warnings (both headline and description exceed limits)
+      expect(screen.getByTestId("char-limit-platform-google")).toBeInTheDocument();
+      // Facebook has different limits - headline 40 chars, description 30 chars
+      expect(screen.getByTestId("char-limit-platform-facebook")).toBeInTheDocument();
+    });
+
+    it("toggle show/hide details button works", () => {
+      render(
+        <HierarchyPreview
+          campaignConfig={defaultCampaignConfig}
+          hierarchyConfig={createValidHierarchyConfig()}
+          sampleData={longContentSampleData}
+          selectedPlatforms={["google"]}
+        />
+      );
+
+      const toggleButton = screen.getByTestId("char-limit-toggle");
+      expect(toggleButton).toHaveTextContent("Show details");
+
+      // Click to show details
+      fireEvent.click(toggleButton);
+      expect(toggleButton).toHaveTextContent("Hide details");
+
+      // Click again to hide details
+      fireEvent.click(toggleButton);
+      expect(toggleButton).toHaveTextContent("Show details");
+    });
+
+    it("shows headline overflow warning with correct count", () => {
+      render(
+        <HierarchyPreview
+          campaignConfig={defaultCampaignConfig}
+          hierarchyConfig={createValidHierarchyConfig()}
+          sampleData={longContentSampleData}
+          selectedPlatforms={["google"]}
+        />
+      );
+
+      // Should show "1 headline exceeds 30 chars"
+      expect(screen.getByText(/1 headline/)).toBeInTheDocument();
+      expect(screen.getByText(/exceed 30 chars/)).toBeInTheDocument();
+    });
+
+    it("shows description overflow warning with correct count", () => {
+      render(
+        <HierarchyPreview
+          campaignConfig={defaultCampaignConfig}
+          hierarchyConfig={createValidHierarchyConfig()}
+          sampleData={longContentSampleData}
+          selectedPlatforms={["google"]}
+        />
+      );
+
+      // Should show "1 description exceeds 90 chars"
+      expect(screen.getByText(/1 description/)).toBeInTheDocument();
+      expect(screen.getByText(/exceed 90 chars/)).toBeInTheDocument();
+    });
+
+    it("shows details list when toggle is clicked", () => {
+      render(
+        <HierarchyPreview
+          campaignConfig={defaultCampaignConfig}
+          hierarchyConfig={createValidHierarchyConfig()}
+          sampleData={longContentSampleData}
+          selectedPlatforms={["google"]}
+        />
+      );
+
+      // Click toggle to show details
+      fireEvent.click(screen.getByTestId("char-limit-toggle"));
+
+      // Should show the warning details with field names
+      expect(screen.getByText("headline")).toBeInTheDocument();
+      expect(screen.getByText("description")).toBeInTheDocument();
+    });
+
+    it("handles multiple rows with overflows correctly", () => {
+      const multiRowLongData: Record<string, unknown>[] = [
+        {
+          brand: "Nike",
+          product: "Air Max",
+          headline: "This headline is way too long for the Google Ads limit of 30 characters",
+          description: "Short desc",
+        },
+        {
+          brand: "Adidas",
+          product: "Ultraboost",
+          headline: "Another very long headline that exceeds the character limit",
+          description: "Short",
+        },
+      ];
+
+      render(
+        <HierarchyPreview
+          campaignConfig={defaultCampaignConfig}
+          hierarchyConfig={createValidHierarchyConfig()}
+          sampleData={multiRowLongData}
+          selectedPlatforms={["google"]}
+        />
+      );
+
+      // Should show "2 headlines exceed 30 chars"
+      expect(screen.getByText(/2 headlines/)).toBeInTheDocument();
+    });
+  });
 });

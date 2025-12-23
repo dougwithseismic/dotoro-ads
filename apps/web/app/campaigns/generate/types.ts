@@ -21,11 +21,16 @@ export interface BudgetConfig {
   currency: string;
 }
 
+// Fallback strategy for character limit handling
+export type FallbackStrategy = 'truncate' | 'truncate_word' | 'error';
+
 // Ad definition within an ad group
 export interface AdDefinition {
   id: string;
   headline: string;            // Pattern like "{headline}" or static text
+  headlineFallback?: FallbackStrategy;  // Optional fallback for headline overflow
   description: string;
+  descriptionFallback?: FallbackStrategy;  // Optional fallback for description overflow
   displayUrl?: string;
   finalUrl?: string;
   callToAction?: string;
@@ -631,4 +636,192 @@ export function validateWizardStep(
     default:
       return { valid: false, errors: [`Unknown step: ${step}`], warnings: [] };
   }
+}
+
+// ============================================================================
+// Platform Character Limits
+// ============================================================================
+
+/**
+ * Character limits for different advertising platforms.
+ * These are approximate limits - actual limits may vary by ad type.
+ * IMPORTANT: Keep in sync with packages/core/src/generation/platform-constraints.ts
+ */
+export const PLATFORM_LIMITS = {
+  google: {
+    headline: 30,
+    description: 90,
+    displayUrl: 30, // path1 (15) + path2 (15) = 30 total
+  },
+  facebook: {
+    headline: 40,
+    primaryText: 125,
+    description: 30,
+  },
+  reddit: {
+    title: 300,
+    text: 500, // Recommended display limit - actual max is 40,000 chars
+  },
+} as const;
+
+/**
+ * Maps common ad field names to platform-specific field names.
+ */
+const FIELD_MAPPING: Record<Platform, Record<string, string>> = {
+  google: {
+    headline: 'headline',
+    description: 'description',
+    displayUrl: 'displayUrl',
+  },
+  facebook: {
+    headline: 'headline',
+    description: 'description',
+    primaryText: 'primaryText',
+  },
+  reddit: {
+    headline: 'title',
+    description: 'text',
+    title: 'title',
+    text: 'text',
+  },
+};
+
+export interface CharacterLimitWarning {
+  field: string;
+  value: string;
+  length: number;
+  limit: number;
+  overflow: number;
+  rowIndex?: number;
+}
+
+export interface CharacterLimitSummary {
+  headlineOverflows: number;
+  descriptionOverflows: number;
+  displayUrlOverflows: number;
+  totalOverflows: number;
+  warnings: CharacterLimitWarning[];
+}
+
+/**
+ * Gets the character limit for a field on a specific platform.
+ */
+export function getFieldLimit(platform: Platform, field: string): number | undefined {
+  const platformLimits = PLATFORM_LIMITS[platform];
+  if (!platformLimits) return undefined;
+
+  const mappedField = FIELD_MAPPING[platform]?.[field] ?? field;
+  return platformLimits[mappedField as keyof typeof platformLimits] as number | undefined;
+}
+
+/**
+ * Truncates text to a maximum length, adding ellipsis if truncated.
+ */
+export function truncateText(text: string, maxLength: number): string {
+  if (!text || text.length <= maxLength) {
+    return text;
+  }
+  if (maxLength <= 3) {
+    return text.slice(0, maxLength);
+  }
+  return text.slice(0, maxLength - 3) + '...';
+}
+
+/**
+ * Truncates text at word boundary, adding ellipsis if truncated.
+ */
+export function truncateToWordBoundary(text: string, maxLength: number): string {
+  if (!text || text.length <= maxLength) {
+    return text;
+  }
+  if (maxLength <= 3) {
+    return text.slice(0, maxLength);
+  }
+  const targetLength = maxLength - 3;
+  const truncated = text.slice(0, targetLength);
+  const lastSpaceIndex = truncated.lastIndexOf(' ');
+  if (lastSpaceIndex === -1) {
+    return truncated + '...';
+  }
+  return text.slice(0, lastSpaceIndex) + '...';
+}
+
+/**
+ * Checks character limits for interpolated ad content across sample data.
+ * Returns a summary of overflows and warnings.
+ */
+export function checkCharacterLimits(
+  sampleData: Record<string, unknown>[],
+  hierarchyConfig: HierarchyConfig,
+  platform: Platform
+): CharacterLimitSummary {
+  const warnings: CharacterLimitWarning[] = [];
+  let headlineOverflows = 0;
+  let descriptionOverflows = 0;
+  let displayUrlOverflows = 0;
+
+  const headlineLimit = getFieldLimit(platform, 'headline');
+  const descriptionLimit = getFieldLimit(platform, 'description');
+  const displayUrlLimit = getFieldLimit(platform, 'displayUrl');
+
+  for (let rowIndex = 0; rowIndex < sampleData.length; rowIndex++) {
+    const row = sampleData[rowIndex];
+    if (!row) continue;
+
+    for (const adGroup of hierarchyConfig.adGroups) {
+      for (const ad of adGroup.ads) {
+        // Check headline
+        const interpolatedHeadline = interpolatePattern(ad.headline, row);
+        if (headlineLimit && interpolatedHeadline.length > headlineLimit) {
+          headlineOverflows++;
+          warnings.push({
+            field: 'headline',
+            value: interpolatedHeadline,
+            length: interpolatedHeadline.length,
+            limit: headlineLimit,
+            overflow: interpolatedHeadline.length - headlineLimit,
+            rowIndex,
+          });
+        }
+
+        // Check description
+        const interpolatedDescription = interpolatePattern(ad.description, row);
+        if (descriptionLimit && interpolatedDescription.length > descriptionLimit) {
+          descriptionOverflows++;
+          warnings.push({
+            field: 'description',
+            value: interpolatedDescription,
+            length: interpolatedDescription.length,
+            limit: descriptionLimit,
+            overflow: interpolatedDescription.length - descriptionLimit,
+            rowIndex,
+          });
+        }
+
+        // Check displayUrl if present
+        if (ad.displayUrl) {
+          const interpolatedDisplayUrl = interpolatePattern(ad.displayUrl, row);
+          if (displayUrlLimit && interpolatedDisplayUrl.length > displayUrlLimit) {
+            displayUrlOverflows++;
+            warnings.push({
+              field: 'displayUrl',
+              value: interpolatedDisplayUrl,
+              length: interpolatedDisplayUrl.length,
+              limit: displayUrlLimit,
+              overflow: interpolatedDisplayUrl.length - displayUrlLimit,
+              rowIndex,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  return {
+    headlineOverflows,
+    descriptionOverflows,
+    displayUrlOverflows,
+    totalOverflows: headlineOverflows + descriptionOverflows + displayUrlOverflows,
+    warnings,
+  };
 }

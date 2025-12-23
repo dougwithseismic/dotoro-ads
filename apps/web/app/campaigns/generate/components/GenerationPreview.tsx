@@ -205,6 +205,7 @@ export function GenerationPreview(props: GenerationPreviewProps) {
         campaignConfig={campaignConfig}
         hierarchyConfig={hierarchyConfig}
         sampleData={sampleData || []}
+        selectedPlatforms={selectedPlatforms}
         warnings={warnings}
       />
 

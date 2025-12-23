@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState, useCallback } from "react";
-import type { CampaignConfig, HierarchyConfig } from "../types";
-import { interpolatePattern } from "../types";
+import type { CampaignConfig, HierarchyConfig, Platform, CharacterLimitSummary } from "../types";
+import { interpolatePattern, checkCharacterLimits, PLATFORM_LIMITS, getFieldLimit } from "../types";
 import styles from "./HierarchyPreview.module.css";
 
 // Types for the preview
@@ -41,6 +41,7 @@ export interface HierarchyPreviewProps {
   campaignConfig: CampaignConfig;
   hierarchyConfig: HierarchyConfig;
   sampleData: Record<string, unknown>[];
+  selectedPlatforms?: Platform[];
   loading?: boolean;
   error?: string;
   warnings?: PreviewWarning[];
@@ -52,6 +53,7 @@ export function HierarchyPreview({
   campaignConfig,
   hierarchyConfig,
   sampleData,
+  selectedPlatforms = [],
   loading = false,
   error,
   warnings = [],
@@ -61,6 +63,8 @@ export function HierarchyPreview({
   // Collapsed state for tree nodes
   const [collapsedCampaigns, setCollapsedCampaigns] = useState<Set<string>>(new Set());
   const [collapsedAdGroups, setCollapsedAdGroups] = useState<Set<string>>(new Set());
+  // Show/hide detailed character limit warnings
+  const [showCharLimitDetails, setShowCharLimitDetails] = useState(false);
 
   // Compute hierarchy from sample data using new structure
   const { campaigns, stats } = useMemo(() => {
@@ -151,6 +155,34 @@ export function HierarchyPreview({
       },
     };
   }, [sampleData, campaignConfig, hierarchyConfig, rowsSkipped]);
+
+  // Check character limits per platform
+  const charLimitSummaries = useMemo(() => {
+    if (!sampleData || sampleData.length === 0 || selectedPlatforms.length === 0) {
+      return new Map<Platform, CharacterLimitSummary>();
+    }
+    if (!hierarchyConfig.adGroups || hierarchyConfig.adGroups.length === 0) {
+      return new Map<Platform, CharacterLimitSummary>();
+    }
+
+    const summaries = new Map<Platform, CharacterLimitSummary>();
+    for (const platform of selectedPlatforms) {
+      const summary = checkCharacterLimits(sampleData, hierarchyConfig, platform);
+      if (summary.totalOverflows > 0) {
+        summaries.set(platform, summary);
+      }
+    }
+    return summaries;
+  }, [sampleData, hierarchyConfig, selectedPlatforms]);
+
+  // Combined character limit stats across all platforms
+  const totalCharLimitIssues = useMemo(() => {
+    let total = 0;
+    for (const summary of charLimitSummaries.values()) {
+      total += summary.totalOverflows;
+    }
+    return total;
+  }, [charLimitSummaries]);
 
   // Toggle campaign collapse
   const toggleCampaign = useCallback((name: string) => {
@@ -412,6 +444,74 @@ export function HierarchyPreview({
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* Character Limit Warnings Section */}
+      {totalCharLimitIssues > 0 && (
+        <div className={styles.charLimitSection} data-testid="char-limit-section">
+          <div className={styles.charLimitHeader} data-testid="char-limit-header">
+            <span className={styles.charLimitIcon}>!</span>
+            <span>Character Limit Issues</span>
+          </div>
+          <div className={styles.charLimitSummary}>
+            {Array.from(charLimitSummaries.entries()).map(([platform, summary]) => (
+              <div key={platform} data-testid={`char-limit-platform-${platform}`}>
+                <span className={styles.charLimitBadge}>
+                  <strong>{platform}:</strong>
+                  {summary.headlineOverflows > 0 && (
+                    <span>{summary.headlineOverflows} headline{summary.headlineOverflows !== 1 ? "s" : ""} exceed {getFieldLimit(platform, 'headline')} chars</span>
+                  )}
+                  {summary.headlineOverflows > 0 && summary.descriptionOverflows > 0 && ", "}
+                  {summary.descriptionOverflows > 0 && (
+                    <span>{summary.descriptionOverflows} description{summary.descriptionOverflows !== 1 ? "s" : ""} exceed {getFieldLimit(platform, 'description')} chars</span>
+                  )}
+                  {(summary.headlineOverflows > 0 || summary.descriptionOverflows > 0) && summary.displayUrlOverflows > 0 && ", "}
+                  {summary.displayUrlOverflows > 0 && (
+                    <span>{summary.displayUrlOverflows} display URL{summary.displayUrlOverflows !== 1 ? "s" : ""} exceed {getFieldLimit(platform, 'displayUrl')} chars</span>
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
+          {Array.from(charLimitSummaries.values()).some(s => s.warnings.length > 0) && (
+            <div className={styles.charLimitDetails}>
+              <button
+                type="button"
+                className={styles.charLimitToggle}
+                onClick={() => setShowCharLimitDetails(!showCharLimitDetails)}
+                data-testid="char-limit-toggle"
+              >
+                {showCharLimitDetails ? "Hide details" : "Show details"}
+              </button>
+              {showCharLimitDetails && (
+                <ul className={styles.charLimitList}>
+                  {Array.from(charLimitSummaries.entries()).flatMap(([platform, summary]) =>
+                    summary.warnings.slice(0, 10).map((warning, idx) => (
+                      <li key={`${platform}-${idx}`} className={styles.charLimitItem}>
+                        <span>
+                          <span className={styles.charLimitField}>{warning.field}</span>
+                          {" "}({platform}) - Row {(warning.rowIndex ?? 0) + 1}:
+                          {" "}<span className={styles.charLimitOverflow}>{warning.length}/{warning.limit} chars (+{warning.overflow})</span>
+                        </span>
+                        <span className={styles.charLimitValue} title={warning.value}>
+                          {warning.value}
+                        </span>
+                      </li>
+                    ))
+                  )}
+                  {Array.from(charLimitSummaries.values()).reduce((acc, s) => acc + s.warnings.length, 0) > 10 && (
+                    <li className={styles.charLimitItem}>
+                      <span>...and {Array.from(charLimitSummaries.values()).reduce((acc, s) => acc + s.warnings.length, 0) - 10} more issues</span>
+                    </li>
+                  )}
+                </ul>
+              )}
+            </div>
+          )}
+          <p style={{ fontSize: '11px', marginTop: '8px', opacity: 0.8 }}>
+            Long content will be automatically truncated with "..." during generation.
+          </p>
         </div>
       )}
     </div>

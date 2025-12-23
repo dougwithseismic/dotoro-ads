@@ -58,3 +58,19 @@ export {
   type GroupingStats,
   type GroupingResult,
 } from "./hierarchical-grouper.js";
+
+// Re-export platform constraints for character limit validation
+export {
+  PLATFORM_LIMITS,
+  truncateText,
+  truncateToWordBoundary,
+  getFieldLimit,
+  checkFieldLength,
+  checkAllFieldLengths,
+  applyTruncation,
+  type Platform as ConstraintPlatform,
+  type FallbackStrategy,
+  type FieldConstraint,
+  type FieldLengthResult,
+  type AllFieldsLengthResult,
+} from "./platform-constraints.js";
