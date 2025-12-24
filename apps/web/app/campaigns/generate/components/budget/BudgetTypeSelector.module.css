@@ -1,0 +1,217 @@
+/* BudgetTypeSelector Component Styles */
+
+.container {
+  width: 100%;
+}
+
+.label {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0 0 12px;
+}
+
+/* Type group - horizontal cards */
+.typeGroup {
+  display: flex;
+  gap: 12px;
+}
+
+.typeGroup.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Type card */
+.typeCard {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 12px;
+  border: 2px solid rgba(var(--gray-rgb), 0.2);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color 0.2s, background-color 0.2s, transform 0.1s;
+  background: transparent;
+  text-align: center;
+  font-family: inherit;
+  position: relative;
+}
+
+.typeCard:hover:not(:disabled) {
+  border-color: rgba(var(--gray-rgb), 0.4);
+  background: rgba(var(--gray-rgb), 0.02);
+}
+
+.typeCard:focus-visible {
+  outline: none;
+  border-color: #0070f3;
+  box-shadow: 0 0 0 3px rgba(0, 112, 243, 0.15);
+}
+
+.typeCard:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.typeCard:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.typeCardSelected {
+  border-color: #0070f3;
+  background: rgba(0, 112, 243, 0.05);
+}
+
+.typeCardSelected .typeIcon {
+  color: #0070f3;
+  background: rgba(0, 112, 243, 0.1);
+}
+
+/* Type icon */
+.typeIcon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(var(--gray-rgb), 0.08);
+  border-radius: 10px;
+  color: rgba(var(--gray-rgb), 0.7);
+  transition: color 0.2s, background 0.2s;
+}
+
+.typeIcon svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* Type info */
+.typeInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.typeName {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.typeDescription {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  color: rgba(var(--gray-rgb), 0.6);
+}
+
+/* Check indicator */
+.checkIndicator {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  background: #0070f3;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.checkIndicator svg {
+  width: 12px;
+  height: 12px;
+  color: white;
+}
+
+/* Shared budget configuration */
+.sharedConfig {
+  margin-top: 16px;
+  padding: 16px;
+  background: rgba(var(--gray-rgb), 0.03);
+  border: 1px solid rgba(var(--gray-rgb), 0.1);
+  border-radius: 8px;
+}
+
+.sharedLabel {
+  display: block;
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(var(--gray-rgb), 0.7);
+  margin-bottom: 8px;
+}
+
+.sharedInput {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(var(--gray-rgb), 0.2);
+  border-radius: 8px;
+  background: var(--background);
+  font-family: var(--font-geist-mono);
+  font-size: 14px;
+  color: var(--foreground);
+  transition: border-color 0.15s;
+}
+
+.sharedInput:focus {
+  outline: none;
+  border-color: #0070f3;
+}
+
+.sharedInput::placeholder {
+  color: rgba(var(--gray-rgb), 0.4);
+  font-family: var(--font-geist-sans);
+}
+
+.sharedInput:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.sharedHint {
+  margin: 8px 0 0;
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  color: rgba(var(--gray-rgb), 0.5);
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+  .typeGroup {
+    flex-direction: column;
+  }
+
+  .typeCard {
+    flex-direction: row;
+    justify-content: flex-start;
+    padding: 14px 16px;
+    text-align: left;
+  }
+
+  .typeInfo {
+    flex: 1;
+  }
+
+  .checkIndicator {
+    position: relative;
+    top: auto;
+    right: auto;
+  }
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .typeIcon {
+    background: rgba(var(--gray-rgb), 0.12);
+  }
+
+  .sharedConfig {
+    background: rgba(var(--gray-rgb), 0.05);
+  }
+}

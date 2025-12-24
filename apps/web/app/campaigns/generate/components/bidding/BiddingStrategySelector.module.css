@@ -1,0 +1,173 @@
+/* BiddingStrategySelector Component Styles */
+
+.container {
+  width: 100%;
+}
+
+.label {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0 0 12px;
+}
+
+/* Strategy group */
+.strategyGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.strategyGroup.disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* Strategy option */
+.strategyOption {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid rgba(var(--gray-rgb), 0.15);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+  background: var(--background);
+  text-align: left;
+  font-family: inherit;
+  width: 100%;
+}
+
+.strategyOption:hover:not(:disabled) {
+  border-color: rgba(var(--gray-rgb), 0.3);
+  background: rgba(var(--gray-rgb), 0.02);
+}
+
+.strategyOption:focus-visible {
+  outline: none;
+  border-color: #0070f3;
+  box-shadow: 0 0 0 3px rgba(0, 112, 243, 0.1);
+}
+
+.strategyOption:disabled {
+  cursor: not-allowed;
+}
+
+.strategyOptionSelected {
+  border-color: #0070f3;
+  background: rgba(0, 112, 243, 0.03);
+}
+
+/* Radio indicator */
+.radioIndicator {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  border: 2px solid rgba(var(--gray-rgb), 0.3);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+  transition: border-color 0.15s;
+}
+
+.strategyOptionSelected .radioIndicator {
+  border-color: #0070f3;
+}
+
+.radioInner {
+  width: 10px;
+  height: 10px;
+  background: #0070f3;
+  border-radius: 50%;
+}
+
+/* Strategy content */
+.strategyContent {
+  flex: 1;
+}
+
+.strategyHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.strategyName {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.recommendedBadge {
+  font-family: var(--font-geist-sans);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: #0070f3;
+  background: rgba(0, 112, 243, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.strategyDescription {
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  color: rgba(var(--gray-rgb), 0.7);
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Strategy meta info */
+.strategyMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.requirement {
+  font-family: var(--font-geist-sans);
+  font-size: 11px;
+  font-weight: 500;
+  color: #d97706;
+  background: rgba(217, 119, 6, 0.1);
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.useCases {
+  font-family: var(--font-geist-sans);
+  font-size: 11px;
+  color: rgba(var(--gray-rgb), 0.5);
+}
+
+/* Scrollable container for many strategies */
+.strategyGroup {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+/* Custom scrollbar */
+.strategyGroup::-webkit-scrollbar {
+  width: 6px;
+}
+
+.strategyGroup::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.strategyGroup::-webkit-scrollbar-thumb {
+  background: rgba(var(--gray-rgb), 0.2);
+  border-radius: 3px;
+}
+
+.strategyGroup::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--gray-rgb), 0.3);
+}

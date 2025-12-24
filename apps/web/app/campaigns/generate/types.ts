@@ -15,10 +15,189 @@ export interface CampaignConfig {
   objective?: string;
 }
 
+// Extended Budget Types
+export type BudgetType = 'daily' | 'lifetime' | 'shared';
+
+export interface BudgetCaps {
+  dailyCap?: string;
+  weeklyCap?: string;
+  monthlyCap?: string;
+  totalCap?: string;
+}
+
 export interface BudgetConfig {
-  type: 'daily' | 'lifetime';
+  type: BudgetType;
   amountPattern: string;       // Can be variable like "{budget}" or fixed "100"
   currency: string;
+  pacing?: 'standard' | 'accelerated';
+  caps?: BudgetCaps;
+  sharedBudgetId?: string;     // For shared budget type
+}
+
+// Bidding Types
+export type BiddingStrategy =
+  // Google strategies
+  | 'maximize_clicks'
+  | 'maximize_conversions'
+  | 'maximize_conversion_value'
+  | 'target_cpa'
+  | 'target_roas'
+  | 'target_impression_share'
+  | 'manual_cpc'
+  | 'enhanced_cpc'
+  // Facebook strategies
+  | 'lowest_cost'
+  | 'cost_cap'
+  | 'bid_cap'
+  | 'highest_value'
+  | 'minimum_roas'
+  // Reddit strategies
+  | 'reddit_cpm'
+  | 'reddit_cpc'
+  | 'reddit_cpv';
+
+export interface BiddingConfig {
+  strategy: BiddingStrategy;
+  targetCpa?: string;         // For target_cpa, cost_cap
+  targetRoas?: string;        // For target_roas, minimum_roas
+  maxCpc?: string;            // For manual_cpc, enhanced_cpc, bid_cap
+  maxCpm?: string;            // For reddit_cpm
+  maxCpv?: string;            // For reddit_cpv
+}
+
+export interface ScheduleConfig {
+  startDate?: string;         // ISO date string
+  endDate?: string;           // ISO date string (undefined = run continuously)
+  timezone?: string;          // e.g., "America/New_York"
+  dayParting?: DayPartingConfig;
+}
+
+export interface DayPartingConfig {
+  enabled: boolean;
+  schedule: DayPartingSchedule;
+}
+
+export type DayPartingSchedule = Record<string, boolean[]>; // Day -> 24 hour booleans
+
+// Bidding Strategy Definitions
+export interface BiddingStrategyDefinition {
+  id: BiddingStrategy;
+  name: string;
+  description: string;
+  platform: Platform;
+  minimumData?: {
+    conversions?: number;
+    spend?: number;
+  };
+  minimumBudget?: number;
+  recommendedFor?: string[];
+}
+
+// Platform-specific bidding strategies
+const GOOGLE_STRATEGIES: BiddingStrategyDefinition[] = [
+  {
+    id: 'maximize_clicks',
+    name: 'Maximize Clicks',
+    description: 'Get as many clicks as possible within your budget',
+    platform: 'google',
+    recommendedFor: ['Traffic', 'Brand awareness'],
+  },
+  {
+    id: 'maximize_conversions',
+    name: 'Maximize Conversions',
+    description: 'Get the most conversions within your budget',
+    platform: 'google',
+    minimumData: { conversions: 15 },
+    recommendedFor: ['Lead generation', 'Sales'],
+  },
+  {
+    id: 'target_cpa',
+    name: 'Target CPA',
+    description: 'Get conversions at your target cost per acquisition',
+    platform: 'google',
+    minimumData: { conversions: 30 },
+    recommendedFor: ['Lead generation', 'Sales'],
+  },
+  {
+    id: 'target_roas',
+    name: 'Target ROAS',
+    description: 'Get conversion value at your target return on ad spend',
+    platform: 'google',
+    minimumData: { conversions: 50 },
+    recommendedFor: ['E-commerce', 'Revenue optimization'],
+  },
+  {
+    id: 'manual_cpc',
+    name: 'Manual CPC',
+    description: 'Set your own maximum cost-per-click bids',
+    platform: 'google',
+    recommendedFor: ['Full control', 'Testing'],
+  },
+];
+
+const FACEBOOK_STRATEGIES: BiddingStrategyDefinition[] = [
+  {
+    id: 'lowest_cost',
+    name: 'Lowest Cost',
+    description: 'Get the most results for your budget',
+    platform: 'facebook',
+    recommendedFor: ['Traffic', 'Engagement'],
+  },
+  {
+    id: 'cost_cap',
+    name: 'Cost Cap',
+    description: 'Keep average cost per result at or below your amount',
+    platform: 'facebook',
+    minimumData: { conversions: 50 },
+    recommendedFor: ['Lead generation', 'Sales'],
+  },
+  {
+    id: 'bid_cap',
+    name: 'Bid Cap',
+    description: 'Set maximum bid across auctions',
+    platform: 'facebook',
+    recommendedFor: ['Full control', 'Testing'],
+  },
+];
+
+const REDDIT_STRATEGIES: BiddingStrategyDefinition[] = [
+  {
+    id: 'reddit_cpm',
+    name: 'CPM - Cost per 1,000 Impressions',
+    description: 'Pay per thousand impressions',
+    platform: 'reddit',
+    recommendedFor: ['Brand awareness', 'Reach'],
+  },
+  {
+    id: 'reddit_cpc',
+    name: 'CPC - Cost per Click',
+    description: 'Pay when users click your ad',
+    platform: 'reddit',
+    recommendedFor: ['Traffic', 'Engagement'],
+  },
+  {
+    id: 'reddit_cpv',
+    name: 'CPV - Cost per View',
+    description: 'Pay per video view (3+ seconds)',
+    platform: 'reddit',
+    recommendedFor: ['Video campaigns'],
+  },
+];
+
+/**
+ * Get available bidding strategies for a platform
+ */
+export function getBiddingStrategies(platform: Platform): BiddingStrategyDefinition[] {
+  switch (platform) {
+    case 'google':
+      return GOOGLE_STRATEGIES;
+    case 'facebook':
+      return FACEBOOK_STRATEGIES;
+    case 'reddit':
+      return REDDIT_STRATEGIES;
+    default:
+      return [];
+  }
 }
 
 // Fallback strategy for character limit handling
@@ -514,7 +693,7 @@ export function validateBudgetConfig(
     return { valid: true, errors, warnings };
   }
 
-  if (!['daily', 'lifetime'].includes(budget.type)) {
+  if (!['daily', 'lifetime', 'shared'].includes(budget.type)) {
     errors.push(`Invalid budget type: ${budget.type}`);
   }
   if (!budget.amountPattern || budget.amountPattern.trim() === '') {

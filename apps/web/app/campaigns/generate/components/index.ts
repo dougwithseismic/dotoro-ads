@@ -19,3 +19,21 @@ export { KeywordCombinator } from "./KeywordCombinator";
 export { HierarchyPreview } from "./HierarchyPreview";
 export { VariableAutocomplete } from "./VariableAutocomplete";
 export { WizardSidePanel } from "./WizardSidePanel";
+
+// Budget & Bidding Components
+export { BudgetBiddingConfig } from "./BudgetBiddingConfig";
+
+// Budget sub-components
+export {
+  BudgetTypeSelector,
+  BudgetAmountInput,
+  CurrencySelector,
+  PacingSelector,
+  BudgetCapsConfig,
+} from "./budget";
+
+// Bidding sub-components
+export { BiddingStrategySelector, TargetInputs } from "./bidding";
+
+// Schedule sub-components
+export { DateRangePicker } from "./schedule";
