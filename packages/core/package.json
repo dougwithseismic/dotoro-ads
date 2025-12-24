@@ -11,6 +11,10 @@
     "./services": {
       "types": "./dist/services/index.d.ts",
       "import": "./dist/services/index.js"
+    },
+    "./creatives": {
+      "types": "./dist/creatives/index.d.ts",
+      "import": "./dist/creatives/index.js"
     }
   },
   "main": "./dist/index.js",

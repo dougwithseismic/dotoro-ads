@@ -1,0 +1,233 @@
+/* VideoUploader Component Styles */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.label {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.required {
+  color: #dc3545;
+  margin-left: 4px;
+}
+
+.helpText {
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  color: rgba(var(--gray-rgb), 0.6);
+  margin: 0;
+}
+
+/* Preview */
+.preview {
+  border: 2px solid rgba(var(--gray-rgb), 0.2);
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(var(--gray-rgb), 0.02);
+}
+
+.previewError {
+  border-color: #dc3545;
+  background: rgba(220, 53, 69, 0.03);
+}
+
+.previewContent {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+/* Thumbnail */
+.thumbnailContainer {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: 240px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(var(--gray-rgb), 0.1);
+}
+
+.thumbnail {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.placeholderThumbnail {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(var(--gray-rgb), 0.4);
+}
+
+.playButton {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--foreground);
+  opacity: 0.9;
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.playButton:hover {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1.05);
+}
+
+.durationBadge {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.75);
+  border-radius: 4px;
+  font-family: var(--font-geist-mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: white;
+}
+
+/* Metadata */
+.metadata {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fileName {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.details {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.dimensions {
+  font-family: var(--font-geist-mono);
+  font-size: 13px;
+  color: rgba(var(--gray-rgb), 0.7);
+}
+
+.aspectRatio {
+  margin-left: 4px;
+  color: rgba(var(--gray-rgb), 0.5);
+}
+
+.fileSize {
+  font-family: var(--font-geist-mono);
+  font-size: 13px;
+  color: rgba(var(--gray-rgb), 0.6);
+}
+
+/* Actions */
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.hiddenInput {
+  display: none;
+}
+
+.changeButton,
+.removeButton {
+  padding: 8px 16px;
+  border: 1px solid rgba(var(--gray-rgb), 0.2);
+  border-radius: 6px;
+  background: transparent;
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--foreground);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.changeButton:hover,
+.removeButton:hover {
+  background: rgba(var(--gray-rgb), 0.05);
+  border-color: rgba(var(--gray-rgb), 0.3);
+}
+
+.removeButton {
+  color: #dc3545;
+  border-color: rgba(220, 53, 69, 0.2);
+}
+
+.removeButton:hover {
+  background: rgba(220, 53, 69, 0.05);
+  border-color: rgba(220, 53, 69, 0.3);
+}
+
+.changeButton:disabled,
+.removeButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Validation messages */
+.validationMessages {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 16px;
+  background: rgba(var(--gray-rgb), 0.03);
+  border-top: 1px solid rgba(var(--gray-rgb), 0.1);
+}
+
+.errorMessage,
+.warningMessage {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+}
+
+.errorMessage {
+  color: #dc3545;
+}
+
+.warningMessage {
+  color: #f59e0b;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .preview {
+    background: rgba(var(--gray-rgb), 0.05);
+  }
+
+  .thumbnailContainer {
+    background: rgba(var(--gray-rgb), 0.15);
+  }
+}

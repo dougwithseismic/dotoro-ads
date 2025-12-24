@@ -27,3 +27,18 @@ export type {
   ImageAnalysisResult,
   VideoAnalysisResult,
 } from "./types.js";
+
+// Export analysis functions
+export {
+  analyzeImage,
+  analyzeVideo,
+  calculateAspectRatio,
+  mimeToFormat,
+  formatFileSize,
+  formatDuration,
+  isImageMimeType,
+  isVideoMimeType,
+} from "./analyze.js";
+
+// Export validation functions
+export { validateAsset, isAspectRatioMatch } from "./validation.js";
