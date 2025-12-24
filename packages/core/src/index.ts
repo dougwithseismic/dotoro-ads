@@ -21,3 +21,121 @@ export * from "./transforms/index.js";
 
 // Re-export keywords
 export * from "./keywords/index.js";
+
+// Re-export shared types
+export type { ValidationResult } from "./shared/index.js";
+
+// Re-export ad types (with explicit exports to avoid conflicts)
+export {
+  AdTypeRegistry,
+  adTypeRegistry,
+  GOOGLE_AD_TYPES,
+  REDDIT_AD_TYPES,
+  FACEBOOK_AD_TYPES,
+  validateAdData,
+  validateField,
+  validateAdType,
+  getCharacterCount,
+  extractVariables,
+  initializeAdTypeRegistry,
+  isAdTypeRegistryInitialized,
+} from "./ad-types/index.js";
+export type {
+  Platform,
+  ContentCategory as AdContentCategory,
+  ValidationResult as AdValidationResult,
+  AdData,
+  FieldType,
+  FieldOption,
+  AdFieldDefinition,
+  CreativeType as AdCreativeType,
+  CreativeSpecs as AdCreativeSpecs,
+  CreativeRequirement,
+  AdConstraints,
+  AdTypeFeatures,
+  AdTypeDefinition,
+} from "./ad-types/index.js";
+
+// Re-export budget (with explicit exports to avoid conflicts)
+export {
+  BIDDING_STRATEGIES,
+  getBiddingStrategies,
+  getBiddingStrategy,
+  isValidStrategyForPlatform,
+  getStrategiesRequiringTargetCpa,
+  getStrategiesRequiringTargetRoas,
+  getStrategiesSupportingAdjustments,
+  validateBudgetConfig,
+  validateBiddingConfig,
+  validateScheduleConfig,
+} from "./budget/index.js";
+export type {
+  BudgetType,
+  BudgetCaps,
+  BudgetConfig,
+  DayOfWeek,
+  TimeRange,
+  DaySchedule,
+  DayPartingConfig,
+  ScheduleConfig,
+  BiddingStrategy,
+  BidAdjustmentType,
+  BidAdjustment,
+  BiddingConfig,
+  CampaignBudgetConfig,
+  PlatformBudgetOverrides,
+  BudgetWithOverrides,
+  BiddingStrategyDefinition,
+  ValidationResult as BudgetValidationResult,
+} from "./budget/index.js";
+
+// Re-export creatives (with explicit exports to avoid conflicts)
+export type {
+  CreativeType,
+  AssetSource,
+  AssetSourceBlob,
+  AssetSourceRemote,
+  AssetSourceVariable,
+  AssetSourceStored,
+  AssetMetadata,
+  ValidationError as CreativeValidationError,
+  ValidationWarning as CreativeValidationWarning,
+  AssetValidation,
+  CreativeAsset,
+  CarouselSlide,
+  CarouselAsset,
+  CarouselConfig,
+  CreativeSpecs,
+  StorageProvider,
+  StorageConfig,
+  UploadResult,
+  ImageAnalysisResult,
+  VideoAnalysisResult,
+} from "./creatives/index.js";
+
+// Re-export content types (with explicit exports to avoid conflicts)
+export type {
+  ContentCategory,
+  PersonaRole,
+  PersonaTone,
+  PersonaExpertise,
+  AuthorPersona,
+  RedditPostType,
+  RedditPostConfig,
+  CommentDefinition,
+  RedditCommentConfig,
+  RedditThreadDefinition,
+  SocialPlatform,
+  MediaConfig,
+  ScheduleType,
+  SocialPostSchedule,
+  SocialPostContent,
+  SocialPostDefinition,
+  ArticlePlatform,
+  ArticleContent,
+  ArticleSeo,
+  ArticleDefinition,
+  ContentValidationResult,
+  GeneratedContent,
+  ContentGenerationContext,
+} from "./content-types/index.js";
