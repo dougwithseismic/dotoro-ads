@@ -1,0 +1,174 @@
+/* PersonaCard Component Styles */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  background: rgba(var(--gray-rgb), 0.03);
+  border: 1px solid rgba(var(--gray-rgb), 0.15);
+  border-radius: 8px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+  border-color: rgba(var(--gray-rgb), 0.25);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.iconWrapper {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 112, 243, 0.1);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.icon {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: #0070f3;
+}
+
+.info {
+  flex: 1;
+  min-width: 0;
+}
+
+.nameRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.name {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.defaultBadge {
+  font-family: var(--font-geist-sans);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  background: rgba(0, 112, 243, 0.1);
+  color: #0070f3;
+  border-radius: 4px;
+}
+
+.description {
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  color: rgba(var(--gray-rgb), 0.6);
+  margin: 4px 0 0;
+  line-height: 1.4;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.editButton {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  padding: 4px 10px;
+  border: 1px solid rgba(0, 112, 243, 0.3);
+  border-radius: 4px;
+  background: transparent;
+  color: #0070f3;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.editButton:hover {
+  background: rgba(0, 112, 243, 0.08);
+  border-color: rgba(0, 112, 243, 0.5);
+}
+
+.deleteButton {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  padding: 4px 10px;
+  border: 1px solid rgba(220, 53, 69, 0.3);
+  border-radius: 4px;
+  background: transparent;
+  color: #dc3545;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.deleteButton:hover {
+  background: rgba(220, 53, 69, 0.08);
+  border-color: rgba(220, 53, 69, 0.5);
+}
+
+.metadata {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.metaItem {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.metaLabel {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  color: rgba(var(--gray-rgb), 0.5);
+}
+
+.metaValue {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(var(--gray-rgb), 0.8);
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .card {
+    background: rgba(var(--gray-rgb), 0.05);
+  }
+
+  .card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  }
+
+  .deleteButton {
+    color: #f87171;
+    border-color: rgba(248, 113, 113, 0.3);
+  }
+
+  .deleteButton:hover {
+    background: rgba(248, 113, 113, 0.15);
+    border-color: rgba(248, 113, 113, 0.5);
+  }
+}
+
+/* Touch device improvements */
+@media (pointer: coarse) {
+  .editButton,
+  .deleteButton {
+    min-height: 36px;
+    padding: 8px 14px;
+  }
+}

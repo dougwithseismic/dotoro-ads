@@ -349,6 +349,8 @@ export interface WizardState {
   selectedAdTypes: Record<Platform, string[]>;
   // Hierarchy configuration (Step 5) - keywords are now at ad group level
   hierarchyConfig: HierarchyConfig | null;
+  // Thread configuration (for reddit-thread ad type)
+  threadConfig: ThreadConfig | null;
   // Platform selection (Step 6 - multi-select)
   selectedPlatforms: Platform[];
   // Per-platform budget configuration (Step 6)
@@ -379,6 +381,226 @@ export const STEP_LABELS: Record<WizardStep, string> = {
 
 // Steps that are optional and can be skipped
 export const OPTIONAL_STEPS: WizardStep[] = ['rules'];
+
+// ============================================================================
+// Thread Configuration Types (Reddit Threads)
+// ============================================================================
+
+/**
+ * Role of an author persona in a thread
+ */
+export type PersonaRole =
+  | 'op'              // Original poster
+  | 'community_member' // Regular community participant
+  | 'skeptic'         // Asks challenging questions
+  | 'enthusiast'      // Positive supporter
+  | 'expert'          // Provides detailed information
+  | 'curious'         // Asks questions for clarification
+  | 'moderator';      // Simulated mod responses
+
+/**
+ * Tone of an author persona
+ */
+export type PersonaTone =
+  | 'friendly'
+  | 'skeptical'
+  | 'enthusiastic'
+  | 'neutral'
+  | 'curious';
+
+/**
+ * Type of Reddit post
+ */
+export type RedditPostType = 'text' | 'link' | 'image' | 'video';
+
+/**
+ * Author persona for thread generation
+ */
+export interface AuthorPersona {
+  /** Unique identifier for the persona */
+  id: string;
+  /** Display name of the persona */
+  name: string;
+  /** Description of the persona's characteristics */
+  description: string;
+  /** Role of the persona in discussions */
+  role: PersonaRole;
+  /** Tone of the persona's comments */
+  tone?: PersonaTone;
+}
+
+/**
+ * Configuration for a Reddit post
+ */
+export interface RedditPostConfig {
+  /** Post title (supports {variable} patterns) */
+  title: string;
+  /** Post body text (optional, for self-posts) */
+  body?: string;
+  /** Link URL (for link posts) */
+  url?: string;
+  /** Type of post */
+  type: RedditPostType;
+  /** Target subreddit (pattern like "{target_subreddit}" or fixed) */
+  subreddit: string;
+  /** Post flair (optional) */
+  flair?: string;
+  /** Whether the post is NSFW */
+  nsfw?: boolean;
+  /** Whether the post contains spoilers */
+  spoiler?: boolean;
+  /** Whether to receive reply notifications */
+  sendReplies?: boolean;
+}
+
+/**
+ * Definition of a single comment in a thread
+ */
+export interface CommentDefinition {
+  /** Unique identifier for the comment */
+  id: string;
+  /** Parent comment ID (null/undefined for top-level comments) */
+  parentId?: string | null;
+  /** ID of the persona making this comment */
+  persona: string;
+  /** Comment body (supports {variable} patterns) */
+  body: string;
+  /** Nesting depth (0 = top-level, 1 = reply to top-level, etc.) */
+  depth: number;
+  /** Order of appearance in the thread */
+  sortOrder: number;
+}
+
+/**
+ * Configuration for a Reddit thread (organic content)
+ */
+export interface ThreadConfig {
+  /** Main post configuration */
+  post: RedditPostConfig;
+  /** Comment definitions */
+  comments: CommentDefinition[];
+  /** Author personas used in the thread */
+  personas: AuthorPersona[];
+}
+
+/**
+ * Default personas for thread generation
+ */
+export const DEFAULT_PERSONAS: AuthorPersona[] = [
+  {
+    id: 'op',
+    name: 'Original Poster',
+    description: 'The person who created the thread, responds to questions',
+    role: 'op',
+    tone: 'friendly',
+  },
+  {
+    id: 'curious',
+    name: 'Curious User',
+    description: 'Asks genuine questions, seeks more information',
+    role: 'curious',
+    tone: 'neutral',
+  },
+  {
+    id: 'skeptic',
+    name: 'Skeptic',
+    description: 'Raises objections, compares to alternatives',
+    role: 'skeptic',
+    tone: 'skeptical',
+  },
+  {
+    id: 'enthusiast',
+    name: 'Enthusiast',
+    description: 'Shares positive experience, supports the product',
+    role: 'enthusiast',
+    tone: 'enthusiastic',
+  },
+];
+
+/**
+ * Creates a default empty thread configuration
+ */
+export function createDefaultThreadConfig(): ThreadConfig {
+  return {
+    post: {
+      title: '',
+      body: '',
+      type: 'text',
+      subreddit: '',
+      sendReplies: true,
+    },
+    comments: [],
+    personas: [...DEFAULT_PERSONAS],
+  };
+}
+
+/**
+ * Creates a default comment with a unique ID
+ */
+export function createDefaultComment(
+  parentId: string | null = null,
+  depth: number = 0,
+  sortOrder: number = 0
+): CommentDefinition {
+  return {
+    id: generateId(),
+    parentId,
+    persona: 'op',
+    body: '',
+    depth,
+    sortOrder,
+  };
+}
+
+/**
+ * Creates a default persona with a unique ID
+ */
+export function createDefaultPersona(): AuthorPersona {
+  return {
+    id: generateId(),
+    name: '',
+    description: '',
+    role: 'community_member',
+    tone: 'neutral',
+  };
+}
+
+/**
+ * Maximum allowed comment depth
+ */
+export const MAX_COMMENT_DEPTH = 3;
+
+/**
+ * Comment tree node for hierarchical display
+ */
+export interface CommentTreeNode {
+  comment: CommentDefinition;
+  children: CommentTreeNode[];
+}
+
+/**
+ * Builds a hierarchical comment tree from a flat array of comments.
+ * This utility is shared across multiple components to ensure consistent tree building.
+ *
+ * @param comments - Flat array of comment definitions
+ * @returns Array of top-level comment tree nodes with nested children
+ */
+export function buildCommentTree(comments: CommentDefinition[]): CommentTreeNode[] {
+  const buildTree = (parentId: string | null): CommentTreeNode[] => {
+    return comments
+      .filter(
+        (c) =>
+          c.parentId === parentId || (parentId === null && !c.parentId)
+      )
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map((comment) => ({
+        comment,
+        children: buildTree(comment.id),
+      }));
+  };
+
+  return buildTree(null);
+}
 
 // Entity types for selectors
 export type Platform = 'reddit' | 'google' | 'facebook';

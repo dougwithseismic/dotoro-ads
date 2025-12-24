@@ -1,0 +1,175 @@
+/* CommentEditor Component Styles */
+
+.editor {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  background: rgba(var(--gray-rgb), 0.02);
+  border: 1px solid rgba(var(--gray-rgb), 0.12);
+  border-radius: 8px;
+  transition: border-color 0.2s;
+}
+
+.editor:focus-within {
+  border-color: rgba(0, 112, 243, 0.4);
+}
+
+.depthIndicator {
+  flex-shrink: 0;
+  height: auto;
+  background: linear-gradient(
+    90deg,
+    rgba(var(--gray-rgb), 0.1) 0%,
+    rgba(var(--gray-rgb), 0.05) 100%
+  );
+  border-radius: 2px;
+  margin-right: 4px;
+}
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.personaField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 150px;
+}
+
+.label {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(var(--gray-rgb), 0.6);
+}
+
+.select {
+  padding: 8px 12px;
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  border: 1px solid rgba(var(--gray-rgb), 0.2);
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--foreground);
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 8px center;
+  background-repeat: no-repeat;
+  background-size: 16px;
+  padding-right: 32px;
+}
+
+.select:focus {
+  outline: none;
+  border-color: #0070f3;
+  box-shadow: 0 0 0 2px rgba(0, 112, 243, 0.1);
+}
+
+.deleteButton {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  padding: 8px 12px;
+  border: 1px solid rgba(220, 53, 69, 0.3);
+  border-radius: 6px;
+  background: transparent;
+  color: #dc3545;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.deleteButton:hover {
+  background: rgba(220, 53, 69, 0.08);
+  border-color: rgba(220, 53, 69, 0.5);
+}
+
+.bodyField {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.textarea {
+  width: 100%;
+  padding: 10px 12px;
+  font-family: var(--font-geist-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  border: 1px solid rgba(var(--gray-rgb), 0.2);
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--foreground);
+  resize: vertical;
+  min-height: 72px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.textarea::placeholder {
+  color: rgba(var(--gray-rgb), 0.4);
+}
+
+.textarea:focus {
+  outline: none;
+  border-color: #0070f3;
+  box-shadow: 0 0 0 2px rgba(0, 112, 243, 0.1);
+}
+
+.hint {
+  font-family: var(--font-geist-sans);
+  font-size: 11px;
+  color: rgba(var(--gray-rgb), 0.5);
+  margin: 0;
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .editor {
+    background: rgba(var(--gray-rgb), 0.03);
+  }
+
+  .select,
+  .textarea {
+    background: rgba(var(--gray-rgb), 0.05);
+  }
+
+  .select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  }
+
+  .deleteButton {
+    color: #f87171;
+    border-color: rgba(248, 113, 113, 0.3);
+  }
+
+  .deleteButton:hover {
+    background: rgba(248, 113, 113, 0.15);
+    border-color: rgba(248, 113, 113, 0.5);
+  }
+}
+
+/* Touch device improvements */
+@media (pointer: coarse) {
+  .select,
+  .textarea {
+    padding: 12px 14px;
+    font-size: 16px;
+  }
+
+  .deleteButton {
+    min-height: 40px;
+    padding: 10px 14px;
+  }
+}

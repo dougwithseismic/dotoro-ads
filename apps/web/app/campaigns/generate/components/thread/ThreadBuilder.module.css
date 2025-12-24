@@ -1,0 +1,98 @@
+/* ThreadBuilder Component Styles */
+
+.builder {
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  gap: 32px;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .builder {
+    grid-template-columns: 1fr;
+  }
+}
+
+.editorColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.previewColumn {
+  position: relative;
+}
+
+.previewSticky {
+  position: sticky;
+  top: 24px;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sectionTitle {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(var(--gray-rgb), 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0;
+}
+
+.previewTitle {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(var(--gray-rgb), 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 12px;
+}
+
+.addButton {
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border: 1px dashed rgba(0, 112, 243, 0.4);
+  border-radius: 6px;
+  background: rgba(0, 112, 243, 0.03);
+  color: #0070f3;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.addButton:hover {
+  background: rgba(0, 112, 243, 0.08);
+  border-color: rgba(0, 112, 243, 0.6);
+}
+
+/* Mobile responsive */
+@media (max-width: 1024px) {
+  .previewSticky {
+    position: static;
+  }
+
+  .previewColumn {
+    order: -1;
+  }
+}
+
+/* Touch device improvements */
+@media (pointer: coarse) {
+  .addButton {
+    min-height: 40px;
+    padding: 10px 16px;
+  }
+}

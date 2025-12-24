@@ -1,0 +1,206 @@
+/* PostEditor Component Styles */
+
+.editor {
+  background: rgba(var(--gray-rgb), 0.03);
+  border: 1px solid rgba(var(--gray-rgb), 0.15);
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.title {
+  font-family: var(--font-geist-sans);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0 0 16px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fieldRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 600px) {
+  .fieldRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+.label {
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(var(--gray-rgb), 0.8);
+}
+
+.required {
+  color: #dc3545;
+}
+
+.input,
+.textarea,
+.select {
+  width: 100%;
+  padding: 10px 14px;
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  border: 2px solid rgba(var(--gray-rgb), 0.2);
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--foreground);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.input::placeholder,
+.textarea::placeholder {
+  color: rgba(var(--gray-rgb), 0.4);
+}
+
+.input:focus,
+.textarea:focus,
+.select:focus {
+  outline: none;
+  border-color: #0070f3;
+  box-shadow: 0 0 0 3px rgba(0, 112, 243, 0.15);
+}
+
+.textarea {
+  font-family: var(--font-geist-mono);
+  resize: vertical;
+  min-height: 120px;
+  line-height: 1.5;
+}
+
+.select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 10px center;
+  background-repeat: no-repeat;
+  background-size: 20px;
+  padding-right: 40px;
+}
+
+.inputWithPrefix {
+  display: flex;
+  align-items: stretch;
+  border: 2px solid rgba(var(--gray-rgb), 0.2);
+  border-radius: 6px;
+  overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.inputWithPrefix:focus-within {
+  border-color: #0070f3;
+  box-shadow: 0 0 0 3px rgba(0, 112, 243, 0.15);
+}
+
+.inputPrefix {
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  background: rgba(var(--gray-rgb), 0.05);
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  color: rgba(var(--gray-rgb), 0.6);
+  border-right: 1px solid rgba(var(--gray-rgb), 0.15);
+}
+
+.inputWithPrefixInput {
+  flex: 1;
+  padding: 10px 14px;
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  border: none;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.inputWithPrefixInput:focus {
+  outline: none;
+}
+
+.inputWithPrefixInput::placeholder {
+  color: rgba(var(--gray-rgb), 0.4);
+}
+
+.toggleRow {
+  display: flex;
+  gap: 24px;
+  padding-top: 4px;
+}
+
+.toggleLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  color: rgba(var(--gray-rgb), 0.8);
+  cursor: pointer;
+}
+
+.checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #0070f3;
+}
+
+.hint {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  color: rgba(var(--gray-rgb), 0.5);
+  margin: 4px 0 0;
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .editor {
+    background: rgba(var(--gray-rgb), 0.05);
+  }
+
+  .input,
+  .textarea,
+  .select,
+  .inputWithPrefixInput {
+    background: rgba(var(--gray-rgb), 0.05);
+  }
+
+  .select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  }
+
+  .inputPrefix {
+    background: rgba(var(--gray-rgb), 0.1);
+  }
+}
+
+/* Touch device improvements */
+@media (pointer: coarse) {
+  .input,
+  .textarea,
+  .select,
+  .inputWithPrefixInput {
+    padding: 12px 16px;
+    font-size: 16px;
+  }
+
+  .checkbox {
+    width: 20px;
+    height: 20px;
+  }
+}

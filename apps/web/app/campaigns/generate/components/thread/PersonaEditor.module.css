@@ -1,0 +1,175 @@
+/* PersonaEditor Component Styles */
+
+.editor {
+  background: rgba(var(--gray-rgb), 0.03);
+  border: 1px solid rgba(var(--gray-rgb), 0.15);
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.title {
+  font-family: var(--font-geist-sans);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0 0 16px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fieldRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 500px) {
+  .fieldRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+.label {
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(var(--gray-rgb), 0.8);
+}
+
+.required {
+  color: #dc3545;
+}
+
+.input,
+.textarea,
+.select {
+  width: 100%;
+  padding: 10px 14px;
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  border: 2px solid rgba(var(--gray-rgb), 0.2);
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--foreground);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.input::placeholder,
+.textarea::placeholder {
+  color: rgba(var(--gray-rgb), 0.4);
+}
+
+.input:focus,
+.textarea:focus,
+.select:focus {
+  outline: none;
+  border-color: #0070f3;
+  box-shadow: 0 0 0 3px rgba(0, 112, 243, 0.15);
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 10px center;
+  background-repeat: no-repeat;
+  background-size: 20px;
+  padding-right: 40px;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(var(--gray-rgb), 0.1);
+}
+
+.cancelButton {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 10px 18px;
+  border: 1px solid rgba(var(--gray-rgb), 0.3);
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(var(--gray-rgb), 0.8);
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.cancelButton:hover {
+  background: rgba(var(--gray-rgb), 0.05);
+  border-color: rgba(var(--gray-rgb), 0.4);
+}
+
+.saveButton {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 6px;
+  background: #0070f3;
+  color: #fff;
+  cursor: pointer;
+  transition: background-color 0.15s, opacity 0.15s;
+}
+
+.saveButton:hover:not(:disabled) {
+  background: #0061d5;
+}
+
+.saveButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .editor {
+    background: rgba(var(--gray-rgb), 0.05);
+  }
+
+  .input,
+  .textarea,
+  .select {
+    background: rgba(var(--gray-rgb), 0.05);
+  }
+
+  .select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  }
+}
+
+/* Touch device improvements */
+@media (pointer: coarse) {
+  .input,
+  .textarea,
+  .select {
+    padding: 12px 16px;
+    font-size: 16px;
+  }
+
+  .cancelButton,
+  .saveButton {
+    min-height: 44px;
+    padding: 12px 20px;
+  }
+}

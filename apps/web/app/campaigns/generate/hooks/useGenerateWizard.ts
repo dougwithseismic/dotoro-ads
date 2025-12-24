@@ -46,6 +46,7 @@ const initialState: WizardState = {
   campaignConfig: null,
   selectedAdTypes: { google: [], reddit: [], facebook: [] } as SelectedAdTypesRecord,
   hierarchyConfig: null,
+  threadConfig: null,
   ruleIds: [],
   inlineRules: [],
   selectedPlatforms: [],

@@ -1,0 +1,78 @@
+/* PersonaManager Component Styles */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(var(--gray-rgb), 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0;
+}
+
+.addButton {
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border: 1px dashed rgba(0, 112, 243, 0.4);
+  border-radius: 6px;
+  background: rgba(0, 112, 243, 0.03);
+  color: #0070f3;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.addButton:hover:not(:disabled) {
+  background: rgba(0, 112, 243, 0.08);
+  border-color: rgba(0, 112, 243, 0.6);
+}
+
+.addButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.editorWrapper {
+  margin-bottom: 8px;
+}
+
+.personaList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.emptyState {
+  padding: 24px;
+  background: rgba(var(--gray-rgb), 0.03);
+  border: 1px dashed rgba(var(--gray-rgb), 0.2);
+  border-radius: 8px;
+  text-align: center;
+}
+
+.emptyState p {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  color: rgba(var(--gray-rgb), 0.5);
+  margin: 0;
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .emptyState {
+    background: rgba(var(--gray-rgb), 0.05);
+  }
+}
