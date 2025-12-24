@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StepIndicator } from "./StepIndicator";
 import { DataSourceSelector } from "./DataSourceSelector";
 import { CampaignConfig } from "./CampaignConfig";
@@ -9,7 +9,13 @@ import { RuleSelector } from "./RuleSelector";
 import { PlatformSelector } from "./PlatformSelector";
 import { GenerationPreview } from "./GenerationPreview";
 import { ValidationMessage } from "./ValidationMessage";
+import { WizardSidePanel } from "./WizardSidePanel";
 import { useGenerateWizard } from "../hooks/useGenerateWizard";
+import {
+  useWizardPersistence,
+  useWizardRestore,
+  clearPersistedState,
+} from "../hooks/useWizardPersistence";
 import { api } from "@/lib/api-client";
 import {
   WizardStep,
@@ -46,7 +52,9 @@ export function GenerateWizard() {
     setCampaignConfig,
     setHierarchyConfig,
     toggleRule,
+    setRules,
     togglePlatform,
+    setPlatforms,
     setPlatformBudget,
     setStep,
     nextStep,
@@ -59,6 +67,27 @@ export function GenerateWizard() {
   } = useGenerateWizard();
 
   const { currentStep, dataSourceId, campaignConfig, hierarchyConfig, availableColumns } = state;
+
+  // Persistence: Save state to localStorage
+  useWizardPersistence(state, !state.generateResult);
+
+  // Memoize restoreState object to prevent unnecessary re-renders in useWizardRestore
+  const restoreState = useMemo(() => ({
+    setDataSource,
+    setCampaignConfig,
+    setHierarchyConfig,
+    setRules,
+    setPlatforms,
+    setPlatformBudget,
+    setStep,
+  }), [setDataSource, setCampaignConfig, setHierarchyConfig, setRules, setPlatforms, setPlatformBudget, setStep]);
+
+  // Persistence: Restore state from localStorage
+  const { restore, hasSession, clearSession } = useWizardRestore(restoreState);
+
+  // State for showing restore session dialog
+  const [showRestoreDialog, setShowRestoreDialog] = useState(false);
+  const [sessionChecked, setSessionChecked] = useState(false);
 
   const isFirstStep = currentStep === WIZARD_STEPS[0];
   const isLastStep = currentStep === WIZARD_STEPS[WIZARD_STEPS.length - 1];
@@ -82,6 +111,32 @@ export function GenerateWizard() {
   const [sampleDataError, setSampleDataError] = useState<string | null>(null);
   const [columnsLoading, setColumnsLoading] = useState(false);
   const [columnsError, setColumnsError] = useState<string | null>(null);
+
+  // Check for saved session on mount
+  useEffect(() => {
+    if (!sessionChecked && hasSession) {
+      setShowRestoreDialog(true);
+    }
+    setSessionChecked(true);
+  }, [hasSession, sessionChecked]);
+
+  // Handle restoring session
+  const handleRestoreSession = useCallback(() => {
+    restore();
+    setShowRestoreDialog(false);
+  }, [restore]);
+
+  // Handle starting fresh (clearing session)
+  const handleStartFresh = useCallback(() => {
+    clearSession();
+    setShowRestoreDialog(false);
+  }, [clearSession]);
+
+  // Handle "Start Over" button click
+  const handleStartOver = useCallback(() => {
+    clearPersistedState();
+    reset();
+  }, [reset]);
 
   // Focus management on step change
   useEffect(() => {
@@ -110,7 +165,7 @@ export function GenerateWizard() {
       setSampleDataError(null);
       api
         .get<{ data: Record<string, unknown>[]; total: number }>(
-          `/api/v1/data-sources/${dataSourceId}/sample?limit=10`
+          `/api/v1/data-sources/${dataSourceId}/sample?limit=100`
         )
         .then((data) => {
           setSampleData(data.data || []);
@@ -406,9 +461,41 @@ export function GenerateWizard() {
   // Also hide navigation when generation is complete
   const showNavigation = !isLastStep && !state.generateResult;
   const showStartOver = state.generateResult !== null;
+  // Show "Start Over" option when not on first step and has made progress
+  const showStartOverOption = !isFirstStep && !state.generateResult;
 
   return (
     <div className={styles.wizard}>
+      {/* Restore Session Dialog */}
+      {showRestoreDialog && (
+        <div className={styles.restoreDialog} role="dialog" aria-labelledby="restore-dialog-title">
+          <div className={styles.restoreDialogContent}>
+            <h3 id="restore-dialog-title" className={styles.restoreDialogTitle}>
+              Resume Previous Session?
+            </h3>
+            <p className={styles.restoreDialogText}>
+              You have an unfinished campaign generation session. Would you like to continue where you left off?
+            </p>
+            <div className={styles.restoreDialogActions}>
+              <button
+                type="button"
+                className={`${styles.button} ${styles.buttonSecondary}`}
+                onClick={handleStartFresh}
+              >
+                Start Fresh
+              </button>
+              <button
+                type="button"
+                className={`${styles.button} ${styles.buttonPrimary}`}
+                onClick={handleRestoreSession}
+              >
+                Continue Session
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Skip link for keyboard users */}
       <a href="#wizard-content" className={styles.skipLink}>
         Skip to wizard content
@@ -424,19 +511,39 @@ export function GenerateWizard() {
         {announcement}
       </div>
 
-      <StepIndicator currentStep={currentStep} onStepClick={handleStepClick} />
-
-      <div
-        id="wizard-content"
-        ref={contentRef}
-        className={styles.content}
-        tabIndex={-1}
-        aria-label={`Wizard step: ${STEP_LABELS[currentStep]}`}
-      >
-        {validationMessage && (
-          <ValidationMessage message={validationMessage} type="error" />
+      <div className={styles.wizardHeader}>
+        <StepIndicator currentStep={currentStep} onStepClick={handleStepClick} />
+        {showStartOverOption && (
+          <button
+            type="button"
+            className={styles.startOverButton}
+            onClick={handleStartOver}
+            aria-label="Start over from the beginning"
+          >
+            Start Over
+          </button>
         )}
-        {renderStepContent()}
+      </div>
+
+      <div className={styles.wizardBody}>
+        <div
+          id="wizard-content"
+          ref={contentRef}
+          className={styles.content}
+          tabIndex={-1}
+          aria-label={`Wizard step: ${STEP_LABELS[currentStep]}`}
+        >
+          {validationMessage && (
+            <ValidationMessage message={validationMessage} type="error" />
+          )}
+          {renderStepContent()}
+        </div>
+
+        <WizardSidePanel
+          currentStep={currentStep}
+          state={state}
+          sampleData={sampleData}
+        />
       </div>
 
       {showNavigation && (

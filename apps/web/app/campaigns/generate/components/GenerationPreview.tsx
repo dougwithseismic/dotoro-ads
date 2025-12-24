@@ -68,7 +68,8 @@ export function GenerationPreview(props: GenerationPreviewProps) {
 
   // Determine if we should show tabs (only when 2+ platforms)
   const showPlatformTabs = selectedPlatforms.length >= 2;
-  const activePlatform = selectedPlatforms[activePlatformIndex] || selectedPlatforms[0];
+  // Ensure activePlatform is always defined (fallback to 'google' if no platforms selected)
+  const activePlatform: Platform = selectedPlatforms[activePlatformIndex] ?? selectedPlatforms[0] ?? 'google';
 
   // Handle keyboard navigation for tabs
   const handleTabKeyDown = useCallback((e: React.KeyboardEvent, currentIndex: number) => {

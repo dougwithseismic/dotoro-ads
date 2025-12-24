@@ -1051,4 +1051,233 @@ describe("HierarchyConfig", () => {
       expect(onChange).toHaveBeenCalled();
     });
   });
+
+  // ==========================================================================
+  // Variable Search Functionality Tests
+  // ==========================================================================
+
+  describe("Variable Search in Dropdown", () => {
+    it("shows search input when there are more than 5 columns", async () => {
+      const user = userEvent.setup();
+
+      render(
+        <HierarchyConfig
+          config={createDefaultHierarchyConfig()}
+          campaignConfig={defaultCampaignConfig}
+          availableColumns={mockColumns}
+          onChange={onChange}
+        />
+      );
+
+      const input = screen.getByLabelText(/ad group name pattern/i);
+      await user.type(input, "{{");
+
+      await waitFor(() => {
+        expect(screen.getByTestId("variable-dropdown")).toBeInTheDocument();
+      });
+
+      // With 6 columns, search input should be shown
+      expect(screen.getByTestId("variable-search-input")).toBeInTheDocument();
+    });
+
+    it("filters variables when typing in search input", async () => {
+      const user = userEvent.setup();
+
+      render(
+        <HierarchyConfig
+          config={createDefaultHierarchyConfig()}
+          campaignConfig={defaultCampaignConfig}
+          availableColumns={mockColumns}
+          onChange={onChange}
+        />
+      );
+
+      const input = screen.getByLabelText(/ad group name pattern/i);
+      await user.type(input, "{{");
+
+      await waitFor(() => {
+        expect(screen.getByTestId("variable-dropdown")).toBeInTheDocument();
+      });
+
+      const searchInput = screen.getByTestId("variable-search-input");
+      await user.type(searchInput, "brand");
+
+      // Should filter to only show "brand"
+      expect(screen.getByTestId("variable-option-brand")).toBeInTheDocument();
+      // Other variables should not be visible
+      expect(screen.queryByTestId("variable-option-headline")).not.toBeInTheDocument();
+    });
+
+    it("shows 'No matching variables' when search has no results", async () => {
+      const user = userEvent.setup();
+
+      render(
+        <HierarchyConfig
+          config={createDefaultHierarchyConfig()}
+          campaignConfig={defaultCampaignConfig}
+          availableColumns={mockColumns}
+          onChange={onChange}
+        />
+      );
+
+      const input = screen.getByLabelText(/ad group name pattern/i);
+      await user.type(input, "{{");
+
+      await waitFor(() => {
+        expect(screen.getByTestId("variable-dropdown")).toBeInTheDocument();
+      });
+
+      const searchInput = screen.getByTestId("variable-search-input");
+      await user.type(searchInput, "nonexistentcolumn");
+
+      expect(screen.getByText(/no matching variables/i)).toBeInTheDocument();
+    });
+
+    it("does not show search input when there are 5 or fewer columns", async () => {
+      const user = userEvent.setup();
+      const fewColumns: DataSourceColumn[] = [
+        { name: "col1", type: "string" },
+        { name: "col2", type: "string" },
+        { name: "col3", type: "string" },
+      ];
+
+      render(
+        <HierarchyConfig
+          config={createDefaultHierarchyConfig()}
+          campaignConfig={defaultCampaignConfig}
+          availableColumns={fewColumns}
+          onChange={onChange}
+        />
+      );
+
+      const input = screen.getByLabelText(/ad group name pattern/i);
+      await user.type(input, "{{");
+
+      await waitFor(() => {
+        expect(screen.getByTestId("variable-dropdown")).toBeInTheDocument();
+      });
+
+      // With only 3 columns, search input should not be shown
+      expect(screen.queryByTestId("variable-search-input")).not.toBeInTheDocument();
+    });
+
+    it("allows selecting variable with arrow keys in search mode", async () => {
+      const user = userEvent.setup();
+
+      render(
+        <HierarchyConfig
+          config={createDefaultHierarchyConfig()}
+          campaignConfig={defaultCampaignConfig}
+          availableColumns={mockColumns}
+          onChange={onChange}
+        />
+      );
+
+      const input = screen.getByLabelText(/ad group name pattern/i);
+      await user.type(input, "{{");
+
+      await waitFor(() => {
+        expect(screen.getByTestId("variable-dropdown")).toBeInTheDocument();
+      });
+
+      const searchInput = screen.getByTestId("variable-search-input");
+      // Type to filter, then use arrow down and enter
+      await user.type(searchInput, "brand");
+      await user.keyboard("{ArrowDown}");
+      await user.keyboard("{Enter}");
+
+      expect(onChange).toHaveBeenCalled();
+      const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1];
+      expect(lastCall[0].adGroups[0].namePattern).toBe("{brand}");
+    });
+  });
+
+  // ==========================================================================
+  // Input Field Typing Tests (Verifying Fix)
+  // ==========================================================================
+
+  describe("Input Field Typing", () => {
+    it("accepts all characters in ad group name pattern", async () => {
+      const user = userEvent.setup();
+
+      render(
+        <HierarchyConfig
+          config={createDefaultHierarchyConfig()}
+          campaignConfig={defaultCampaignConfig}
+          availableColumns={mockColumns}
+          onChange={onChange}
+        />
+      );
+
+      const input = screen.getByLabelText(/ad group name pattern/i);
+      await user.type(input, "Test-Pattern_123");
+
+      expect(onChange).toHaveBeenCalled();
+      // Verify the last call contains the typed text
+      const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1];
+      expect(lastCall[0].adGroups[0].namePattern).toContain("Test-Pattern_123");
+    });
+
+    it("accepts all characters in headline field", async () => {
+      const user = userEvent.setup();
+
+      render(
+        <HierarchyConfig
+          config={createDefaultHierarchyConfig()}
+          campaignConfig={defaultCampaignConfig}
+          availableColumns={mockColumns}
+          onChange={onChange}
+        />
+      );
+
+      const headlineInput = screen.getByLabelText(/headline/i);
+      await user.type(headlineInput, "Amazing Product!");
+
+      expect(onChange).toHaveBeenCalled();
+      const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1];
+      expect(lastCall[0].adGroups[0].ads[0].headline).toContain("Amazing Product!");
+    });
+
+    it("accepts all characters in description field", async () => {
+      const user = userEvent.setup();
+
+      render(
+        <HierarchyConfig
+          config={createDefaultHierarchyConfig()}
+          campaignConfig={defaultCampaignConfig}
+          availableColumns={mockColumns}
+          onChange={onChange}
+        />
+      );
+
+      const descriptionInput = screen.getByLabelText(/description/i);
+      await user.type(descriptionInput, "Best deal ever!");
+
+      expect(onChange).toHaveBeenCalled();
+      const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1];
+      expect(lastCall[0].adGroups[0].ads[0].description).toContain("Best deal ever!");
+    });
+
+    it("maintains input value after state update", async () => {
+      const user = userEvent.setup();
+
+      render(
+        <HierarchyConfig
+          config={createDefaultHierarchyConfig()}
+          campaignConfig={defaultCampaignConfig}
+          availableColumns={mockColumns}
+          onChange={onChange}
+        />
+      );
+
+      const input = screen.getByLabelText(/ad group name pattern/i) as HTMLInputElement;
+      await user.type(input, "test");
+
+      // Check that the input still has the value after React re-renders
+      await waitFor(() => {
+        const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1];
+        expect(lastCall[0].adGroups[0].namePattern).toContain("test");
+      });
+    });
+  });
 });

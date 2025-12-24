@@ -15,7 +15,17 @@ import {
   createDefaultAd,
   interpolatePattern,
 } from "../types";
+import { KeywordCombinator } from "./KeywordCombinator";
 import styles from "./HierarchyConfig.module.css";
+
+// Helper to create a deep copy of ad groups for local state
+function cloneAdGroups(adGroups: AdGroupDefinition[]): AdGroupDefinition[] {
+  return adGroups.map(ag => ({
+    ...ag,
+    ads: ag.ads.map(ad => ({ ...ad })),
+    keywords: ag.keywords ? [...ag.keywords] : undefined,
+  }));
+}
 
 interface HierarchyConfigProps {
   config: HierarchyConfigType;
@@ -56,19 +66,73 @@ export function HierarchyConfig({
   onChange,
   validation,
 }: HierarchyConfigProps) {
-  // Ensure config has at least one ad group
-  const effectiveConfig = useMemo(() => {
+  // Initialize local ad groups state from props
+  const [localAdGroups, setLocalAdGroups] = useState<AdGroupDefinition[]>(() => {
     if (!config.adGroups || config.adGroups.length === 0) {
-      return { adGroups: [createDefaultAdGroup()] };
+      return [createDefaultAdGroup()];
     }
-    return config;
+    return cloneAdGroups(config.adGroups);
+  });
+
+  // Refs to handle setTimeout cleanup and prevent race conditions
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isMountedRef = useRef(true);
+  const pendingChangesRef = useRef<{ adGroups: AdGroupDefinition[] } | null>(null);
+
+  // Use ref pattern to avoid onChange in deps and allow cleanup to access latest onChange
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
+  // Cleanup on unmount - flush pending changes to prevent data loss
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      // Flush pending changes to parent before unmount
+      if (pendingChangesRef.current) {
+        onChangeRef.current(pendingChangesRef.current);
+        pendingChangesRef.current = null;
+      }
+    };
+  }, []);
+
+  // Sync local state with props when config changes from parent
+  // (e.g., when restoring a session or parent resets the state)
+  useEffect(() => {
+    const configAdGroupIds = config.adGroups?.map(ag => ag.id).join(',') ?? '';
+
+    // Use functional update to compare with current local state
+    setLocalAdGroups(currentLocalAdGroups => {
+      const localAdGroupIds = currentLocalAdGroups.map(ag => ag.id).join(',');
+
+      // Only sync if structure changed (different ad groups)
+      if (configAdGroupIds !== localAdGroupIds) {
+        if (!config.adGroups || config.adGroups.length === 0) {
+          return [createDefaultAdGroup()];
+        } else {
+          return cloneAdGroups(config.adGroups);
+        }
+      }
+      // No change needed, return current state
+      return currentLocalAdGroups;
+    });
   }, [config]);
+
+  // Use local state for rendering
+  const effectiveConfig = useMemo(() => {
+    return { adGroups: localAdGroups };
+  }, [localAdGroups]);
 
   // Autocomplete state
   const [showDropdown, setShowDropdown] = useState(false);
   const [dropdownFilter, setDropdownFilter] = useState("");
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [activeInputField, setActiveInputField] = useState<InputField | null>(null);
+
+  // Separate search query for explicit search input in dropdown
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Expanded state for ad groups
   const [expandedAdGroups, setExpandedAdGroups] = useState<Set<string>>(() => {
@@ -84,14 +148,16 @@ export function HierarchyConfig({
   const inputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Filter columns based on partial variable input
+  // Filter columns based on partial variable input and explicit search query
   const filteredColumns = useMemo(() => {
-    if (!dropdownFilter) return availableColumns;
-    const lowerFilter = dropdownFilter.toLowerCase();
+    // Combine both filters - dropdownFilter is from typing after {, searchQuery is from search input
+    const combinedFilter = searchQuery || dropdownFilter;
+    if (!combinedFilter) return availableColumns;
+    const lowerFilter = combinedFilter.toLowerCase();
     return availableColumns.filter((col) =>
       col.name.toLowerCase().includes(lowerFilter)
     );
-  }, [availableColumns, dropdownFilter]);
+  }, [availableColumns, dropdownFilter, searchQuery]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -104,6 +170,7 @@ export function HierarchyConfig({
       ) {
         setShowDropdown(false);
         setDropdownFilter("");
+        setSearchQuery("");
         setHighlightedIndex(-1);
       }
     };
@@ -160,64 +227,137 @@ export function HierarchyConfig({
     }
   }, [effectiveConfig.adGroups]);
 
-  // Update ad group
+  // Update ad group - updates local state first, then notifies parent
   const updateAdGroup = useCallback((adGroupId: string, updates: Partial<AdGroupDefinition>) => {
-    const newAdGroups = effectiveConfig.adGroups.map(ag =>
-      ag.id === adGroupId ? { ...ag, ...updates } : ag
-    );
-    onChange({ adGroups: newAdGroups });
-  }, [effectiveConfig.adGroups, onChange]);
-
-  // Update ad within an ad group
-  const updateAd = useCallback((adGroupId: string, adId: string, updates: Partial<AdDefinition>) => {
-    const newAdGroups = effectiveConfig.adGroups.map(ag => {
-      if (ag.id !== adGroupId) return ag;
-      const newAds = ag.ads.map(ad =>
-        ad.id === adId ? { ...ad, ...updates } : ad
+    setLocalAdGroups(prevAdGroups => {
+      const newAdGroups = prevAdGroups.map(ag =>
+        ag.id === adGroupId ? { ...ag, ...updates } : ag
       );
-      return { ...ag, ads: newAds };
+      // Store pending changes for potential flush on unmount
+      pendingChangesRef.current = { adGroups: newAdGroups };
+      // Notify parent asynchronously to prevent state conflicts
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => {
+        if (isMountedRef.current) {
+          onChangeRef.current({ adGroups: newAdGroups });
+          pendingChangesRef.current = null;
+        }
+      }, 0);
+      return newAdGroups;
     });
-    onChange({ adGroups: newAdGroups });
-  }, [effectiveConfig.adGroups, onChange]);
+  }, []);
 
-  // Add new ad group
+  // Update ad within an ad group - updates local state first, then notifies parent
+  const updateAd = useCallback((adGroupId: string, adId: string, updates: Partial<AdDefinition>) => {
+    setLocalAdGroups(prevAdGroups => {
+      const newAdGroups = prevAdGroups.map(ag => {
+        if (ag.id !== adGroupId) return ag;
+        const newAds = ag.ads.map(ad =>
+          ad.id === adId ? { ...ad, ...updates } : ad
+        );
+        return { ...ag, ads: newAds };
+      });
+      // Store pending changes for potential flush on unmount
+      pendingChangesRef.current = { adGroups: newAdGroups };
+      // Notify parent asynchronously to prevent state conflicts
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => {
+        if (isMountedRef.current) {
+          onChangeRef.current({ adGroups: newAdGroups });
+          pendingChangesRef.current = null;
+        }
+      }, 0);
+      return newAdGroups;
+    });
+  }, []);
+
+  // Add new ad group - updates local state first, then notifies parent
   const addAdGroup = useCallback(() => {
     const newAdGroup = createDefaultAdGroup();
-    onChange({ adGroups: [...effectiveConfig.adGroups, newAdGroup] });
+    setLocalAdGroups(prevAdGroups => {
+      const newAdGroups = [...prevAdGroups, newAdGroup];
+      // Store pending changes for potential flush on unmount
+      pendingChangesRef.current = { adGroups: newAdGroups };
+      // Notify parent asynchronously
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => {
+        if (isMountedRef.current) {
+          onChangeRef.current({ adGroups: newAdGroups });
+          pendingChangesRef.current = null;
+        }
+      }, 0);
+      return newAdGroups;
+    });
     setExpandedAdGroups(prev => new Set([...prev, newAdGroup.id]));
-  }, [effectiveConfig.adGroups, onChange]);
+  }, []);
 
-  // Remove ad group
+  // Remove ad group - updates local state first, then notifies parent
   const removeAdGroup = useCallback((adGroupId: string) => {
-    if (effectiveConfig.adGroups.length <= 1) return; // Keep at least one
-    const newAdGroups = effectiveConfig.adGroups.filter(ag => ag.id !== adGroupId);
-    onChange({ adGroups: newAdGroups });
+    setLocalAdGroups(prevAdGroups => {
+      if (prevAdGroups.length <= 1) return prevAdGroups; // Keep at least one
+      const newAdGroups = prevAdGroups.filter(ag => ag.id !== adGroupId);
+      // Store pending changes for potential flush on unmount
+      pendingChangesRef.current = { adGroups: newAdGroups };
+      // Notify parent asynchronously
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => {
+        if (isMountedRef.current) {
+          onChangeRef.current({ adGroups: newAdGroups });
+          pendingChangesRef.current = null;
+        }
+      }, 0);
+      return newAdGroups;
+    });
     setExpandedAdGroups(prev => {
       const next = new Set(prev);
       next.delete(adGroupId);
       return next;
     });
-  }, [effectiveConfig.adGroups, onChange]);
+  }, []);
 
-  // Add new ad to an ad group
+  // Add new ad to an ad group - updates local state first, then notifies parent
   const addAd = useCallback((adGroupId: string) => {
     const newAd = createDefaultAd();
-    const newAdGroups = effectiveConfig.adGroups.map(ag => {
-      if (ag.id !== adGroupId) return ag;
-      return { ...ag, ads: [...ag.ads, newAd] };
+    setLocalAdGroups(prevAdGroups => {
+      const newAdGroups = prevAdGroups.map(ag => {
+        if (ag.id !== adGroupId) return ag;
+        return { ...ag, ads: [...ag.ads, newAd] };
+      });
+      // Store pending changes for potential flush on unmount
+      pendingChangesRef.current = { adGroups: newAdGroups };
+      // Notify parent asynchronously
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => {
+        if (isMountedRef.current) {
+          onChangeRef.current({ adGroups: newAdGroups });
+          pendingChangesRef.current = null;
+        }
+      }, 0);
+      return newAdGroups;
     });
-    onChange({ adGroups: newAdGroups });
-  }, [effectiveConfig.adGroups, onChange]);
+  }, []);
 
-  // Remove ad from an ad group
+  // Remove ad from an ad group - updates local state first, then notifies parent
   const removeAd = useCallback((adGroupId: string, adId: string) => {
-    const newAdGroups = effectiveConfig.adGroups.map(ag => {
-      if (ag.id !== adGroupId) return ag;
-      if (ag.ads.length <= 1) return ag; // Keep at least one
-      return { ...ag, ads: ag.ads.filter(ad => ad.id !== adId) };
+    setLocalAdGroups(prevAdGroups => {
+      const newAdGroups = prevAdGroups.map(ag => {
+        if (ag.id !== adGroupId) return ag;
+        if (ag.ads.length <= 1) return ag; // Keep at least one
+        return { ...ag, ads: ag.ads.filter(ad => ad.id !== adId) };
+      });
+      // Store pending changes for potential flush on unmount
+      pendingChangesRef.current = { adGroups: newAdGroups };
+      // Notify parent asynchronously
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => {
+        if (isMountedRef.current) {
+          onChangeRef.current({ adGroups: newAdGroups });
+          pendingChangesRef.current = null;
+        }
+      }, 0);
+      return newAdGroups;
     });
-    onChange({ adGroups: newAdGroups });
-  }, [effectiveConfig.adGroups, onChange]);
+  }, []);
 
   // Toggle ad group expansion
   const toggleAdGroupExpansion = useCallback((adGroupId: string) => {
@@ -312,6 +452,7 @@ export function HierarchyConfig({
 
     setShowDropdown(false);
     setDropdownFilter("");
+    setSearchQuery("");
     setHighlightedIndex(-1);
 
     // Restore focus and set cursor position
@@ -347,6 +488,7 @@ export function HierarchyConfig({
         e.preventDefault();
         setShowDropdown(false);
         setDropdownFilter("");
+        setSearchQuery("");
         setHighlightedIndex(-1);
         break;
     }
@@ -450,6 +592,30 @@ export function HierarchyConfig({
     return validation.errors.some(e => e.toLowerCase().includes(field.toLowerCase()));
   }, [validation]);
 
+  // Handle search input keydown to prevent event bubbling
+  const handleSearchKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setHighlightedIndex((prev) =>
+        Math.min(prev + 1, filteredColumns.length - 1)
+      );
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setHighlightedIndex((prev) => Math.max(prev - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (highlightedIndex >= 0 && filteredColumns[highlightedIndex]) {
+        selectVariable(filteredColumns[highlightedIndex].name);
+      }
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      setShowDropdown(false);
+      setDropdownFilter("");
+      setSearchQuery("");
+      setHighlightedIndex(-1);
+    }
+  }, [filteredColumns, highlightedIndex, selectVariable]);
+
   // Render variable dropdown
   const renderDropdown = (field: InputField) => {
     if (!showDropdown || !activeInputField) return null;
@@ -459,6 +625,9 @@ export function HierarchyConfig({
     const fieldKey = getRefKey(field);
     if (activeKey !== fieldKey) return null;
 
+    // Show search when there are many columns
+    const showSearch = availableColumns.length > 5;
+
     return (
       <div
         ref={dropdownRef}
@@ -467,31 +636,52 @@ export function HierarchyConfig({
         role="listbox"
         aria-label="Available variables"
       >
-        {filteredColumns.length > 0 ? (
-          filteredColumns.map((col, index) => (
-            <button
-              key={col.name}
-              type="button"
-              className={`${styles.dropdownOption} ${
-                index === highlightedIndex ? styles.dropdownOptionHighlighted : ""
-              }`}
-              onClick={() => selectVariable(col.name)}
-              data-testid={`variable-option-${col.name}`}
-              role="option"
-              aria-selected={index === highlightedIndex}
-            >
-              <span className={styles.dropdownOptionName}>{col.name}</span>
-              <span className={styles.dropdownOptionType}>{col.type}</span>
-              {col.sampleValues && col.sampleValues.length > 0 && (
-                <span className={styles.dropdownOptionSamples}>
-                  {col.sampleValues.slice(0, 3).join(", ")}
-                </span>
-              )}
-            </button>
-          ))
-        ) : (
-          <div className={styles.dropdownEmpty}>No matching variables</div>
+        {/* Search input for filtering variables */}
+        {showSearch && (
+          <div className={styles.dropdownSearch}>
+            <input
+              type="text"
+              className={styles.dropdownSearchInput}
+              placeholder="Search variables..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setHighlightedIndex(-1);
+              }}
+              onKeyDown={handleSearchKeyDown}
+              data-testid="variable-search-input"
+              aria-label="Search variables"
+              autoFocus
+            />
+          </div>
         )}
+        <div className={styles.dropdownOptions}>
+          {filteredColumns.length > 0 ? (
+            filteredColumns.map((col, index) => (
+              <button
+                key={col.name}
+                type="button"
+                className={`${styles.dropdownOption} ${
+                  index === highlightedIndex ? styles.dropdownOptionHighlighted : ""
+                }`}
+                onClick={() => selectVariable(col.name)}
+                data-testid={`variable-option-${col.name}`}
+                role="option"
+                aria-selected={index === highlightedIndex}
+              >
+                <span className={styles.dropdownOptionName}>{col.name}</span>
+                <span className={styles.dropdownOptionType}>{col.type}</span>
+                {col.sampleValues && col.sampleValues.length > 0 && (
+                  <span className={styles.dropdownOptionSamples}>
+                    {col.sampleValues.slice(0, 3).join(", ")}
+                  </span>
+                )}
+              </button>
+            ))
+          ) : (
+            <div className={styles.dropdownEmpty}>No matching variables</div>
+          )}
+        </div>
       </div>
     );
   };
@@ -689,29 +879,17 @@ export function HierarchyConfig({
             {/* Keywords Section */}
             <div className={styles.keywordsSection} data-testid={`keywords-section-${adGroup.id}`}>
               <h4 className={styles.adsSectionTitle}>Keywords (optional)</h4>
-              <div className={styles.fieldGroup}>
-                <label htmlFor={`ad-group-keywords-${adGroup.id}`} className={styles.fieldLabel}>
-                  Keywords<span className={styles.optionalMark}>(optional)</span>
-                </label>
-                <textarea
-                  id={`ad-group-keywords-${adGroup.id}`}
-                  className={styles.textarea}
-                  value={(adGroup.keywords || []).join('\n')}
-                  onChange={(e) => {
-                    const keywords = e.target.value
-                      .split('\n')
-                      .map(k => k.trim())
-                      .filter(k => k.length > 0);
-                    updateAdGroup(adGroup.id, { keywords: keywords.length > 0 ? keywords : undefined });
-                  }}
-                  placeholder="Enter keywords, one per line"
-                  rows={3}
-                  aria-describedby={`ad-group-keywords-hint-${adGroup.id}`}
-                />
-                <p id={`ad-group-keywords-hint-${adGroup.id}`} className={styles.inputHint}>
-                  Enter one keyword per line. Keywords are optional and will be associated with this ad group.
-                </p>
-              </div>
+              <p className={styles.keywordsSectionHint}>
+                Build keywords by combining prefixes, core terms, and suffixes. Use {"{variable}"} syntax for dynamic values.
+              </p>
+              <KeywordCombinator
+                keywords={adGroup.keywords}
+                sampleRow={sampleData?.[0]}
+                onChange={(keywords) => {
+                  updateAdGroup(adGroup.id, { keywords: keywords.length > 0 ? keywords : undefined });
+                }}
+                showPreview={true}
+              />
             </div>
           </div>
         )}
