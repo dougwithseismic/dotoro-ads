@@ -9,6 +9,7 @@ import type {
   Platform,
   BudgetConfig,
   InlineRule,
+  TargetingConfig,
 } from '../types';
 import { WIZARD_STEPS, OPTIONAL_STEPS, validateWizardStep } from '../types';
 
@@ -31,6 +32,8 @@ type WizardAction =
   | { type: 'TOGGLE_PLATFORM'; payload: Platform }
   | { type: 'SET_PLATFORMS'; payload: Platform[] }
   | { type: 'SET_PLATFORM_BUDGET'; payload: { platform: Platform; budget: BudgetConfig | null } }
+  | { type: 'SET_TARGETING_CONFIG'; payload: TargetingConfig | null }
+  | { type: 'UPDATE_TARGETING_CONFIG'; payload: Partial<TargetingConfig> }
   | { type: 'SET_STEP'; payload: WizardStep }
   | { type: 'NEXT_STEP' }
   | { type: 'PREV_STEP' }
@@ -51,6 +54,7 @@ const initialState: WizardState = {
   inlineRules: [],
   selectedPlatforms: [],
   platformBudgets: {} as PlatformBudgetsRecord,
+  targetingConfig: null,
   generateResult: null,
 };
 
@@ -169,6 +173,20 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
         },
       };
 
+    case 'SET_TARGETING_CONFIG':
+      return {
+        ...state,
+        targetingConfig: action.payload,
+      };
+
+    case 'UPDATE_TARGETING_CONFIG':
+      return {
+        ...state,
+        targetingConfig: state.targetingConfig
+          ? { ...state.targetingConfig, ...action.payload }
+          : { ...action.payload },
+      };
+
     case 'SET_STEP':
       return { ...state, currentStep: action.payload };
 
@@ -251,6 +269,15 @@ export function useGenerateWizard() {
     dispatch({ type: 'SET_PLATFORM_BUDGET', payload: { platform, budget } });
   }, []);
 
+  // Targeting config actions
+  const setTargetingConfig = useCallback((config: TargetingConfig | null) => {
+    dispatch({ type: 'SET_TARGETING_CONFIG', payload: config });
+  }, []);
+
+  const updateTargetingConfig = useCallback((config: Partial<TargetingConfig>) => {
+    dispatch({ type: 'UPDATE_TARGETING_CONFIG', payload: config });
+  }, []);
+
   // Navigation actions
   const setStep = useCallback((step: WizardStep) => {
     dispatch({ type: 'SET_STEP', payload: step });
@@ -325,6 +352,9 @@ export function useGenerateWizard() {
     togglePlatform,
     setPlatforms,
     setPlatformBudget,
+    // Targeting
+    setTargetingConfig,
+    updateTargetingConfig,
     // Navigation
     setStep,
     nextStep,

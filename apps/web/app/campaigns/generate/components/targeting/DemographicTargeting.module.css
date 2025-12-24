@@ -1,0 +1,211 @@
+/* DemographicTargeting Component Styles */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fieldLabel {
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(var(--gray-rgb), 0.7);
+}
+
+/* Age inputs */
+.ageRow {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ageInputGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ageInput {
+  width: 80px;
+  padding: 10px 12px;
+  border: 1px solid rgba(var(--gray-rgb), 0.2);
+  border-radius: 8px;
+  background: var(--background);
+  font-family: var(--font-geist-mono);
+  font-size: 14px;
+  color: var(--foreground);
+  text-align: center;
+  transition: border-color 0.15s;
+}
+
+.ageInput:focus {
+  outline: none;
+  border-color: #0070f3;
+}
+
+.ageInput::placeholder {
+  color: rgba(var(--gray-rgb), 0.4);
+}
+
+/* Remove spinner from number inputs */
+.ageInput::-webkit-inner-spin-button,
+.ageInput::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.ageInput[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.ageSeparator {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  color: rgba(var(--gray-rgb), 0.5);
+}
+
+.agePresets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.presetButton {
+  padding: 6px 12px;
+  border: 1px solid rgba(var(--gray-rgb), 0.2);
+  border-radius: 16px;
+  background: transparent;
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  color: rgba(var(--gray-rgb), 0.6);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.presetButton:hover {
+  background: rgba(var(--gray-rgb), 0.05);
+  border-color: rgba(var(--gray-rgb), 0.3);
+  color: var(--foreground);
+}
+
+.presetActive {
+  background: #0070f3;
+  border-color: #0070f3;
+  color: white;
+}
+
+.presetActive:hover {
+  background: #0060df;
+  border-color: #0060df;
+  color: white;
+}
+
+/* Checkbox buttons */
+.checkboxGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.checkboxButton {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid rgba(var(--gray-rgb), 0.2);
+  border-radius: 8px;
+  background: transparent;
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  color: var(--foreground);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.checkboxButton:hover {
+  background: rgba(var(--gray-rgb), 0.03);
+  border-color: rgba(var(--gray-rgb), 0.3);
+}
+
+.checkboxActive {
+  background: rgba(0, 112, 243, 0.05);
+  border-color: #0070f3;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(var(--gray-rgb), 0.3);
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+
+.checkboxActive .checkbox {
+  background: #0070f3;
+  border-color: #0070f3;
+}
+
+.checkbox svg {
+  width: 12px;
+  height: 12px;
+  color: white;
+}
+
+/* Language grid */
+.languageGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 8px;
+}
+
+.languageButton {
+  padding: 8px 12px;
+  border: 1px solid rgba(var(--gray-rgb), 0.2);
+  border-radius: 6px;
+  background: transparent;
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  color: var(--foreground);
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s;
+}
+
+.languageButton:hover {
+  background: rgba(var(--gray-rgb), 0.03);
+  border-color: rgba(var(--gray-rgb), 0.3);
+}
+
+.languageActive {
+  background: rgba(0, 112, 243, 0.1);
+  border-color: #0070f3;
+  color: #0070f3;
+}
+
+.selectedCount {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  color: #0070f3;
+  margin: 4px 0 0;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .checkboxButton:hover {
+    background: rgba(var(--gray-rgb), 0.08);
+  }
+
+  .languageButton:hover {
+    background: rgba(var(--gray-rgb), 0.08);
+  }
+}

@@ -1,3 +1,8 @@
+import type { TargetingConfig } from '@repo/core';
+
+// Re-export TargetingConfig for use in components
+export type { TargetingConfig } from '@repo/core';
+
 // Campaign Builder wizard steps
 export type WizardStep =
   | 'data-source'      // Step 1: Select data source
@@ -6,7 +11,8 @@ export type WizardStep =
   | 'platform'         // Step 4: Multi-platform selection with budget
   | 'ad-type'          // Step 5: Select ad type(s) per platform (NEW)
   | 'hierarchy'        // Step 6: Ad group + ad configuration (keywords at ad group level)
-  | 'preview';         // Step 7: Final preview + generate
+  | 'targeting'        // Step 7: Targeting configuration (optional)
+  | 'preview';         // Step 8: Final preview + generate
 
 // Campaign configuration for the new flow
 // Note: Platform selection has been moved to a separate step (selectedPlatforms in WizardState)
@@ -355,7 +361,9 @@ export interface WizardState {
   selectedPlatforms: Platform[];
   // Per-platform budget configuration (Step 6)
   platformBudgets: Record<Platform, BudgetConfig | null>;
-  // Generation result (Step 7)
+  // Targeting configuration (Step 7 - optional)
+  targetingConfig: TargetingConfig | null;
+  // Generation result (Step 8)
   generateResult: GenerateResponse | null;
 }
 
@@ -366,6 +374,7 @@ export const WIZARD_STEPS: WizardStep[] = [
   'platform',
   'ad-type',
   'hierarchy',
+  'targeting',
   'preview',
 ];
 
@@ -376,11 +385,12 @@ export const STEP_LABELS: Record<WizardStep, string> = {
   'platform': 'Platforms',
   'ad-type': 'Ad Types',
   'hierarchy': 'Ad Structure',
+  'targeting': 'Targeting',
   'preview': 'Preview & Generate',
 };
 
 // Steps that are optional and can be skipped
-export const OPTIONAL_STEPS: WizardStep[] = ['rules'];
+export const OPTIONAL_STEPS: WizardStep[] = ['rules', 'targeting'];
 
 // ============================================================================
 // Thread Configuration Types (Reddit Threads)
@@ -1205,6 +1215,10 @@ export function validateWizardStep(
 
     case 'platform':
       return validatePlatformSelection(state.selectedPlatforms);
+
+    case 'targeting':
+      // Targeting is optional - always valid (validation happens in UI)
+      return { valid: true, errors: [], warnings: [] };
 
     case 'preview':
       // Preview requires all previous steps to be valid
