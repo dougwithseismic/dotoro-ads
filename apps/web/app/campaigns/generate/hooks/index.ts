@@ -6,3 +6,5 @@ export { useAdTypes } from './useAdTypes';
 export type { UseAdTypesOptions, UseAdTypesResult } from './useAdTypes';
 export { useThreadBuilder } from './useThreadBuilder';
 export type { UseThreadBuilderOptions, UseThreadBuilderResult, CommentTreeNode, PreviewData } from './useThreadBuilder';
+export { useAssetUpload } from './useAssetUpload';
+export type { UseAssetUploadOptions, UseAssetUploadResult, AssetUploadStatus, LocalPreview, UploadedAsset } from './useAssetUpload';
