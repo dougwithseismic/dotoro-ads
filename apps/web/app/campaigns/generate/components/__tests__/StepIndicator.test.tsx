@@ -9,16 +9,17 @@ describe("StepIndicator", () => {
     mockOnStepClick.mockClear();
   });
 
-  it("renders all 6 steps", () => {
+  it("renders all 7 steps", () => {
     render(
       <StepIndicator currentStep="data-source" onStepClick={mockOnStepClick} />
     );
 
     expect(screen.getByText("Data Source")).toBeInTheDocument();
-    expect(screen.getByText("Campaign Config")).toBeInTheDocument();
-    expect(screen.getByText("Ad Structure")).toBeInTheDocument();
     expect(screen.getByText("Rules")).toBeInTheDocument();
+    expect(screen.getByText("Campaign Config")).toBeInTheDocument();
     expect(screen.getByText("Platforms")).toBeInTheDocument();
+    expect(screen.getByText("Ad Types")).toBeInTheDocument();
+    expect(screen.getByText("Ad Structure")).toBeInTheDocument();
     expect(screen.getByText("Preview & Generate")).toBeInTheDocument();
   });
 
@@ -38,7 +39,7 @@ describe("StepIndicator", () => {
       <StepIndicator currentStep="hierarchy" onStepClick={mockOnStepClick} />
     );
 
-    // Steps 1, 2, and 3 should be completed (data-source, rules, campaign-config)
+    // Steps 1-5 should be completed (data-source, rules, campaign-config, platform, ad-type)
     expect(
       screen.getByRole("button", { name: /step 1.*data source.*completed/i })
     ).toBeInTheDocument();
@@ -48,10 +49,16 @@ describe("StepIndicator", () => {
     expect(
       screen.getByRole("button", { name: /step 3.*campaign config.*completed/i })
     ).toBeInTheDocument();
-
-    // Step 4 should be current (hierarchy/ad structure)
     expect(
-      screen.getByRole("button", { name: /step 4.*ad structure.*current/i })
+      screen.getByRole("button", { name: /step 4.*platforms.*completed/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /step 5.*ad types.*completed/i })
+    ).toBeInTheDocument();
+
+    // Step 6 should be current (hierarchy/ad structure)
+    expect(
+      screen.getByRole("button", { name: /step 6.*ad structure.*current/i })
     ).toBeInTheDocument();
   });
 
@@ -103,7 +110,7 @@ describe("StepIndicator", () => {
     );
 
     const upcomingStep = screen.getByRole("button", {
-      name: /step 5.*platforms/i,
+      name: /step 4.*platforms/i,
     });
     fireEvent.click(upcomingStep);
 
@@ -137,7 +144,7 @@ describe("StepIndicator", () => {
       <StepIndicator currentStep="campaign-config" onStepClick={mockOnStepClick} />
     );
 
-    // Check various step labels - order: data-source, rules, campaign-config, hierarchy, platform, preview
+    // Check various step labels - order: data-source, rules, campaign-config, platform, ad-type, hierarchy, preview
     expect(
       screen.getByRole("button", { name: /step 1.*data source.*completed/i })
     ).toBeInTheDocument();
@@ -148,13 +155,16 @@ describe("StepIndicator", () => {
       screen.getByRole("button", { name: /step 3.*campaign config.*current/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /step 4.*ad structure/i })
+      screen.getByRole("button", { name: /step 4.*platforms/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /step 5.*platforms/i })
+      screen.getByRole("button", { name: /step 5.*ad types/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /step 6.*preview.*generate/i })
+      screen.getByRole("button", { name: /step 6.*ad structure/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /step 7.*preview.*generate/i })
     ).toBeInTheDocument();
   });
 
@@ -184,7 +194,7 @@ describe("StepIndicator", () => {
     );
 
     const upcomingStep = screen.getByRole("button", {
-      name: /step 5.*platforms/i,
+      name: /step 4.*platforms/i,
     });
 
     fireEvent.keyDown(upcomingStep, { key: "Enter" });

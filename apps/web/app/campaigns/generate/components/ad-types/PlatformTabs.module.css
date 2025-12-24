@@ -1,0 +1,129 @@
+/* PlatformTabs Component Styles */
+
+.tabList {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: rgba(var(--gray-rgb), 0.05);
+  border-radius: 10px;
+  margin-bottom: 24px;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(var(--gray-rgb), 0.6);
+  transition: all 0.15s ease;
+}
+
+.tab:hover {
+  background: rgba(var(--gray-rgb), 0.08);
+  color: var(--foreground);
+}
+
+.tab:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 112, 243, 0.3);
+}
+
+.tabSelected {
+  background: var(--background);
+  color: var(--foreground);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Platform-specific selected colors */
+.tabSelected.tabGoogle {
+  color: #4285f4;
+}
+
+.tabSelected.tabReddit {
+  color: #ff4500;
+}
+
+.tabSelected.tabFacebook {
+  color: #1877f2;
+}
+
+.icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  background: rgba(var(--gray-rgb), 0.08);
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.tabSelected .icon {
+  background: currentColor;
+  color: white;
+}
+
+.name {
+  font-weight: 500;
+}
+
+.countBadge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #0070f3;
+  color: white;
+  border-radius: 10px;
+}
+
+.tabSelected .countBadge {
+  background: currentColor;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .tabList {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .tabList::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tab {
+    flex-shrink: 0;
+    padding: 8px 12px;
+  }
+
+  .name {
+    display: none;
+  }
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .tabList {
+    background: rgba(var(--gray-rgb), 0.08);
+  }
+
+  .tabSelected {
+    background: rgba(var(--gray-rgb), 0.15);
+    box-shadow: none;
+  }
+}

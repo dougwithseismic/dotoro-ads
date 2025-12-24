@@ -1,0 +1,53 @@
+/* AdTypeSelector Component Styles */
+
+.container {
+  width: 100%;
+  max-width: 1200px;
+}
+
+/* Content layout */
+.content {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 24px;
+}
+
+@media (max-width: 1024px) {
+  .content {
+    grid-template-columns: 1fr;
+  }
+}
+
+.gridSection {
+  min-width: 0;
+}
+
+.previewSection {
+  position: sticky;
+  top: 80px;
+  height: fit-content;
+}
+
+@media (max-width: 1024px) {
+  .previewSection {
+    display: none;
+  }
+}
+
+/* Empty State */
+.emptyState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 64px 24px;
+  text-align: center;
+  border: 2px dashed rgba(var(--gray-rgb), 0.2);
+  border-radius: 12px;
+}
+
+.emptyText {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  color: rgba(var(--gray-rgb), 0.5);
+  margin: 0;
+}

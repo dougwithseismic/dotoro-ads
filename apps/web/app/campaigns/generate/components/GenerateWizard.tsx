@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StepIndicator } from "./StepIndicator";
 import { DataSourceSelector } from "./DataSourceSelector";
 import { CampaignConfig } from "./CampaignConfig";
+import { AdTypeSelector } from "./ad-types";
 import { HierarchyConfig } from "./HierarchyConfig";
 import { InlineRuleBuilder } from "./InlineRuleBuilder";
 import { PlatformSelector } from "./PlatformSelector";
@@ -50,6 +51,7 @@ export function GenerateWizard() {
     state,
     setDataSource,
     setCampaignConfig,
+    setSelectedAdTypes,
     setHierarchyConfig,
     toggleRule,
     setRules,
@@ -263,6 +265,17 @@ export function GenerateWizard() {
           }
           break;
         }
+        case "ad-type": {
+          // At least one ad type must be selected
+          const totalSelected = Object.values(state.selectedAdTypes).reduce(
+            (sum, types) => sum + (types?.length || 0),
+            0
+          );
+          if (totalSelected === 0) {
+            return "Please select at least one ad type to continue";
+          }
+          break;
+        }
         case "hierarchy": {
           const hierarchyValidation = validateHierarchyConfig(hierarchyConfig, availableColumns);
           if (!hierarchyValidation.valid) {
@@ -369,6 +382,21 @@ export function GenerateWizard() {
               availableColumns={availableColumns}
               onChange={handleCampaignConfigChange}
               validation={campaignConfig ? getCampaignValidation() : undefined}
+            />
+          </div>
+        );
+
+      case "ad-type":
+        return (
+          <div className={styles.stepContent} data-testid="step-content">
+            <h2 className={styles.stepTitle}>{STEP_LABELS[currentStep]}</h2>
+            <p className={styles.stepDescription}>
+              Select the ad types you want to generate for each platform.
+            </p>
+            <AdTypeSelector
+              selectedPlatforms={state.selectedPlatforms}
+              selectedAdTypes={state.selectedAdTypes}
+              onChange={setSelectedAdTypes}
             />
           </div>
         );

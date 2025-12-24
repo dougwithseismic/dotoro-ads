@@ -15,6 +15,10 @@
     "./creatives": {
       "types": "./dist/creatives/index.d.ts",
       "import": "./dist/creatives/index.js"
+    },
+    "./ad-types": {
+      "types": "./dist/ad-types/index.d.ts",
+      "import": "./dist/ad-types/index.js"
     }
   },
   "main": "./dist/index.js",

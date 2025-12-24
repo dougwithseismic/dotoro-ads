@@ -14,6 +14,8 @@ import { WIZARD_STEPS, OPTIONAL_STEPS, validateWizardStep } from '../types';
 
 // Type for platformBudgets initialization
 type PlatformBudgetsRecord = Record<Platform, BudgetConfig | null>;
+// Type for selectedAdTypes
+type SelectedAdTypesRecord = Record<Platform, string[]>;
 
 // Action types
 type WizardAction =
@@ -25,6 +27,7 @@ type WizardAction =
   | { type: 'TOGGLE_RULE'; payload: string }
   | { type: 'SET_RULES'; payload: string[] }
   | { type: 'SET_INLINE_RULES'; payload: InlineRule[] }
+  | { type: 'SET_SELECTED_AD_TYPES'; payload: SelectedAdTypesRecord }
   | { type: 'TOGGLE_PLATFORM'; payload: Platform }
   | { type: 'SET_PLATFORMS'; payload: Platform[] }
   | { type: 'SET_PLATFORM_BUDGET'; payload: { platform: Platform; budget: BudgetConfig | null } }
@@ -41,6 +44,7 @@ const initialState: WizardState = {
   dataSourceId: null,
   availableColumns: [],
   campaignConfig: null,
+  selectedAdTypes: { google: [], reddit: [], facebook: [] } as SelectedAdTypesRecord,
   hierarchyConfig: null,
   ruleIds: [],
   inlineRules: [],
@@ -135,6 +139,12 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
         inlineRules: action.payload,
       };
 
+    case 'SET_SELECTED_AD_TYPES':
+      return {
+        ...state,
+        selectedAdTypes: action.payload,
+      };
+
     case 'TOGGLE_PLATFORM':
       return {
         ...state,
@@ -222,6 +232,11 @@ export function useGenerateWizard() {
     dispatch({ type: 'SET_INLINE_RULES', payload: rules });
   }, []);
 
+  // Ad type actions
+  const setSelectedAdTypes = useCallback((selectedAdTypes: Record<Platform, string[]>) => {
+    dispatch({ type: 'SET_SELECTED_AD_TYPES', payload: selectedAdTypes });
+  }, []);
+
   // Platform actions
   const togglePlatform = useCallback((platform: Platform) => {
     dispatch({ type: 'TOGGLE_PLATFORM', payload: platform });
@@ -296,6 +311,8 @@ export function useGenerateWizard() {
     // Campaign config
     setCampaignConfig,
     updateCampaignConfig,
+    // Ad types
+    setSelectedAdTypes,
     // Hierarchy config
     setHierarchyConfig,
     updateHierarchyConfig,

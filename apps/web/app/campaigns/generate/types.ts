@@ -2,10 +2,11 @@
 export type WizardStep =
   | 'data-source'      // Step 1: Select data source
   | 'rules'            // Step 2: Filtering/modification rules (optional, now before config)
-  | 'campaign-config'  // Step 3: Campaign name pattern (platform moved to step 5)
-  | 'hierarchy'        // Step 4: Ad group + ad configuration (keywords at ad group level)
-  | 'platform'         // Step 5: Multi-platform selection
-  | 'preview';         // Step 6: Final preview + generate
+  | 'campaign-config'  // Step 3: Campaign name pattern
+  | 'platform'         // Step 4: Multi-platform selection with budget
+  | 'ad-type'          // Step 5: Select ad type(s) per platform (NEW)
+  | 'hierarchy'        // Step 6: Ad group + ad configuration (keywords at ad group level)
+  | 'preview';         // Step 7: Final preview + generate
 
 // Campaign configuration for the new flow
 // Note: Platform selection has been moved to a separate step (selectedPlatforms in WizardState)
@@ -328,6 +329,12 @@ export interface InlineRule {
 }
 
 // Updated wizard state for campaign-first flow
+// Ad Type Selection State (Step 4)
+export interface AdTypeSelectionState {
+  /** Selected ad type IDs per platform: { google: ['responsive-search'], reddit: ['link', 'image'] } */
+  selectedAdTypes: Record<Platform, string[]>;
+}
+
 export interface WizardState {
   currentStep: WizardStep;
   // Data source selection (Step 1)
@@ -338,13 +345,15 @@ export interface WizardState {
   inlineRules: InlineRule[];  // New: inline rule definitions
   // Campaign configuration (Step 3)
   campaignConfig: CampaignConfig | null;
-  // Hierarchy configuration (Step 4) - keywords are now at ad group level
+  // Ad Type selection (Step 4) - per-platform ad type selection
+  selectedAdTypes: Record<Platform, string[]>;
+  // Hierarchy configuration (Step 5) - keywords are now at ad group level
   hierarchyConfig: HierarchyConfig | null;
-  // Platform selection (Step 5 - multi-select)
+  // Platform selection (Step 6 - multi-select)
   selectedPlatforms: Platform[];
-  // Per-platform budget configuration (Step 5)
+  // Per-platform budget configuration (Step 6)
   platformBudgets: Record<Platform, BudgetConfig | null>;
-  // Generation result (Step 6)
+  // Generation result (Step 7)
   generateResult: GenerateResponse | null;
 }
 
@@ -352,17 +361,19 @@ export const WIZARD_STEPS: WizardStep[] = [
   'data-source',
   'rules',
   'campaign-config',
-  'hierarchy',
   'platform',
+  'ad-type',
+  'hierarchy',
   'preview',
 ];
 
 export const STEP_LABELS: Record<WizardStep, string> = {
   'data-source': 'Data Source',
-  'campaign-config': 'Campaign Config',
-  'hierarchy': 'Ad Structure',
   'rules': 'Rules',
+  'campaign-config': 'Campaign Config',
   'platform': 'Platforms',
+  'ad-type': 'Ad Types',
+  'hierarchy': 'Ad Structure',
   'preview': 'Preview & Generate',
 };
 
@@ -920,6 +931,32 @@ export function validateKeywordConfig(
 /**
  * Validates entire wizard state for a specific step
  */
+/**
+ * Validates ad type selection - at least one ad type must be selected
+ */
+export function validateAdTypeSelection(
+  selectedAdTypes: Record<Platform, string[]>
+): ValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  // Count total selected ad types across all platforms
+  const totalSelected = Object.values(selectedAdTypes).reduce(
+    (sum, adTypes) => sum + (adTypes?.length || 0),
+    0
+  );
+
+  if (totalSelected === 0) {
+    errors.push('At least one ad type must be selected');
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings,
+  };
+}
+
 export function validateWizardStep(
   step: WizardStep,
   state: WizardState
@@ -933,6 +970,9 @@ export function validateWizardStep(
 
     case 'campaign-config':
       return validateCampaignConfig(state.campaignConfig, state.availableColumns);
+
+    case 'ad-type':
+      return validateAdTypeSelection(state.selectedAdTypes);
 
     case 'hierarchy':
       return validateHierarchyConfig(state.hierarchyConfig, state.availableColumns);
@@ -951,6 +991,9 @@ export function validateWizardStep(
 
       const campaignResult = validateWizardStep('campaign-config', state);
       if (!campaignResult.valid) return campaignResult;
+
+      const adTypeResult = validateWizardStep('ad-type', state);
+      if (!adTypeResult.valid) return adTypeResult;
 
       const hierarchyResult = validateWizardStep('hierarchy', state);
       if (!hierarchyResult.valid) return hierarchyResult;

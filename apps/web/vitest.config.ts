@@ -25,6 +25,9 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": resolve(__dirname, "./"),
+      "@repo/core/ad-types": resolve(__dirname, "../../packages/core/src/ad-types/index.ts"),
+      "@repo/core/creatives": resolve(__dirname, "../../packages/core/src/creatives/index.ts"),
+      "@repo/core": resolve(__dirname, "../../packages/core/src/index.ts"),
     },
   },
 });
