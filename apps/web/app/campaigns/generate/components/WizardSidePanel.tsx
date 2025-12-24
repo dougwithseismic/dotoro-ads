@@ -4,10 +4,7 @@ import { useMemo } from "react";
 import type {
   WizardStep,
   WizardState,
-  CampaignConfig,
-  HierarchyConfig,
   Platform,
-  BudgetConfig,
 } from "../types";
 import { interpolatePattern, PLATFORM_LIMITS } from "../types";
 import styles from "./WizardSidePanel.module.css";
@@ -16,6 +13,9 @@ interface WizardSidePanelProps {
   currentStep: WizardStep;
   state: WizardState;
   sampleData: Record<string, unknown>[];
+  // Direct props for reactivity - ensures useMemo detects changes
+  campaignConfig: WizardState['campaignConfig'];
+  hierarchyConfig: WizardState['hierarchyConfig'];
 }
 
 // Platform display config
@@ -25,41 +25,113 @@ const PLATFORM_CONFIG: Record<Platform, { label: string; color: string }> = {
   facebook: { label: "Facebook", color: "#1877f2" },
 };
 
+// Types for grouped hierarchy
+interface GroupedAd {
+  headline: string;
+  description: string;
+}
+
+interface GroupedAdGroup {
+  name: string;
+  ads: GroupedAd[];
+}
+
+interface GroupedCampaign {
+  name: string;
+  adGroups: GroupedAdGroup[];
+}
+
 export function WizardSidePanel({
   currentStep,
   state,
   sampleData,
+  campaignConfig,
+  hierarchyConfig,
 }: WizardSidePanelProps) {
-  // Compute preview data based on sample rows
+  // Compute preview data with REAL deduplicated hierarchy (same logic as HierarchyPreview)
+  // Using direct props (campaignConfig, hierarchyConfig) ensures React detects changes properly
   const previewData = useMemo(() => {
     if (!sampleData || sampleData.length === 0) return null;
+    if (!hierarchyConfig?.adGroups?.length) {
+      // Return campaign names only if we have campaign config but no ad groups
+      if (campaignConfig) {
+        const uniqueCampaignNames = new Set<string>();
+        for (const row of sampleData) {
+          const name = interpolatePattern(campaignConfig.namePattern, row);
+          if (name) uniqueCampaignNames.add(name);
+        }
+        return {
+          campaigns: [] as GroupedCampaign[],
+          totalCampaigns: uniqueCampaignNames.size,
+          totalAdGroups: 0,
+          totalAds: 0,
+          sampleCount: sampleData.length,
+          campaignNames: Array.from(uniqueCampaignNames),
+        };
+      }
+      return null;
+    }
 
-    const firstRow = sampleData[0];
-    if (!firstRow) return null;
+    // Build the same hierarchy map as HierarchyPreview
+    // Map: campaignName -> adGroupName -> { ads: GroupedAd[], seenAdKeys: Set<string> }
+    const campaignMap = new Map<string, Map<string, { ads: GroupedAd[]; seenAdKeys: Set<string> }>>();
 
-    // Campaign name preview
-    const campaignName = state.campaignConfig
-      ? interpolatePattern(state.campaignConfig.namePattern, firstRow)
-      : null;
+    for (const row of sampleData) {
+      const campaignName = campaignConfig
+        ? interpolatePattern(campaignConfig.namePattern, row)
+        : '';
 
-    // Ad group previews
-    const adGroups =
-      state.hierarchyConfig?.adGroups.map((ag) => ({
-        name: interpolatePattern(ag.namePattern, firstRow),
-        adCount: ag.ads.length,
-        keywordCount: ag.keywords?.length ?? 0,
-        ads: ag.ads.map((ad) => ({
-          headline: interpolatePattern(ad.headline, firstRow),
-          description: interpolatePattern(ad.description, firstRow),
-        })),
-      })) ?? [];
+      for (const adGroupDef of hierarchyConfig.adGroups) {
+        const adGroupName = interpolatePattern(adGroupDef.namePattern, row);
+
+        if (!campaignMap.has(campaignName)) {
+          campaignMap.set(campaignName, new Map());
+        }
+        const adGroupMap = campaignMap.get(campaignName)!;
+
+        if (!adGroupMap.has(adGroupName)) {
+          adGroupMap.set(adGroupName, { ads: [], seenAdKeys: new Set() });
+        }
+        const adGroupData = adGroupMap.get(adGroupName)!;
+
+        for (const adDef of adGroupDef.ads) {
+          const headline = interpolatePattern(adDef.headline, row);
+          const description = interpolatePattern(adDef.description, row);
+          // Use null character as delimiter to avoid collision with content
+          const adKey = `${headline}\0${description}`;
+
+          if (!adGroupData.seenAdKeys.has(adKey)) {
+            adGroupData.seenAdKeys.add(adKey);
+            adGroupData.ads.push({ headline, description });
+          }
+        }
+      }
+    }
+
+    // Convert to array structure
+    const campaigns: GroupedCampaign[] = [];
+    let totalAdGroups = 0;
+    let totalAds = 0;
+
+    for (const [campaignName, adGroupMap] of campaignMap) {
+      const adGroups: GroupedAdGroup[] = [];
+      for (const [agName, agData] of adGroupMap) {
+        adGroups.push({ name: agName, ads: agData.ads });
+        totalAdGroups++;
+        totalAds += agData.ads.length;
+      }
+      campaigns.push({ name: campaignName, adGroups });
+    }
 
     return {
-      campaignName,
-      adGroups,
+      campaigns,
+      totalCampaigns: campaigns.length,
+      totalAdGroups,
+      totalAds,
       sampleCount: sampleData.length,
+      campaignNames: campaigns.map(c => c.name),
     };
-  }, [sampleData, state.campaignConfig, state.hierarchyConfig]);
+  }, [sampleData, campaignConfig, hierarchyConfig]);
 
   const renderDataSourcePreview = () => (
     <div className={styles.previewSection}>
@@ -118,14 +190,27 @@ export function WizardSidePanel({
   const renderCampaignPreview = () => (
     <div className={styles.previewSection}>
       <h4 className={styles.sectionTitle}>Campaign Preview</h4>
-      {previewData?.campaignName ? (
+      {previewData && previewData.campaignNames.length > 0 ? (
         <>
+          <div className={styles.statRow}>
+            <span className={styles.statLabel}>Unique Campaigns</span>
+            <span className={styles.statValue}>{previewData.totalCampaigns}</span>
+          </div>
           <div className={styles.previewCard}>
-            <span className={styles.previewCardLabel}>Campaign Name</span>
-            <span className={styles.previewCardValue}>{previewData.campaignName}</span>
+            <span className={styles.previewCardLabel}>Campaign Names</span>
+            <div className={styles.campaignNamesList}>
+              {previewData.campaignNames.slice(0, 5).map((name, idx) => (
+                <span key={idx} className={styles.campaignNameItem}>{name}</span>
+              ))}
+              {previewData.campaignNames.length > 5 && (
+                <span className={styles.campaignNameMore}>
+                  +{previewData.campaignNames.length - 5} more
+                </span>
+              )}
+            </div>
           </div>
           <p className={styles.previewNote}>
-            Based on first row of {previewData.sampleCount} sample rows
+            From {previewData.sampleCount} sample rows
           </p>
         </>
       ) : (
@@ -136,41 +221,52 @@ export function WizardSidePanel({
 
   const renderHierarchyPreview = () => (
     <div className={styles.previewSection}>
-      <h4 className={styles.sectionTitle}>Structure Summary</h4>
-      {previewData && previewData.adGroups.length > 0 ? (
+      <h4 className={styles.sectionTitle}>Campaign Structure</h4>
+      {previewData && previewData.campaigns.length > 0 ? (
         <>
           <div className={styles.statsGrid}>
             <div className={styles.statBox}>
-              <span className={styles.statBoxValue}>{previewData.adGroups.length}</span>
+              <span className={styles.statBoxValue}>{previewData.totalCampaigns}</span>
+              <span className={styles.statBoxLabel}>Campaigns</span>
+            </div>
+            <div className={styles.statBox}>
+              <span className={styles.statBoxValue}>{previewData.totalAdGroups}</span>
               <span className={styles.statBoxLabel}>Ad Groups</span>
             </div>
             <div className={styles.statBox}>
-              <span className={styles.statBoxValue}>
-                {previewData.adGroups.reduce((sum, ag) => sum + ag.adCount, 0)}
-              </span>
+              <span className={styles.statBoxValue}>{previewData.totalAds}</span>
               <span className={styles.statBoxLabel}>Ads</span>
             </div>
-            <div className={styles.statBox}>
-              <span className={styles.statBoxValue}>
-                {previewData.adGroups.reduce((sum, ag) => sum + ag.keywordCount, 0)}
-              </span>
-              <span className={styles.statBoxLabel}>Keywords</span>
-            </div>
           </div>
-          <div className={styles.adGroupList}>
-            {previewData.adGroups.slice(0, 3).map((ag, idx) => (
-              <div key={idx} className={styles.adGroupItem}>
-                <span className={styles.adGroupName}>{ag.name || "(empty name)"}</span>
-                <span className={styles.adGroupMeta}>
-                  {ag.adCount} ad{ag.adCount !== 1 ? "s" : ""}
-                  {ag.keywordCount > 0 && `, ${ag.keywordCount} keywords`}
-                </span>
+          <div className={styles.hierarchyTree}>
+            {previewData.campaigns.slice(0, 3).map((campaign, idx) => (
+              <div key={idx} className={styles.campaignNode}>
+                <div className={styles.campaignHeader}>
+                  <span className={styles.nodeIconCampaign}>C</span>
+                  <span className={styles.campaignName}>{campaign.name || "(empty)"}</span>
+                  <span className={styles.nodeCount}>{campaign.adGroups.length} AG</span>
+                </div>
+                <div className={styles.adGroupNodes}>
+                  {campaign.adGroups.slice(0, 2).map((ag, agIdx) => (
+                    <div key={agIdx} className={styles.adGroupNode}>
+                      <span className={styles.nodeIconAdGroup}>AG</span>
+                      <span className={styles.adGroupNodeName}>{ag.name || "(empty)"}</span>
+                      <span className={styles.nodeCount}>{ag.ads.length} ads</span>
+                    </div>
+                  ))}
+                  {campaign.adGroups.length > 2 && (
+                    <div className={styles.moreNodes}>+{campaign.adGroups.length - 2} more</div>
+                  )}
+                </div>
               </div>
             ))}
+            {previewData.campaigns.length > 3 && (
+              <div className={styles.moreNodes}>+{previewData.campaigns.length - 3} more campaigns</div>
+            )}
           </div>
         </>
       ) : (
-        <p className={styles.emptyHint}>Configure ad groups to see summary</p>
+        <p className={styles.emptyHint}>Configure ad groups to see structure</p>
       )}
     </div>
   );

@@ -1,8 +1,56 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import type { CampaignConfig as CampaignConfigType, DataSourceColumn, ValidationResult } from "../types";
 import styles from "./CampaignConfig.module.css";
+
+// Find all variables in text with their positions
+function findVariables(text: string): { start: number; end: number; content: string }[] {
+  const variables: { start: number; end: number; content: string }[] = [];
+  const matches = text.matchAll(/\{[^}]+\}/g);
+  for (const match of matches) {
+    variables.push({
+      start: match.index!,
+      end: match.index! + match[0].length,
+      content: match[0],
+    });
+  }
+  return variables;
+}
+
+// Check if cursor position is inside a variable (not at boundaries)
+function getVariableAtPosition(text: string, pos: number): { start: number; end: number; content: string } | null {
+  const variables = findVariables(text);
+  for (const v of variables) {
+    if (pos > v.start && pos < v.end) {
+      return v;
+    }
+  }
+  return null;
+}
+
+// Get the variable that the cursor would enter when moving left
+function getVariableToLeft(text: string, pos: number): { start: number; end: number; content: string } | null {
+  const variables = findVariables(text);
+  for (const v of variables) {
+    if (pos === v.end) {
+      return v;
+    }
+  }
+  return null;
+}
+
+// Get the variable that the cursor would enter when moving right
+function getVariableToRight(text: string, pos: number): { start: number; end: number; content: string } | null {
+  const variables = findVariables(text);
+  for (const v of variables) {
+    if (pos === v.start) {
+      return v;
+    }
+  }
+  return null;
+}
 
 interface CampaignConfigProps {
   config: CampaignConfigType;
@@ -23,9 +71,22 @@ export function CampaignConfig({
   const [showDropdown, setShowDropdown] = useState(false);
   const [dropdownFilter, setDropdownFilter] = useState("");
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number; width: number } | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Update dropdown position when shown
+  useEffect(() => {
+    if (showDropdown && inputRef.current) {
+      const rect = inputRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + 4, // 4px gap below input
+        left: rect.left,
+        width: rect.width,
+      });
+    }
+  }, [showDropdown]);
 
   // Sync local state with props when config changes from parent
   useEffect(() => {
@@ -121,35 +182,140 @@ export function CampaignConfig({
     }, 0);
   }, [config, localNamePattern, onChange]);
 
-  // Handle keyboard navigation in dropdown
+  // Handle keyboard navigation - both dropdown and atomic variable behavior
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!showDropdown) return;
+    const input = e.currentTarget;
+    const value = input.value;
+    const pos = input.selectionStart ?? 0;
+    const selEnd = input.selectionEnd ?? pos;
+    const hasSelection = pos !== selEnd;
 
+    // Handle dropdown navigation when open
+    if (showDropdown) {
+      switch (e.key) {
+        case "ArrowDown":
+          e.preventDefault();
+          setHighlightedIndex(prev =>
+            Math.min(prev + 1, filteredColumns.length - 1)
+          );
+          return;
+        case "ArrowUp":
+          e.preventDefault();
+          setHighlightedIndex(prev => Math.max(prev - 1, 0));
+          return;
+        case "Enter":
+          e.preventDefault();
+          if (highlightedIndex >= 0 && filteredColumns[highlightedIndex]) {
+            selectVariable(filteredColumns[highlightedIndex].name);
+          }
+          return;
+        case "Escape":
+          e.preventDefault();
+          setShowDropdown(false);
+          setDropdownFilter("");
+          setHighlightedIndex(-1);
+          return;
+      }
+    }
+
+    // Atomic variable handling - make variables behave as single units
     switch (e.key) {
-      case "ArrowDown":
-        e.preventDefault();
-        setHighlightedIndex(prev =>
-          Math.min(prev + 1, filteredColumns.length - 1)
-        );
-        break;
-      case "ArrowUp":
-        e.preventDefault();
-        setHighlightedIndex(prev => Math.max(prev - 1, 0));
-        break;
-      case "Enter":
-        e.preventDefault();
-        if (highlightedIndex >= 0 && filteredColumns[highlightedIndex]) {
-          selectVariable(filteredColumns[highlightedIndex].name);
+      case "ArrowLeft": {
+        if (hasSelection) return;
+        const varToLeft = getVariableToLeft(value, pos);
+        if (varToLeft) {
+          e.preventDefault();
+          input.setSelectionRange(varToLeft.start, varToLeft.start);
+        }
+        const varInside = getVariableAtPosition(value, pos);
+        if (varInside) {
+          e.preventDefault();
+          input.setSelectionRange(varInside.start, varInside.start);
         }
         break;
-      case "Escape":
-        e.preventDefault();
-        setShowDropdown(false);
-        setDropdownFilter("");
-        setHighlightedIndex(-1);
+      }
+      case "ArrowRight": {
+        if (hasSelection) return;
+        const varToRight = getVariableToRight(value, pos);
+        if (varToRight) {
+          e.preventDefault();
+          input.setSelectionRange(varToRight.end, varToRight.end);
+        }
+        const varInside = getVariableAtPosition(value, pos);
+        if (varInside) {
+          e.preventDefault();
+          input.setSelectionRange(varInside.end, varInside.end);
+        }
         break;
+      }
+      case "Backspace": {
+        if (hasSelection) return;
+        const varToLeft = getVariableToLeft(value, pos);
+        if (varToLeft) {
+          e.preventDefault();
+          const newValue = value.slice(0, varToLeft.start) + value.slice(varToLeft.end);
+          setLocalNamePattern(newValue);
+          onChange({ ...config, namePattern: newValue });
+          setTimeout(() => {
+            input.setSelectionRange(varToLeft.start, varToLeft.start);
+          }, 0);
+        }
+        const varInside = getVariableAtPosition(value, pos);
+        if (varInside) {
+          e.preventDefault();
+          const newValue = value.slice(0, varInside.start) + value.slice(varInside.end);
+          setLocalNamePattern(newValue);
+          onChange({ ...config, namePattern: newValue });
+          setTimeout(() => {
+            input.setSelectionRange(varInside.start, varInside.start);
+          }, 0);
+        }
+        break;
+      }
+      case "Delete": {
+        if (hasSelection) return;
+        const varToRight = getVariableToRight(value, pos);
+        if (varToRight) {
+          e.preventDefault();
+          const newValue = value.slice(0, varToRight.start) + value.slice(varToRight.end);
+          setLocalNamePattern(newValue);
+          onChange({ ...config, namePattern: newValue });
+        }
+        const varInside = getVariableAtPosition(value, pos);
+        if (varInside) {
+          e.preventDefault();
+          const newValue = value.slice(0, varInside.start) + value.slice(varInside.end);
+          setLocalNamePattern(newValue);
+          onChange({ ...config, namePattern: newValue });
+          setTimeout(() => {
+            input.setSelectionRange(varInside.start, varInside.start);
+          }, 0);
+        }
+        break;
+      }
     }
-  }, [showDropdown, filteredColumns, highlightedIndex, selectVariable]);
+  }, [showDropdown, filteredColumns, highlightedIndex, selectVariable, config, onChange]);
+
+  // Handle click on input to prevent cursor landing inside variables
+  const handleInputClick = useCallback((e: React.MouseEvent<HTMLInputElement>) => {
+    const input = e.currentTarget;
+    // Use setTimeout to let the browser set cursor position first
+    setTimeout(() => {
+      const pos = input.selectionStart ?? 0;
+      const selEnd = input.selectionEnd ?? pos;
+
+      // If there's a selection, don't interfere
+      if (pos !== selEnd) return;
+
+      const value = input.value;
+      const varInside = getVariableAtPosition(value, pos);
+
+      if (varInside) {
+        // Snap cursor to the end of the variable
+        input.setSelectionRange(varInside.end, varInside.end);
+      }
+    }, 0);
+  }, []);
 
   // Check if name pattern has validation errors
   const hasNamePatternError = validation?.errors.some(
@@ -177,17 +343,24 @@ export function CampaignConfig({
             value={localNamePattern}
             onChange={(e) => handleInputChange(e.target.value)}
             onKeyDown={handleKeyDown}
+            onClick={handleInputClick}
             placeholder="{brand_name}-performance-{region}"
             aria-label="Campaign name pattern"
             aria-describedby="name-pattern-hint"
             aria-invalid={hasNamePatternError}
           />
 
-          {/* Variable autocomplete dropdown */}
-          {showDropdown && (
+          {/* Variable autocomplete dropdown - rendered in portal to avoid overflow clipping */}
+          {showDropdown && dropdownPosition && typeof document !== 'undefined' && createPortal(
             <div
               ref={dropdownRef}
-              className={styles.dropdown}
+              className={styles.dropdownPortal}
+              style={{
+                position: 'fixed',
+                top: dropdownPosition.top,
+                left: dropdownPosition.left,
+                width: dropdownPosition.width,
+              }}
               data-testid="variable-dropdown"
               role="listbox"
               aria-label="Available variables"
@@ -215,7 +388,8 @@ export function CampaignConfig({
               ) : (
                 <div className={styles.dropdownEmpty}>No matching variables</div>
               )}
-            </div>
+            </div>,
+            document.body
           )}
         </div>
 

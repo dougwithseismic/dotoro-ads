@@ -8,6 +8,7 @@ import type {
   DataSourceColumn,
   Platform,
   BudgetConfig,
+  InlineRule,
 } from '../types';
 import { WIZARD_STEPS, OPTIONAL_STEPS, validateWizardStep } from '../types';
 
@@ -23,6 +24,7 @@ type WizardAction =
   | { type: 'UPDATE_HIERARCHY_CONFIG'; payload: Partial<HierarchyConfig> }
   | { type: 'TOGGLE_RULE'; payload: string }
   | { type: 'SET_RULES'; payload: string[] }
+  | { type: 'SET_INLINE_RULES'; payload: InlineRule[] }
   | { type: 'TOGGLE_PLATFORM'; payload: Platform }
   | { type: 'SET_PLATFORMS'; payload: Platform[] }
   | { type: 'SET_PLATFORM_BUDGET'; payload: { platform: Platform; budget: BudgetConfig | null } }
@@ -41,6 +43,7 @@ const initialState: WizardState = {
   campaignConfig: null,
   hierarchyConfig: null,
   ruleIds: [],
+  inlineRules: [],
   selectedPlatforms: [],
   platformBudgets: {} as PlatformBudgetsRecord,
   generateResult: null,
@@ -126,6 +129,12 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
         ruleIds: action.payload,
       };
 
+    case 'SET_INLINE_RULES':
+      return {
+        ...state,
+        inlineRules: action.payload,
+      };
+
     case 'TOGGLE_PLATFORM':
       return {
         ...state,
@@ -209,6 +218,10 @@ export function useGenerateWizard() {
     dispatch({ type: 'SET_RULES', payload: ruleIds });
   }, []);
 
+  const setInlineRules = useCallback((rules: InlineRule[]) => {
+    dispatch({ type: 'SET_INLINE_RULES', payload: rules });
+  }, []);
+
   // Platform actions
   const togglePlatform = useCallback((platform: Platform) => {
     dispatch({ type: 'TOGGLE_PLATFORM', payload: platform });
@@ -289,6 +302,7 @@ export function useGenerateWizard() {
     // Rules
     toggleRule,
     setRules,
+    setInlineRules,
     // Platforms
     togglePlatform,
     setPlatforms,

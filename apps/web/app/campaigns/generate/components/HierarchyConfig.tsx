@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import type {
   HierarchyConfig as HierarchyConfigType,
   CampaignConfig as CampaignConfigType,
@@ -17,6 +18,56 @@ import {
 } from "../types";
 import { KeywordCombinator } from "./KeywordCombinator";
 import styles from "./HierarchyConfig.module.css";
+
+// Find all variables in text with their positions
+function findVariables(text: string): { start: number; end: number; content: string }[] {
+  const variables: { start: number; end: number; content: string }[] = [];
+  const matches = text.matchAll(/\{[^}]+\}/g);
+  for (const match of matches) {
+    variables.push({
+      start: match.index!,
+      end: match.index! + match[0].length,
+      content: match[0],
+    });
+  }
+  return variables;
+}
+
+// Check if cursor position is inside a variable (not at boundaries)
+function getVariableAtPosition(text: string, pos: number): { start: number; end: number; content: string } | null {
+  const variables = findVariables(text);
+  for (const v of variables) {
+    // Inside the variable (exclusive of boundaries for typing)
+    if (pos > v.start && pos < v.end) {
+      return v;
+    }
+  }
+  return null;
+}
+
+// Get the variable that the cursor would enter when moving left
+function getVariableToLeft(text: string, pos: number): { start: number; end: number; content: string } | null {
+  const variables = findVariables(text);
+  for (const v of variables) {
+    // Cursor is at the end of this variable
+    if (pos === v.end) {
+      return v;
+    }
+  }
+  return null;
+}
+
+// Get the variable that the cursor would enter when moving right
+function getVariableToRight(text: string, pos: number): { start: number; end: number; content: string } | null {
+  const variables = findVariables(text);
+  for (const v of variables) {
+    // Cursor is at the start of this variable
+    if (pos === v.start) {
+      return v;
+    }
+  }
+  return null;
+}
 
 // Helper to create a deep copy of ad groups for local state
 function cloneAdGroups(adGroups: AdGroupDefinition[]): AdGroupDefinition[] {
@@ -74,27 +125,17 @@ export function HierarchyConfig({
     return cloneAdGroups(config.adGroups);
   });
 
-  // Refs to handle setTimeout cleanup and prevent race conditions
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Ref to track if component is mounted (for queueMicrotask safety)
   const isMountedRef = useRef(true);
-  const pendingChangesRef = useRef<{ adGroups: AdGroupDefinition[] } | null>(null);
 
-  // Use ref pattern to avoid onChange in deps and allow cleanup to access latest onChange
+  // Use ref pattern to avoid onChange in deps
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
-  // Cleanup on unmount - flush pending changes to prevent data loss
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-      // Flush pending changes to parent before unmount
-      if (pendingChangesRef.current) {
-        onChangeRef.current(pendingChangesRef.current);
-        pendingChangesRef.current = null;
-      }
     };
   }, []);
 
@@ -130,9 +171,8 @@ export function HierarchyConfig({
   const [dropdownFilter, setDropdownFilter] = useState("");
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [activeInputField, setActiveInputField] = useState<InputField | null>(null);
+  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number; width: number } | null>(null);
 
-  // Separate search query for explicit search input in dropdown
-  const [searchQuery, setSearchQuery] = useState("");
 
   // Expanded state for ad groups
   const [expandedAdGroups, setExpandedAdGroups] = useState<Set<string>>(() => {
@@ -148,16 +188,14 @@ export function HierarchyConfig({
   const inputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Filter columns based on partial variable input and explicit search query
+  // Filter columns based on partial variable input (typing after {)
   const filteredColumns = useMemo(() => {
-    // Combine both filters - dropdownFilter is from typing after {, searchQuery is from search input
-    const combinedFilter = searchQuery || dropdownFilter;
-    if (!combinedFilter) return availableColumns;
-    const lowerFilter = combinedFilter.toLowerCase();
+    if (!dropdownFilter) return availableColumns;
+    const lowerFilter = dropdownFilter.toLowerCase();
     return availableColumns.filter((col) =>
       col.name.toLowerCase().includes(lowerFilter)
     );
-  }, [availableColumns, dropdownFilter, searchQuery]);
+  }, [availableColumns, dropdownFilter]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -170,7 +208,6 @@ export function HierarchyConfig({
       ) {
         setShowDropdown(false);
         setDropdownFilter("");
-        setSearchQuery("");
         setHighlightedIndex(-1);
       }
     };
@@ -194,6 +231,22 @@ export function HierarchyConfig({
         return `ad-${field.adGroupId}-${field.adId}-finalUrl`;
     }
   }, []);
+
+  // Update dropdown position when shown, based on active input
+  useEffect(() => {
+    if (showDropdown && activeInputField) {
+      const refKey = getRefKey(activeInputField);
+      const inputEl = inputRefs.current.get(refKey);
+      if (inputEl) {
+        const rect = inputEl.getBoundingClientRect();
+        setDropdownPosition({
+          top: rect.bottom + 4,
+          left: rect.left,
+          width: rect.width,
+        });
+      }
+    }
+  }, [showDropdown, activeInputField, getRefKey]);
 
   // Get current value for active input
   const getCurrentValue = useCallback((field: InputField | null): string => {
@@ -227,27 +280,24 @@ export function HierarchyConfig({
     }
   }, [effectiveConfig.adGroups]);
 
-  // Update ad group - updates local state first, then notifies parent
+  // Update ad group - updates local state and notifies parent immediately
   const updateAdGroup = useCallback((adGroupId: string, updates: Partial<AdGroupDefinition>) => {
     setLocalAdGroups(prevAdGroups => {
       const newAdGroups = prevAdGroups.map(ag =>
         ag.id === adGroupId ? { ...ag, ...updates } : ag
       );
-      // Store pending changes for potential flush on unmount
-      pendingChangesRef.current = { adGroups: newAdGroups };
-      // Notify parent asynchronously to prevent state conflicts
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      timeoutRef.current = setTimeout(() => {
+      // Notify parent immediately for real-time preview updates
+      // Using queueMicrotask to batch with React's state update cycle
+      queueMicrotask(() => {
         if (isMountedRef.current) {
           onChangeRef.current({ adGroups: newAdGroups });
-          pendingChangesRef.current = null;
         }
-      }, 0);
+      });
       return newAdGroups;
     });
   }, []);
 
-  // Update ad within an ad group - updates local state first, then notifies parent
+  // Update ad within an ad group - updates local state and notifies parent immediately
   const updateAd = useCallback((adGroupId: string, adId: string, updates: Partial<AdDefinition>) => {
     setLocalAdGroups(prevAdGroups => {
       const newAdGroups = prevAdGroups.map(ag => {
@@ -257,55 +307,43 @@ export function HierarchyConfig({
         );
         return { ...ag, ads: newAds };
       });
-      // Store pending changes for potential flush on unmount
-      pendingChangesRef.current = { adGroups: newAdGroups };
-      // Notify parent asynchronously to prevent state conflicts
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      timeoutRef.current = setTimeout(() => {
+      // Notify parent immediately for real-time preview updates
+      queueMicrotask(() => {
         if (isMountedRef.current) {
           onChangeRef.current({ adGroups: newAdGroups });
-          pendingChangesRef.current = null;
         }
-      }, 0);
+      });
       return newAdGroups;
     });
   }, []);
 
-  // Add new ad group - updates local state first, then notifies parent
+  // Add new ad group - updates local state and notifies parent immediately
   const addAdGroup = useCallback(() => {
     const newAdGroup = createDefaultAdGroup();
     setLocalAdGroups(prevAdGroups => {
       const newAdGroups = [...prevAdGroups, newAdGroup];
-      // Store pending changes for potential flush on unmount
-      pendingChangesRef.current = { adGroups: newAdGroups };
-      // Notify parent asynchronously
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      timeoutRef.current = setTimeout(() => {
+      // Notify parent immediately
+      queueMicrotask(() => {
         if (isMountedRef.current) {
           onChangeRef.current({ adGroups: newAdGroups });
-          pendingChangesRef.current = null;
         }
-      }, 0);
+      });
       return newAdGroups;
     });
     setExpandedAdGroups(prev => new Set([...prev, newAdGroup.id]));
   }, []);
 
-  // Remove ad group - updates local state first, then notifies parent
+  // Remove ad group - updates local state and notifies parent immediately
   const removeAdGroup = useCallback((adGroupId: string) => {
     setLocalAdGroups(prevAdGroups => {
       if (prevAdGroups.length <= 1) return prevAdGroups; // Keep at least one
       const newAdGroups = prevAdGroups.filter(ag => ag.id !== adGroupId);
-      // Store pending changes for potential flush on unmount
-      pendingChangesRef.current = { adGroups: newAdGroups };
-      // Notify parent asynchronously
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      timeoutRef.current = setTimeout(() => {
+      // Notify parent immediately
+      queueMicrotask(() => {
         if (isMountedRef.current) {
           onChangeRef.current({ adGroups: newAdGroups });
-          pendingChangesRef.current = null;
         }
-      }, 0);
+      });
       return newAdGroups;
     });
     setExpandedAdGroups(prev => {
@@ -315,7 +353,7 @@ export function HierarchyConfig({
     });
   }, []);
 
-  // Add new ad to an ad group - updates local state first, then notifies parent
+  // Add new ad to an ad group - updates local state and notifies parent immediately
   const addAd = useCallback((adGroupId: string) => {
     const newAd = createDefaultAd();
     setLocalAdGroups(prevAdGroups => {
@@ -323,21 +361,17 @@ export function HierarchyConfig({
         if (ag.id !== adGroupId) return ag;
         return { ...ag, ads: [...ag.ads, newAd] };
       });
-      // Store pending changes for potential flush on unmount
-      pendingChangesRef.current = { adGroups: newAdGroups };
-      // Notify parent asynchronously
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      timeoutRef.current = setTimeout(() => {
+      // Notify parent immediately
+      queueMicrotask(() => {
         if (isMountedRef.current) {
           onChangeRef.current({ adGroups: newAdGroups });
-          pendingChangesRef.current = null;
         }
-      }, 0);
+      });
       return newAdGroups;
     });
   }, []);
 
-  // Remove ad from an ad group - updates local state first, then notifies parent
+  // Remove ad from an ad group - updates local state and notifies parent immediately
   const removeAd = useCallback((adGroupId: string, adId: string) => {
     setLocalAdGroups(prevAdGroups => {
       const newAdGroups = prevAdGroups.map(ag => {
@@ -345,16 +379,12 @@ export function HierarchyConfig({
         if (ag.ads.length <= 1) return ag; // Keep at least one
         return { ...ag, ads: ag.ads.filter(ad => ad.id !== adId) };
       });
-      // Store pending changes for potential flush on unmount
-      pendingChangesRef.current = { adGroups: newAdGroups };
-      // Notify parent asynchronously
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      timeoutRef.current = setTimeout(() => {
+      // Notify parent immediately
+      queueMicrotask(() => {
         if (isMountedRef.current) {
           onChangeRef.current({ adGroups: newAdGroups });
-          pendingChangesRef.current = null;
         }
-      }, 0);
+      });
       return newAdGroups;
     });
   }, []);
@@ -452,7 +482,6 @@ export function HierarchyConfig({
 
     setShowDropdown(false);
     setDropdownFilter("");
-    setSearchQuery("");
     setHighlightedIndex(-1);
 
     // Restore focus and set cursor position
@@ -463,34 +492,128 @@ export function HierarchyConfig({
     }, 0);
   }, [activeInputField, getRefKey, getCurrentValue, updateAdGroup, updateAd]);
 
-  // Handle keyboard navigation in dropdown
+  // Handle keyboard navigation - both dropdown and atomic variable behavior
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!showDropdown) return;
+    const input = e.currentTarget;
+    const value = input.value;
+    const pos = input.selectionStart ?? 0;
+    const selEnd = input.selectionEnd ?? pos;
+    const hasSelection = pos !== selEnd;
 
+    // Handle dropdown navigation when open
+    if (showDropdown) {
+      switch (e.key) {
+        case "ArrowDown":
+          e.preventDefault();
+          setHighlightedIndex((prev) =>
+            Math.min(prev + 1, filteredColumns.length - 1)
+          );
+          return;
+        case "ArrowUp":
+          e.preventDefault();
+          setHighlightedIndex((prev) => Math.max(prev - 1, 0));
+          return;
+        case "Enter":
+          e.preventDefault();
+          if (highlightedIndex >= 0 && filteredColumns[highlightedIndex]) {
+            selectVariable(filteredColumns[highlightedIndex].name);
+          }
+          return;
+        case "Escape":
+          e.preventDefault();
+          setShowDropdown(false);
+          setDropdownFilter("");
+          setHighlightedIndex(-1);
+          return;
+      }
+    }
+
+    // Atomic variable handling - make variables behave as single units
     switch (e.key) {
-      case "ArrowDown":
-        e.preventDefault();
-        setHighlightedIndex((prev) =>
-          Math.min(prev + 1, filteredColumns.length - 1)
-        );
-        break;
-      case "ArrowUp":
-        e.preventDefault();
-        setHighlightedIndex((prev) => Math.max(prev - 1, 0));
-        break;
-      case "Enter":
-        e.preventDefault();
-        if (highlightedIndex >= 0 && filteredColumns[highlightedIndex]) {
-          selectVariable(filteredColumns[highlightedIndex].name);
+      case "ArrowLeft": {
+        if (hasSelection) return; // Let default handle selection collapse
+        // Check if we're about to enter a variable from the right
+        const varToLeft = getVariableToLeft(value, pos);
+        if (varToLeft) {
+          e.preventDefault();
+          input.setSelectionRange(varToLeft.start, varToLeft.start);
+        }
+        // Check if we're inside a variable (shouldn't happen but safety check)
+        const varInside = getVariableAtPosition(value, pos);
+        if (varInside) {
+          e.preventDefault();
+          input.setSelectionRange(varInside.start, varInside.start);
         }
         break;
-      case "Escape":
-        e.preventDefault();
-        setShowDropdown(false);
-        setDropdownFilter("");
-        setSearchQuery("");
-        setHighlightedIndex(-1);
+      }
+      case "ArrowRight": {
+        if (hasSelection) return; // Let default handle selection collapse
+        // Check if we're about to enter a variable from the left
+        const varToRight = getVariableToRight(value, pos);
+        if (varToRight) {
+          e.preventDefault();
+          input.setSelectionRange(varToRight.end, varToRight.end);
+        }
+        // Check if we're inside a variable
+        const varInside = getVariableAtPosition(value, pos);
+        if (varInside) {
+          e.preventDefault();
+          input.setSelectionRange(varInside.end, varInside.end);
+        }
         break;
+      }
+      case "Backspace": {
+        if (hasSelection) return; // Let default handle selection delete
+        // Check if backspace would delete part of a variable
+        const varToLeft = getVariableToLeft(value, pos);
+        if (varToLeft) {
+          e.preventDefault();
+          // Delete the entire variable
+          const newValue = value.slice(0, varToLeft.start) + value.slice(varToLeft.end);
+          input.value = newValue;
+          input.setSelectionRange(varToLeft.start, varToLeft.start);
+          // Trigger onChange
+          const event = new Event('input', { bubbles: true });
+          input.dispatchEvent(event);
+        }
+        // Check if we're inside a variable
+        const varInside = getVariableAtPosition(value, pos);
+        if (varInside) {
+          e.preventDefault();
+          const newValue = value.slice(0, varInside.start) + value.slice(varInside.end);
+          input.value = newValue;
+          input.setSelectionRange(varInside.start, varInside.start);
+          const event = new Event('input', { bubbles: true });
+          input.dispatchEvent(event);
+        }
+        break;
+      }
+      case "Delete": {
+        if (hasSelection) return; // Let default handle selection delete
+        // Check if delete would delete part of a variable
+        const varToRight = getVariableToRight(value, pos);
+        if (varToRight) {
+          e.preventDefault();
+          // Delete the entire variable
+          const newValue = value.slice(0, varToRight.start) + value.slice(varToRight.end);
+          input.value = newValue;
+          input.setSelectionRange(varToRight.start, varToRight.start);
+          // Trigger onChange
+          const event = new Event('input', { bubbles: true });
+          input.dispatchEvent(event);
+        }
+        // Check if we're inside a variable
+        const varInside = getVariableAtPosition(value, pos);
+        if (varInside) {
+          e.preventDefault();
+          const newValue = value.slice(0, varInside.start) + value.slice(varInside.end);
+          input.value = newValue;
+          input.setSelectionRange(varInside.start, varInside.start);
+          const event = new Event('input', { bubbles: true });
+          input.dispatchEvent(event);
+        }
+        break;
+      }
     }
   }, [showDropdown, filteredColumns, highlightedIndex, selectVariable]);
 
@@ -586,75 +709,60 @@ export function HierarchyConfig({
   const hasErrors = validation && validation.errors.length > 0;
   const hasWarnings = validation && validation.warnings.length > 0;
 
-  // Helper to check if a field has an error
-  const hasFieldError = useCallback((field: string) => {
+  // Helper to check if a specific ad field has an error
+  // Checks that BOTH the ad identifier AND field name appear in the SAME error message
+  const hasAdFieldError = useCallback((adGroupIndex: number, adIndex: number, fieldName: string) => {
     if (!validation) return false;
-    return validation.errors.some(e => e.toLowerCase().includes(field.toLowerCase()));
+    const adGroupPrefix = `ad group ${adGroupIndex + 1}`;
+    const adPrefix = `ad ${adIndex + 1}`;
+    const fieldLower = fieldName.toLowerCase();
+
+    return validation.errors.some(e => {
+      const errorLower = e.toLowerCase();
+      // Check that this error is specifically about this ad group, ad, and field
+      return errorLower.includes(adGroupPrefix) &&
+             errorLower.includes(adPrefix) &&
+             errorLower.includes(fieldLower);
+    });
   }, [validation]);
 
-  // Handle search input keydown to prevent event bubbling
-  const handleSearchKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setHighlightedIndex((prev) =>
-        Math.min(prev + 1, filteredColumns.length - 1)
-      );
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setHighlightedIndex((prev) => Math.max(prev - 1, 0));
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      if (highlightedIndex >= 0 && filteredColumns[highlightedIndex]) {
-        selectVariable(filteredColumns[highlightedIndex].name);
-      }
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      setShowDropdown(false);
-      setDropdownFilter("");
-      setSearchQuery("");
-      setHighlightedIndex(-1);
-    }
-  }, [filteredColumns, highlightedIndex, selectVariable]);
+  // Legacy helper for ad group level errors (name pattern)
+  const hasAdGroupFieldError = useCallback((adGroupIndex: number, fieldName: string) => {
+    if (!validation) return false;
+    const adGroupPrefix = `ad group ${adGroupIndex + 1}`;
+    const fieldLower = fieldName.toLowerCase();
+
+    return validation.errors.some(e => {
+      const errorLower = e.toLowerCase();
+      return errorLower.includes(adGroupPrefix) && errorLower.includes(fieldLower);
+    });
+  }, [validation]);
 
   // Render variable dropdown
   const renderDropdown = (field: InputField) => {
-    if (!showDropdown || !activeInputField) return null;
+    if (!showDropdown || !activeInputField || !dropdownPosition) return null;
+    if (typeof document === 'undefined') return null;
 
     // Check if this is the active field
     const activeKey = getRefKey(activeInputField);
     const fieldKey = getRefKey(field);
     if (activeKey !== fieldKey) return null;
 
-    // Show search when there are many columns
-    const showSearch = availableColumns.length > 5;
-
-    return (
+    // Render in portal to avoid overflow:hidden clipping
+    return createPortal(
       <div
         ref={dropdownRef}
-        className={styles.dropdown}
+        className={styles.dropdownPortal}
+        style={{
+          position: 'fixed',
+          top: dropdownPosition.top,
+          left: dropdownPosition.left,
+          width: dropdownPosition.width,
+        }}
         data-testid="variable-dropdown"
         role="listbox"
         aria-label="Available variables"
       >
-        {/* Search input for filtering variables */}
-        {showSearch && (
-          <div className={styles.dropdownSearch}>
-            <input
-              type="text"
-              className={styles.dropdownSearchInput}
-              placeholder="Search variables..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setHighlightedIndex(-1);
-              }}
-              onKeyDown={handleSearchKeyDown}
-              data-testid="variable-search-input"
-              aria-label="Search variables"
-              autoFocus
-            />
-          </div>
-        )}
         <div className={styles.dropdownOptions}>
           {filteredColumns.length > 0 ? (
             filteredColumns.map((col, index) => (
@@ -682,12 +790,34 @@ export function HierarchyConfig({
             <div className={styles.dropdownEmpty}>No matching variables</div>
           )}
         </div>
-      </div>
+      </div>,
+      document.body
     );
   };
 
+  // Handle click on input to prevent cursor landing inside variables
+  const handleInputClick = useCallback((e: React.MouseEvent<HTMLInputElement>) => {
+    const input = e.currentTarget;
+    // Use setTimeout to let the browser set cursor position first
+    setTimeout(() => {
+      const pos = input.selectionStart ?? 0;
+      const selEnd = input.selectionEnd ?? pos;
+
+      // If there's a selection, don't interfere
+      if (pos !== selEnd) return;
+
+      const value = input.value;
+      const varInside = getVariableAtPosition(value, pos);
+
+      if (varInside) {
+        // Snap cursor to the end of the variable
+        input.setSelectionRange(varInside.end, varInside.end);
+      }
+    }, 0);
+  }, []);
+
   // Render a single ad form
-  const renderAdForm = (adGroup: AdGroupDefinition, ad: AdDefinition, adIndex: number) => {
+  const renderAdForm = (adGroup: AdGroupDefinition, ad: AdDefinition, adGroupIndex: number, adIndex: number) => {
     const headlineField: InputField = { type: "headline", adGroupId: adGroup.id, adId: ad.id };
     const descriptionField: InputField = { type: "description", adGroupId: adGroup.id, adId: ad.id };
     const displayUrlField: InputField = { type: "displayUrl", adGroupId: adGroup.id, adId: ad.id };
@@ -723,10 +853,11 @@ export function HierarchyConfig({
                 ref={(el) => { if (el) inputRefs.current.set(getRefKey(headlineField), el); }}
                 id={`ad-headline-${ad.id}`}
                 type="text"
-                className={`${styles.input} ${hasFieldError(`ad ${adIndex + 1}`) && hasFieldError("headline") ? styles.inputInvalid : ""}`}
+                className={`${styles.input} ${hasAdFieldError(adGroupIndex, adIndex, "headline") ? styles.inputInvalid : ""}`}
                 value={ad.headline}
                 onChange={(e) => handleInputChange(e.target.value, headlineField, e.target)}
                 onKeyDown={handleKeyDown}
+                onClick={handleInputClick}
                 placeholder="{headline}"
                 aria-label="Headline"
               />
@@ -744,10 +875,11 @@ export function HierarchyConfig({
                 ref={(el) => { if (el) inputRefs.current.set(getRefKey(descriptionField), el); }}
                 id={`ad-description-${ad.id}`}
                 type="text"
-                className={`${styles.input} ${hasFieldError(`ad ${adIndex + 1}`) && hasFieldError("description") ? styles.inputInvalid : ""}`}
+                className={`${styles.input} ${hasAdFieldError(adGroupIndex, adIndex, "description") ? styles.inputInvalid : ""}`}
                 value={ad.description}
                 onChange={(e) => handleInputChange(e.target.value, descriptionField, e.target)}
                 onKeyDown={handleKeyDown}
+                onClick={handleInputClick}
                 placeholder="{description}"
                 aria-label="Description"
               />
@@ -769,6 +901,7 @@ export function HierarchyConfig({
                 value={ad.displayUrl ?? ""}
                 onChange={(e) => handleInputChange(e.target.value, displayUrlField, e.target)}
                 onKeyDown={handleKeyDown}
+                onClick={handleInputClick}
                 placeholder="{display_url}"
                 aria-label="Display URL"
               />
@@ -790,6 +923,7 @@ export function HierarchyConfig({
                 value={ad.finalUrl ?? ""}
                 onChange={(e) => handleInputChange(e.target.value, finalUrlField, e.target)}
                 onKeyDown={handleKeyDown}
+                onClick={handleInputClick}
                 placeholder="{final_url}"
                 aria-label="Final URL"
               />
@@ -847,10 +981,11 @@ export function HierarchyConfig({
                   ref={(el) => { if (el) inputRefs.current.set(getRefKey(nameField), el); }}
                   id={`ad-group-name-${adGroup.id}`}
                   type="text"
-                  className={`${styles.input} ${hasFieldError(`ad group ${adGroupIndex + 1}`) && hasFieldError("name pattern") ? styles.inputInvalid : ""}`}
+                  className={`${styles.input} ${hasAdGroupFieldError(adGroupIndex, "name pattern") ? styles.inputInvalid : ""}`}
                   value={adGroup.namePattern}
                   onChange={(e) => handleInputChange(e.target.value, nameField, e.target)}
                   onKeyDown={handleKeyDown}
+                  onClick={handleInputClick}
                   placeholder="{product_name}"
                   aria-label="Ad group name pattern"
                   aria-describedby={`ad-group-pattern-hint-${adGroup.id}`}
@@ -865,7 +1000,7 @@ export function HierarchyConfig({
             {/* Ads Section */}
             <div className={styles.adsSection}>
               <h4 className={styles.adsSectionTitle}>Ads</h4>
-              {adGroup.ads.map((ad, adIndex) => renderAdForm(adGroup, ad, adIndex))}
+              {adGroup.ads.map((ad, adIndex) => renderAdForm(adGroup, ad, adGroupIndex, adIndex))}
               <button
                 type="button"
                 className={styles.addButton}

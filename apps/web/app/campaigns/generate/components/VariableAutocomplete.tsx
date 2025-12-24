@@ -4,6 +4,25 @@ import { useState, useRef, useEffect, useCallback, useMemo, useId } from "react"
 import type { DataSourceColumn } from "../types";
 import styles from "./VariableAutocomplete.module.css";
 
+// Available filters - same as VariableInput in templates
+const AVAILABLE_FILTERS = [
+  { name: "uppercase", description: "Convert to UPPERCASE" },
+  { name: "lowercase", description: "Convert to lowercase" },
+  { name: "capitalize", description: "Capitalize first letter" },
+  { name: "titlecase", description: "Capitalize Each Word" },
+  { name: "trim", description: "Remove leading/trailing spaces" },
+  { name: "truncate", description: "Truncate to length" },
+  { name: "currency", description: "Format as currency" },
+  { name: "number", description: "Format as number" },
+  { name: "percent", description: "Format as percentage" },
+  { name: "format", description: "Custom format" },
+  { name: "slug", description: "Convert to URL slug" },
+  { name: "replace", description: "Replace text" },
+  { name: "default", description: "Default value if empty" },
+];
+
+type DropdownMode = "variable" | "filter";
+
 export interface VariableAutocompleteProps {
   /** Current input value */
   value: string;
@@ -48,6 +67,7 @@ export function VariableAutocomplete({
   const [showDropdown, setShowDropdown] = useState(false);
   const [dropdownFilter, setDropdownFilter] = useState("");
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [dropdownMode, setDropdownMode] = useState<DropdownMode>("variable");
 
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -70,6 +90,15 @@ export function VariableAutocomplete({
       col.name.toLowerCase().includes(lowerFilter)
     );
   }, [columns, dropdownFilter]);
+
+  // Filter available filters based on partial input
+  const filteredFilters = useMemo(() => {
+    if (!dropdownFilter) return AVAILABLE_FILTERS;
+    const lowerFilter = dropdownFilter.toLowerCase();
+    return AVAILABLE_FILTERS.filter((f) =>
+      f.name.toLowerCase().includes(lowerFilter)
+    );
+  }, [dropdownFilter]);
 
   // Close dropdown when clicking outside - only attach listener when dropdown is open
   useEffect(() => {
@@ -97,7 +126,7 @@ export function VariableAutocomplete({
       const newValue = e.target.value;
       onChange(newValue);
 
-      // Find if we're typing a variable
+      // Find if we're typing a variable or filter
       const cursorPosition = e.target.selectionStart ?? newValue.length;
       const textBeforeCursor = newValue.slice(0, cursorPosition);
       const openBraceIndex = textBeforeCursor.lastIndexOf("{");
@@ -105,12 +134,26 @@ export function VariableAutocomplete({
 
       // Check if we're inside an unclosed brace
       if (openBraceIndex > closeBraceIndex) {
-        const partialVar = textBeforeCursor.slice(openBraceIndex + 1);
-        setDropdownFilter(partialVar);
-        setShowDropdown(true);
-        setHighlightedIndex(-1);
+        const contentAfterBrace = textBeforeCursor.slice(openBraceIndex + 1);
+        const pipeIndex = contentAfterBrace.lastIndexOf("|");
+
+        if (pipeIndex >= 0) {
+          // We're in filter mode (after a pipe)
+          const partialFilter = contentAfterBrace.slice(pipeIndex + 1);
+          setDropdownFilter(partialFilter);
+          setDropdownMode("filter");
+          setShowDropdown(true);
+          setHighlightedIndex(-1);
+        } else {
+          // We're in variable mode
+          setDropdownFilter(contentAfterBrace);
+          setDropdownMode("variable");
+          setShowDropdown(true);
+          setHighlightedIndex(-1);
+        }
       } else if (newValue.endsWith("{")) {
         setDropdownFilter("");
+        setDropdownMode("variable");
         setShowDropdown(true);
         setHighlightedIndex(-1);
       } else {
@@ -151,6 +194,41 @@ export function VariableAutocomplete({
     [value, onChange]
   );
 
+  // Handle selecting a filter from dropdown
+  const selectFilter = useCallback(
+    (filterName: string) => {
+      const currentValue = value;
+      const cursorPosition = inputRef.current?.selectionStart ?? currentValue.length;
+      const textBeforeCursor = currentValue.slice(0, cursorPosition);
+      const textAfterCursor = currentValue.slice(cursorPosition);
+
+      // Find the opening brace and pipe
+      const openBraceIndex = textBeforeCursor.lastIndexOf("{");
+      const contentAfterBrace = textBeforeCursor.slice(openBraceIndex + 1);
+      const pipeIndex = contentAfterBrace.lastIndexOf("|");
+
+      // Build new value: keep everything up to and including the pipe, add filter name
+      const beforePipe = textBeforeCursor.slice(0, openBraceIndex + 1 + pipeIndex + 1);
+      const newValue = `${beforePipe}${filterName}}${textAfterCursor}`;
+      onChange(newValue);
+
+      setShowDropdown(false);
+      setDropdownFilter("");
+      setHighlightedIndex(-1);
+
+      // Restore focus and set cursor position after the closing brace
+      setTimeout(() => {
+        inputRef.current?.focus();
+        const newCursorPos = beforePipe.length + filterName.length + 1;
+        inputRef.current?.setSelectionRange(newCursorPos, newCursorPos);
+      }, 0);
+    },
+    [value, onChange]
+  );
+
+  // Get current items based on mode
+  const currentItems = dropdownMode === "variable" ? filteredColumns : filteredFilters;
+
   // Handle keyboard navigation in dropdown
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -160,7 +238,7 @@ export function VariableAutocomplete({
         case "ArrowDown":
           e.preventDefault();
           setHighlightedIndex((prev) =>
-            Math.min(prev + 1, filteredColumns.length - 1)
+            Math.min(prev + 1, currentItems.length - 1)
           );
           break;
         case "ArrowUp":
@@ -169,8 +247,12 @@ export function VariableAutocomplete({
           break;
         case "Enter":
           e.preventDefault();
-          if (highlightedIndex >= 0 && filteredColumns[highlightedIndex]) {
-            selectVariable(filteredColumns[highlightedIndex].name);
+          if (highlightedIndex >= 0 && currentItems[highlightedIndex]) {
+            if (dropdownMode === "variable") {
+              selectVariable((currentItems[highlightedIndex] as DataSourceColumn).name);
+            } else {
+              selectFilter((currentItems[highlightedIndex] as { name: string }).name);
+            }
           }
           break;
         case "Escape":
@@ -181,7 +263,7 @@ export function VariableAutocomplete({
           break;
       }
     },
-    [showDropdown, filteredColumns, highlightedIndex, selectVariable]
+    [showDropdown, currentItems, highlightedIndex, selectVariable, selectFilter, dropdownMode]
   );
 
   // Check if a variable is used
@@ -219,7 +301,7 @@ export function VariableAutocomplete({
           role="combobox"
         />
 
-        {/* Variable autocomplete dropdown */}
+        {/* Variable/Filter autocomplete dropdown */}
         {showDropdown && !disabled && (
           <div
             ref={dropdownRef}
@@ -227,43 +309,81 @@ export function VariableAutocomplete({
             className={styles.dropdown}
             data-testid="variable-dropdown"
             role="listbox"
-            aria-label="Available variables"
+            aria-label={dropdownMode === "variable" ? "Available variables" : "Available filters"}
           >
-            {columns.length === 0 ? (
-              <div className={styles.dropdownEmpty}>
-                No variables available. Select a data source first.
-              </div>
-            ) : filteredColumns.length > 0 ? (
-              filteredColumns.map((col, index) => {
-                const used = isVariableUsed(col.name);
-                return (
+            {/* Mode header */}
+            <div className={styles.dropdownHeader}>
+              <span className={styles.dropdownHeaderTitle}>
+                {dropdownMode === "variable" ? "VARIABLES" : "FILTERS"}
+              </span>
+              {dropdownMode === "variable" && (
+                <span className={styles.dropdownHeaderHint}>Type | for filters</span>
+              )}
+            </div>
+
+            {dropdownMode === "variable" ? (
+              // Variable mode
+              columns.length === 0 ? (
+                <div className={styles.dropdownEmpty}>
+                  No variables available. Select a data source first.
+                </div>
+              ) : filteredColumns.length > 0 ? (
+                filteredColumns.map((col, index) => {
+                  const used = isVariableUsed(col.name);
+                  return (
+                    <button
+                      key={col.name}
+                      id={getOptionId(index)}
+                      type="button"
+                      className={`${styles.dropdownOption} ${
+                        index === highlightedIndex ? styles.dropdownOptionHighlighted : ""
+                      } ${used ? styles.dropdownOptionUsed : ""}`}
+                      onClick={() => selectVariable(col.name)}
+                      data-testid={`variable-option-${col.name}`}
+                      data-used={used}
+                      role="option"
+                      aria-selected={index === highlightedIndex}
+                    >
+                      <span className={styles.optionName}>{col.name}</span>
+                      <span className={styles.optionType}>{col.type}</span>
+                      {col.sampleValues && col.sampleValues.length > 0 && (
+                        <span className={styles.optionSamples}>
+                          {col.sampleValues.slice(0, 3).join(", ")}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })
+              ) : (
+                <div className={styles.dropdownEmpty}>
+                  No matching variables
+                </div>
+              )
+            ) : (
+              // Filter mode
+              filteredFilters.length > 0 ? (
+                filteredFilters.map((filter, index) => (
                   <button
-                    key={col.name}
+                    key={filter.name}
                     id={getOptionId(index)}
                     type="button"
-                    className={`${styles.dropdownOption} ${
+                    className={`${styles.dropdownOption} ${styles.dropdownOptionFilter} ${
                       index === highlightedIndex ? styles.dropdownOptionHighlighted : ""
-                    } ${used ? styles.dropdownOptionUsed : ""}`}
-                    onClick={() => selectVariable(col.name)}
-                    data-testid={`variable-option-${col.name}`}
-                    data-used={used}
+                    }`}
+                    onClick={() => selectFilter(filter.name)}
+                    data-testid={`filter-option-${filter.name}`}
                     role="option"
                     aria-selected={index === highlightedIndex}
                   >
-                    <span className={styles.optionName}>{col.name}</span>
-                    <span className={styles.optionType}>{col.type}</span>
-                    {col.sampleValues && col.sampleValues.length > 0 && (
-                      <span className={styles.optionSamples}>
-                        {col.sampleValues.slice(0, 3).join(", ")}
-                      </span>
-                    )}
+                    <span className={styles.optionName}>|{filter.name}</span>
+                    <span className={styles.optionDescription}>{filter.description}</span>
                   </button>
-                );
-              })
-            ) : (
-              <div className={styles.dropdownEmpty}>
-                No matching variables
-              </div>
+                ))
+              ) : (
+                <div className={styles.dropdownEmpty}>
+                  No matching filters
+                </div>
+              )
             )}
           </div>
         )}

@@ -95,7 +95,8 @@ export function HierarchyPreview({
       };
     }
 
-    const campaignMap = new Map<string, Map<string, GroupedAd[]>>();
+    // Map: campaignName -> adGroupName -> { ads: GroupedAd[], seenAdKeys: Set<string> }
+    const campaignMap = new Map<string, Map<string, { ads: GroupedAd[]; seenAdKeys: Set<string> }>>();
 
     for (const row of sampleData) {
       const campaignName = interpolatePattern(campaignConfig.namePattern, row);
@@ -110,9 +111,9 @@ export function HierarchyPreview({
         const adGroupMap = campaignMap.get(campaignName)!;
 
         if (!adGroupMap.has(adGroupName)) {
-          adGroupMap.set(adGroupName, []);
+          adGroupMap.set(adGroupName, { ads: [], seenAdKeys: new Set() });
         }
-        const ads = adGroupMap.get(adGroupName)!;
+        const adGroupData = adGroupMap.get(adGroupName)!;
 
         // Process each ad in the ad group definition
         for (const adDef of adGroupDef.ads) {
@@ -125,7 +126,14 @@ export function HierarchyPreview({
             ? interpolatePattern(adDef.finalUrl, row)
             : undefined;
 
-          ads.push({ headline, description, displayUrl, finalUrl });
+          // Deduplicate ads by headline+description within each ad group
+          // Use null character as delimiter to avoid collision with pipe chars in content
+          // (e.g., template filters like {brand|uppercase} use pipes)
+          const adKey = `${headline}\0${description}`;
+          if (!adGroupData.seenAdKeys.has(adKey)) {
+            adGroupData.seenAdKeys.add(adKey);
+            adGroupData.ads.push({ headline, description, displayUrl, finalUrl });
+          }
         }
       }
     }
@@ -136,10 +144,10 @@ export function HierarchyPreview({
 
     for (const [campaignName, adGroupMap] of campaignMap) {
       const adGroups: GroupedAdGroup[] = [];
-      for (const [adGroupName, ads] of adGroupMap) {
-        adGroups.push({ name: adGroupName, ads });
+      for (const [adGroupName, adGroupData] of adGroupMap) {
+        adGroups.push({ name: adGroupName, ads: adGroupData.ads });
         totalAdGroups++;
-        totalAds += ads.length;
+        totalAds += adGroupData.ads.length;
       }
       campaignList.push({ name: campaignName, adGroups });
     }

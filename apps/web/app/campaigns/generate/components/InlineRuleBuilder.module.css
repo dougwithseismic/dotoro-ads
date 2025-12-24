@@ -1,0 +1,362 @@
+/* InlineRuleBuilder Component Styles */
+
+.container {
+  width: 100%;
+}
+
+.emptyState {
+  padding: 24px;
+  background: rgba(var(--gray-rgb), 0.03);
+  border: 1px dashed rgba(var(--gray-rgb), 0.15);
+  border-radius: 8px;
+}
+
+.emptyState p {
+  font-size: 13px;
+  color: rgba(var(--gray-rgb), 0.6);
+  margin: 0 0 16px;
+}
+
+/* Rule list */
+.rulesList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+/* Rule card */
+.ruleCard {
+  background: rgba(var(--gray-rgb), 0.02);
+  border: 1px solid rgba(var(--gray-rgb), 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.ruleHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.ruleHeader:hover {
+  background: rgba(var(--gray-rgb), 0.03);
+}
+
+.expandButton {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: rgba(var(--gray-rgb), 0.5);
+  cursor: pointer;
+  transition: transform 0.15s ease, color 0.15s ease;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.expandButton:hover {
+  color: var(--foreground);
+}
+
+.expandButton.expanded {
+  transform: rotate(180deg);
+}
+
+.ruleNameInput {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--foreground);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.ruleNameInput:hover {
+  border-color: rgba(var(--gray-rgb), 0.15);
+}
+
+.ruleNameInput:focus {
+  outline: none;
+  border-color: rgba(0, 112, 243, 0.5);
+  background: rgba(var(--gray-rgb), 0.03);
+}
+
+.ruleNameInput::placeholder {
+  color: rgba(var(--gray-rgb), 0.4);
+}
+
+.ruleSummary {
+  font-size: 11px;
+  color: rgba(var(--gray-rgb), 0.5);
+  flex-shrink: 0;
+}
+
+.removeRuleButton {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: rgba(var(--gray-rgb), 0.4);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: color 0.15s ease, background 0.15s ease;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.removeRuleButton:hover {
+  color: #dc3545;
+  background: rgba(220, 53, 69, 0.08);
+}
+
+/* Rule body */
+.ruleBody {
+  padding: 16px;
+  border-top: 1px solid rgba(var(--gray-rgb), 0.08);
+  background: rgba(var(--gray-rgb), 0.01);
+}
+
+.section {
+  margin-bottom: 16px;
+}
+
+.section:last-child {
+  margin-bottom: 0;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.sectionLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(var(--gray-rgb), 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.sectionLabelSuffix {
+  font-size: 12px;
+  color: rgba(var(--gray-rgb), 0.5);
+}
+
+.logicSelect {
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #0070f3;
+  background: rgba(0, 112, 243, 0.08);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.logicSelect:focus {
+  outline: 2px solid rgba(0, 112, 243, 0.3);
+  outline-offset: 1px;
+}
+
+/* Conditions list */
+.conditionsList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.conditionRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Shared input styles */
+.fieldSelect,
+.operatorSelect,
+.actionTypeSelect,
+.operationSelect,
+.valueInput {
+  padding: 6px 10px;
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  border: 1px solid rgba(var(--gray-rgb), 0.15);
+  border-radius: 5px;
+  background: var(--background);
+  color: var(--foreground);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.fieldSelect:focus,
+.operatorSelect:focus,
+.actionTypeSelect:focus,
+.operationSelect:focus,
+.valueInput:focus {
+  outline: none;
+  border-color: #0070f3;
+  box-shadow: 0 0 0 2px rgba(0, 112, 243, 0.1);
+}
+
+.fieldSelect {
+  min-width: 120px;
+}
+
+.operatorSelect {
+  min-width: 100px;
+}
+
+.actionTypeSelect {
+  min-width: 110px;
+}
+
+.operationSelect {
+  min-width: 90px;
+}
+
+.valueInput {
+  flex: 1;
+  min-width: 100px;
+}
+
+.valueInput::placeholder {
+  color: rgba(var(--gray-rgb), 0.4);
+}
+
+.removeConditionButton {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: rgba(var(--gray-rgb), 0.4);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: color 0.15s ease, background 0.15s ease;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.removeConditionButton:hover {
+  color: #dc3545;
+  background: rgba(220, 53, 69, 0.08);
+}
+
+.addConditionButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(var(--gray-rgb), 0.6);
+  background: transparent;
+  border: 1px dashed rgba(var(--gray-rgb), 0.2);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-top: 8px;
+}
+
+.addConditionButton:hover {
+  color: #0070f3;
+  border-color: rgba(0, 112, 243, 0.3);
+  background: rgba(0, 112, 243, 0.03);
+}
+
+/* Action row */
+.actionRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.actionSeparator {
+  font-size: 12px;
+  color: rgba(var(--gray-rgb), 0.5);
+}
+
+/* Add rule button */
+.addRuleButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: #0070f3;
+  background: rgba(0, 112, 243, 0.05);
+  border: 1px dashed rgba(0, 112, 243, 0.3);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.addRuleButton:hover {
+  background: rgba(0, 112, 243, 0.08);
+  border-color: rgba(0, 112, 243, 0.5);
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .ruleCard {
+    background: rgba(var(--gray-rgb), 0.04);
+  }
+
+  .ruleBody {
+    background: rgba(var(--gray-rgb), 0.02);
+  }
+
+  .removeRuleButton:hover,
+  .removeConditionButton:hover {
+    color: #f87171;
+    background: rgba(248, 113, 113, 0.12);
+  }
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .conditionRow,
+  .actionRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .fieldSelect,
+  .operatorSelect,
+  .actionTypeSelect,
+  .operationSelect,
+  .valueInput {
+    width: 100%;
+    min-width: auto;
+  }
+
+  .removeConditionButton {
+    align-self: flex-end;
+  }
+
+  .actionSeparator {
+    display: none;
+  }
+}

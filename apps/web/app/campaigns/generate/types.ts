@@ -122,14 +122,41 @@ export interface DataSourceColumn {
   sampleValues?: string[];
 }
 
+// Inline rule types for wizard
+export interface InlineCondition {
+  id: string;
+  field: string;
+  operator: string;
+  value: string;
+}
+
+export interface InlineAction {
+  id: string;
+  type: "skip" | "set_field" | "modify_field" | "add_tag";
+  field?: string;
+  value?: string;
+  operation?: "append" | "prepend" | "replace";
+  tag?: string;
+}
+
+export interface InlineRule {
+  id: string;
+  name: string;
+  enabled: boolean;
+  logic: "AND" | "OR";
+  conditions: InlineCondition[];
+  actions: InlineAction[];
+}
+
 // Updated wizard state for campaign-first flow
 export interface WizardState {
   currentStep: WizardStep;
   // Data source selection (Step 1)
   dataSourceId: string | null;
   availableColumns: DataSourceColumn[];
-  // Rules selection (Step 2 - optional, filter data before config)
-  ruleIds: string[];
+  // Rules (Step 2 - optional, filter data before config)
+  ruleIds: string[];  // Legacy: selected rule template IDs
+  inlineRules: InlineRule[];  // New: inline rule definitions
   // Campaign configuration (Step 3)
   campaignConfig: CampaignConfig | null;
   // Hierarchy configuration (Step 4) - keywords are now at ad group level
@@ -242,37 +269,158 @@ export interface ValidationResult {
   warnings: string[];
 }
 
-// Variable pattern regex: matches {variable_name} or {variable_name|default}
+// Variable pattern regex: matches {variable_name} or {variable_name|filter} or {variable_name|filter:args}
 const VARIABLE_PATTERN = /\{([a-zA-Z_][a-zA-Z0-9_]*)(?:\|([^}]*))?\}/g;
+
+// Available filters for variable transformation
+export const AVAILABLE_FILTERS = [
+  { name: 'uppercase', description: 'Convert to UPPERCASE', example: '{brand|uppercase}' },
+  { name: 'lowercase', description: 'Convert to lowercase', example: '{brand|lowercase}' },
+  { name: 'capitalize', description: 'Capitalize first letter', example: '{brand|capitalize}' },
+  { name: 'titlecase', description: 'Capitalize Each Word', example: '{brand|titlecase}' },
+  { name: 'trim', description: 'Remove whitespace', example: '{brand|trim}' },
+  { name: 'truncate', description: 'Truncate to length', example: '{desc|truncate:30}' },
+  { name: 'slug', description: 'URL-friendly slug', example: '{title|slug}' },
+  { name: 'currency', description: 'Format as currency', example: '{price|currency}' },
+  { name: 'number', description: 'Format number', example: '{qty|number:2}' },
+  { name: 'percent', description: 'Format as percentage', example: '{rate|percent}' },
+  { name: 'replace', description: 'Find and replace', example: '{text|replace:old:new}' },
+  { name: 'default', description: 'Default if empty', example: '{sale|default:N/A}' },
+] as const;
+
+// Filter name set for quick lookup
+const FILTER_NAMES: Set<string> = new Set(AVAILABLE_FILTERS.map(f => f.name));
+
+// Filter functions
+type FilterFn = (value: string, ...args: string[]) => string;
+
+const FILTER_FUNCTIONS: Record<string, FilterFn> = {
+  uppercase: (value) => value.toUpperCase(),
+  lowercase: (value) => value.toLowerCase(),
+  capitalize: (value) => value.charAt(0).toUpperCase() + value.slice(1).toLowerCase(),
+  titlecase: (value) => value.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' '),
+  trim: (value) => value.trim(),
+  truncate: (value, length, suffix = '...') => {
+    const maxLen = parseInt(length, 10);
+    if (isNaN(maxLen) || value.length <= maxLen) return value;
+    return value.slice(0, maxLen).trimEnd() + suffix;
+  },
+  slug: (value) => value.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').trim(),
+  currency: (value, currencyCode = 'USD') => {
+    const num = parseFloat(value);
+    if (isNaN(num)) return value;
+    try {
+      return new Intl.NumberFormat('en-US', { style: 'currency', currency: currencyCode }).format(num);
+    } catch {
+      return `$${num.toFixed(2)}`;
+    }
+  },
+  number: (value, decimals) => {
+    const num = parseFloat(value);
+    if (isNaN(num)) return value;
+    const dec = decimals !== undefined ? parseInt(decimals, 10) : undefined;
+    if (dec !== undefined && !isNaN(dec) && dec >= 0) {
+      return new Intl.NumberFormat('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec }).format(num);
+    }
+    return new Intl.NumberFormat('en-US').format(num);
+  },
+  percent: (value) => {
+    const num = parseFloat(value);
+    if (isNaN(num)) return value;
+    return `${(num * 100).toFixed(1)}%`;
+  },
+  replace: (value, search, replacement = '') => {
+    if (!search) return value;
+    return value.split(search).join(replacement);
+  },
+  default: (value, defaultValue = '') => value === '' ? defaultValue : value,
+};
+
+/**
+ * Apply filters to a value. Supports chained filters with pipe syntax.
+ * e.g., "uppercase" or "truncate:20" or "uppercase|truncate:20"
+ */
+function applyFilters(value: string, filterStr: string): string {
+  const filters = filterStr.split('|');
+  let result = value;
+
+  for (const filter of filters) {
+    const parts = filter.split(':');
+    const filterName = parts[0]?.trim() || '';
+    const args = parts.slice(1);
+
+    const filterFn = FILTER_FUNCTIONS[filterName];
+    if (filterFn) {
+      try {
+        result = filterFn(result, ...args);
+      } catch {
+        // Filter failed, continue with current value
+      }
+    }
+    // Unknown filters are ignored (might be fallback variable names)
+  }
+
+  return result;
+}
+
+/**
+ * Check if a string is a known filter name
+ */
+export function isKnownFilter(name: string): boolean {
+  return FILTER_NAMES.has(name);
+}
 
 /**
  * Interpolates variables in a pattern string using values from a data row.
- * Supports default values with syntax {variable_name|default_value}.
- * Returns the original match if no value is found and no default is specified.
+ * Supports filters with syntax {variable_name|filter} or {variable_name|filter:arg}.
+ * Supports chained filters: {variable|uppercase|truncate:20}.
+ * Supports fallbacks: {sale_price|regular_price} (if sale_price is empty, use regular_price).
  *
  * @param pattern - The pattern string with {variable} placeholders
  * @param row - A data row object with variable values
  * @returns The interpolated string with variables replaced by their values
  *
  * @example
- * interpolatePattern("{brand_name}-{region}", { brand_name: "Nike", region: "US" })
- * // Returns: "Nike-US"
+ * interpolatePattern("{brand|uppercase}", { brand: "Nike" })
+ * // Returns: "NIKE"
  *
  * @example
- * interpolatePattern("{brand|Unknown}", { })
- * // Returns: "Unknown"
+ * interpolatePattern("{price|currency}", { price: "99.99" })
+ * // Returns: "$99.99"
  */
 export function interpolatePattern(
   pattern: string,
   row: Record<string, unknown>
 ): string {
   if (!pattern) return "";
-  return pattern.replace(VARIABLE_PATTERN, (match, varName, defaultVal) => {
-    const value = row[varName];
-    if (value !== undefined && value !== null && value !== "") {
-      return String(value);
+  return pattern.replace(VARIABLE_PATTERN, (match, varName, filterOrFallback) => {
+    let value = row[varName];
+
+    // If no value, check if filterOrFallback is a fallback variable (not a filter)
+    if ((value === undefined || value === null || value === "") && filterOrFallback) {
+      // Check if first part before | is a known filter
+      const firstPart = filterOrFallback.split('|')[0]?.split(':')[0]?.trim();
+      if (firstPart && !isKnownFilter(firstPart)) {
+        // It's a fallback variable name
+        value = row[firstPart];
+        if (value !== undefined && value !== null && value !== "") {
+          return String(value);
+        }
+        return match; // Neither primary nor fallback found
+      }
     }
-    return defaultVal ?? match;
+
+    // Apply value
+    if (value !== undefined && value !== null && value !== "") {
+      let result = String(value);
+      // Apply filters if present
+      if (filterOrFallback) {
+        result = applyFilters(result, filterOrFallback);
+      }
+      return result;
+    }
+
+    return match; // No value found
   });
 }
 

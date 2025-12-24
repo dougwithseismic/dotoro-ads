@@ -5,7 +5,7 @@ import { StepIndicator } from "./StepIndicator";
 import { DataSourceSelector } from "./DataSourceSelector";
 import { CampaignConfig } from "./CampaignConfig";
 import { HierarchyConfig } from "./HierarchyConfig";
-import { RuleSelector } from "./RuleSelector";
+import { InlineRuleBuilder } from "./InlineRuleBuilder";
 import { PlatformSelector } from "./PlatformSelector";
 import { GenerationPreview } from "./GenerationPreview";
 import { ValidationMessage } from "./ValidationMessage";
@@ -53,6 +53,7 @@ export function GenerateWizard() {
     setHierarchyConfig,
     toggleRule,
     setRules,
+    setInlineRules,
     togglePlatform,
     setPlatforms,
     setPlatformBudget,
@@ -401,9 +402,13 @@ export function GenerateWizard() {
           <div className={styles.stepContent} data-testid="step-content">
             <h2 className={styles.stepTitle}>{STEP_LABELS[currentStep]}</h2>
             <p className={styles.stepDescription}>
-              Filter your data before configuring campaigns. Rules help you work with a refined dataset.
+              Create rules to filter or modify data before generating campaigns.
             </p>
-            <RuleSelector selectedIds={state.ruleIds} onToggle={toggleRule} />
+            <InlineRuleBuilder
+              rules={state.inlineRules}
+              onChange={setInlineRules}
+              availableColumns={availableColumns}
+            />
           </div>
         );
 
@@ -464,6 +469,10 @@ export function GenerateWizard() {
   // Show "Start Over" option when not on first step and has made progress
   const showStartOverOption = !isFirstStep && !state.generateResult;
 
+  // Determine if we can proceed to generate (on last step before preview)
+  const isReadyToGenerate = currentStep === "platform" && canProceed();
+  const showGenerateInHeader = currentStep !== "preview" && !state.generateResult;
+
   return (
     <div className={styles.wizard}>
       {/* Restore Session Dialog */}
@@ -511,18 +520,49 @@ export function GenerateWizard() {
         {announcement}
       </div>
 
+      {/* Sticky Header Bar */}
+      <header className={styles.stickyHeader}>
+        <div className={styles.headerLeft}>
+          <div className={styles.headerBrand}>
+            <h1 className={styles.title}>Generate Campaigns</h1>
+            <p className={styles.subtitle}>Build ad campaigns from your data</p>
+          </div>
+          <div className={styles.headerDivider} />
+        </div>
+
+        <StepIndicator currentStep={currentStep} onStepClick={handleStepClick} />
+
+        <div className={styles.headerRight}>
+          {showStartOverOption && (
+            <button
+              type="button"
+              className={styles.startOverButton}
+              onClick={handleStartOver}
+              aria-label="Start over from the beginning"
+            >
+              Start Over
+            </button>
+          )}
+          {showGenerateInHeader && (
+            <button
+              type="button"
+              className={styles.generateButton}
+              disabled={!isReadyToGenerate}
+              onClick={isReadyToGenerate ? handleNext : undefined}
+              aria-label={isReadyToGenerate ? "Continue to preview" : "Complete all steps to generate"}
+            >
+              <span>Preview & Generate</span>
+              <svg className={styles.generateButtonIcon} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M6 12L10 8L6 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          )}
+        </div>
+      </header>
+
+      {/* Legacy header (hidden via CSS) */}
       <div className={styles.wizardHeader}>
         <StepIndicator currentStep={currentStep} onStepClick={handleStepClick} />
-        {showStartOverOption && (
-          <button
-            type="button"
-            className={styles.startOverButton}
-            onClick={handleStartOver}
-            aria-label="Start over from the beginning"
-          >
-            Start Over
-          </button>
-        )}
       </div>
 
       <div className={styles.wizardBody}>
@@ -537,63 +577,66 @@ export function GenerateWizard() {
             <ValidationMessage message={validationMessage} type="error" />
           )}
           {renderStepContent()}
+
+          {/* Navigation inside content area */}
+          {showNavigation && (
+            <div className={styles.navigation} role="navigation" aria-label="Wizard navigation">
+              <button
+                type="button"
+                onClick={handleBack}
+                disabled={isFirstStep}
+                className={`${styles.button} ${styles.buttonSecondary} ${isFirstStep ? styles.buttonDisabled : ""}`}
+                aria-label="Go to previous step"
+              >
+                Back
+              </button>
+
+              <div className={styles.navigationRight}>
+                {isOptionalStep && (
+                  <button
+                    type="button"
+                    onClick={handleSkip}
+                    className={`${styles.button} ${styles.buttonSecondary}`}
+                    aria-label="Skip this optional step"
+                  >
+                    Skip
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  disabled={isNextDisabled}
+                  className={`${styles.button} ${styles.buttonPrimary} ${isNextDisabled ? styles.buttonDisabled : ""}`}
+                  aria-label="Go to next step"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+
+          {showStartOver && (
+            <div className={styles.navigation} role="navigation" aria-label="Wizard navigation">
+              <button
+                type="button"
+                onClick={reset}
+                className={`${styles.button} ${styles.buttonSecondary}`}
+                aria-label="Start a new generation"
+              >
+                Start New Generation
+              </button>
+            </div>
+          )}
         </div>
 
         <WizardSidePanel
           currentStep={currentStep}
           state={state}
           sampleData={sampleData}
+          campaignConfig={state.campaignConfig}
+          hierarchyConfig={state.hierarchyConfig}
         />
       </div>
-
-      {showNavigation && (
-        <div className={styles.navigation} role="navigation" aria-label="Wizard navigation">
-          <button
-            type="button"
-            onClick={handleBack}
-            disabled={isFirstStep}
-            className={`${styles.button} ${styles.buttonSecondary} ${isFirstStep ? styles.buttonDisabled : ""}`}
-            aria-label="Go to previous step"
-          >
-            Back
-          </button>
-
-          <div className={styles.navigationRight}>
-            {isOptionalStep && (
-              <button
-                type="button"
-                onClick={handleSkip}
-                className={`${styles.button} ${styles.buttonSecondary}`}
-                aria-label="Skip this optional step"
-              >
-                Skip
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={handleNext}
-              disabled={isNextDisabled}
-              className={`${styles.button} ${styles.buttonPrimary} ${isNextDisabled ? styles.buttonDisabled : ""}`}
-              aria-label="Go to next step"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      )}
-
-      {showStartOver && (
-        <div className={styles.navigation} role="navigation" aria-label="Wizard navigation">
-          <button
-            type="button"
-            onClick={reset}
-            className={`${styles.button} ${styles.buttonSecondary}`}
-            aria-label="Start a new generation"
-          >
-            Start New Generation
-          </button>
-        </div>
-      )}
     </div>
   );
 }

@@ -479,9 +479,13 @@ describe("HierarchyPreview", () => {
         />
       );
 
-      // 4 rows * 2 ads per ad group = 8 ads total
+      // mockSampleData has 4 rows, but with deduplication:
+      // - Air Max ad group (2 rows): 3 unique ads (2 dynamic headlines + 1 static "Promo")
+      // - Jordan ad group (1 row): 2 unique ads
+      // - Ultraboost ad group (1 row): 2 unique ads
+      // Total: 7 unique ads
       const statsPanel = screen.getByTestId("stat-ads");
-      expect(within(statsPanel).getByText("8")).toBeInTheDocument();
+      expect(within(statsPanel).getByText("7")).toBeInTheDocument();
     });
   });
 
@@ -598,6 +602,254 @@ describe("HierarchyPreview", () => {
       nodeLabels.forEach((label) => {
         expect(label).toHaveAttribute("title");
       });
+    });
+  });
+
+  // ==========================================================================
+  // Ad Deduplication Tests
+  // ==========================================================================
+
+  describe("Ad Deduplication", () => {
+    it("deduplicates identical ads across rows with same campaign and ad group", () => {
+      // Given: 3 rows with same brand/product producing same ad content
+      const duplicateAdSampleData: Record<string, unknown>[] = [
+        { brand: "Nike", product: "Air Max", headline: "Run Fast", description: "Best shoe ever" },
+        { brand: "Nike", product: "Air Max", headline: "Run Fast", description: "Best shoe ever" },
+        { brand: "Nike", product: "Air Max", headline: "Run Fast", description: "Best shoe ever" },
+      ];
+
+      render(
+        <HierarchyPreview
+          campaignConfig={defaultCampaignConfig}
+          hierarchyConfig={createValidHierarchyConfig()}
+          sampleData={duplicateAdSampleData}
+        />
+      );
+
+      // Then: Only 1 ad should appear (not 3)
+      const statsPanel = screen.getByTestId("stat-ads");
+      expect(within(statsPanel).getByText("1")).toBeInTheDocument();
+    });
+
+    it("keeps different ads separate when headline differs", () => {
+      // Given: 3 rows with different headlines producing different ad content
+      const differentHeadlineData: Record<string, unknown>[] = [
+        { brand: "Nike", product: "Air Max", headline: "Run Fast", description: "Best shoe ever" },
+        { brand: "Nike", product: "Air Max", headline: "Speed Up", description: "Best shoe ever" },
+        { brand: "Nike", product: "Air Max", headline: "Go Quick", description: "Best shoe ever" },
+      ];
+
+      render(
+        <HierarchyPreview
+          campaignConfig={defaultCampaignConfig}
+          hierarchyConfig={createValidHierarchyConfig()}
+          sampleData={differentHeadlineData}
+        />
+      );
+
+      // Then: All 3 unique ads should appear
+      const statsPanel = screen.getByTestId("stat-ads");
+      expect(within(statsPanel).getByText("3")).toBeInTheDocument();
+    });
+
+    it("keeps different ads separate when description differs", () => {
+      // Given: 2 ads with same headline but different descriptions
+      const differentDescriptionData: Record<string, unknown>[] = [
+        { brand: "Nike", product: "Air Max", headline: "Run Fast", description: "Best shoe ever" },
+        { brand: "Nike", product: "Air Max", headline: "Run Fast", description: "Top rated" },
+      ];
+
+      render(
+        <HierarchyPreview
+          campaignConfig={defaultCampaignConfig}
+          hierarchyConfig={createValidHierarchyConfig()}
+          sampleData={differentDescriptionData}
+        />
+      );
+
+      // Then: Both ads should appear (they're different by description)
+      const statsPanel = screen.getByTestId("stat-ads");
+      expect(within(statsPanel).getByText("2")).toBeInTheDocument();
+    });
+
+    it("deduplicates by headline+description only, ignoring displayUrl and finalUrl", () => {
+      // Given: ads with same headline+description but different URLs
+      const hierarchyWithUrls: HierarchyConfig = {
+        adGroups: [{
+          id: generateId(),
+          namePattern: "{product}",
+          ads: [{
+            id: generateId(),
+            headline: "{headline}",
+            description: "{description}",
+            displayUrl: "{url}",
+            finalUrl: "{final_url}",
+          }],
+        }],
+      };
+
+      const dataWithDifferentUrls: Record<string, unknown>[] = [
+        { brand: "Nike", product: "Air Max", headline: "Run Fast", description: "Best shoe", url: "nike.com/1", final_url: "https://nike.com/1" },
+        { brand: "Nike", product: "Air Max", headline: "Run Fast", description: "Best shoe", url: "nike.com/2", final_url: "https://nike.com/2" },
+      ];
+
+      render(
+        <HierarchyPreview
+          campaignConfig={defaultCampaignConfig}
+          hierarchyConfig={hierarchyWithUrls}
+          sampleData={dataWithDifferentUrls}
+        />
+      );
+
+      // Then: Only 1 ad should appear (deduped by headline+description)
+      const statsPanel = screen.getByTestId("stat-ads");
+      expect(within(statsPanel).getByText("1")).toBeInTheDocument();
+    });
+
+    it("deduplicates per ad group, not globally", () => {
+      // Given: same ad content appears in different ad groups (different products)
+      const sameAdDifferentGroups: Record<string, unknown>[] = [
+        { brand: "Nike", product: "Air Max", headline: "Run Fast", description: "Best shoe" },
+        { brand: "Nike", product: "Jordan", headline: "Run Fast", description: "Best shoe" },
+      ];
+
+      render(
+        <HierarchyPreview
+          campaignConfig={defaultCampaignConfig}
+          hierarchyConfig={createValidHierarchyConfig()}
+          sampleData={sameAdDifferentGroups}
+        />
+      );
+
+      // Then: 2 ads should appear (1 per ad group, even though content is identical)
+      const statsPanel = screen.getByTestId("stat-ads");
+      expect(within(statsPanel).getByText("2")).toBeInTheDocument();
+    });
+
+    it("deduplicates when multiple ad definitions produce same content", () => {
+      // Given: multiple ad definitions that produce identical output
+      const hierarchyWithMultipleAds: HierarchyConfig = {
+        adGroups: [{
+          id: generateId(),
+          namePattern: "{product}",
+          ads: [
+            { id: generateId(), headline: "{headline}", description: "{description}" },
+            { id: generateId(), headline: "{headline}", description: "{description}" }, // Same patterns = same output
+          ],
+        }],
+      };
+
+      const singleRowData: Record<string, unknown>[] = [
+        { brand: "Nike", product: "Air Max", headline: "Run Fast", description: "Best shoe" },
+      ];
+
+      render(
+        <HierarchyPreview
+          campaignConfig={defaultCampaignConfig}
+          hierarchyConfig={hierarchyWithMultipleAds}
+          sampleData={singleRowData}
+        />
+      );
+
+      // Then: Only 1 unique ad should appear (not 2)
+      const statsPanel = screen.getByTestId("stat-ads");
+      expect(within(statsPanel).getByText("1")).toBeInTheDocument();
+    });
+
+    it("handles empty headline and description in deduplication", () => {
+      // Given: rows with empty/undefined values that produce same empty content
+      const hierarchyConfig: HierarchyConfig = {
+        adGroups: [{
+          id: generateId(),
+          namePattern: "{product}",
+          ads: [{ id: generateId(), headline: "{missing_field}", description: "{other_missing}" }],
+        }],
+      };
+
+      const dataWithMissingFields: Record<string, unknown>[] = [
+        { brand: "Nike", product: "Air Max" },
+        { brand: "Nike", product: "Air Max" },
+      ];
+
+      render(
+        <HierarchyPreview
+          campaignConfig={defaultCampaignConfig}
+          hierarchyConfig={hierarchyConfig}
+          sampleData={dataWithMissingFields}
+        />
+      );
+
+      // Then: Only 1 ad should appear (both produce same empty-ish content)
+      const statsPanel = screen.getByTestId("stat-ads");
+      expect(within(statsPanel).getByText("1")).toBeInTheDocument();
+    });
+
+    it("correctly counts ads when some are duplicates and some are unique", () => {
+      // Given: mix of duplicate and unique ads
+      const mixedData: Record<string, unknown>[] = [
+        { brand: "Nike", product: "Air Max", headline: "Run Fast", description: "Best shoe" },
+        { brand: "Nike", product: "Air Max", headline: "Run Fast", description: "Best shoe" }, // duplicate
+        { brand: "Nike", product: "Air Max", headline: "Speed Up", description: "Top rated" }, // unique
+        { brand: "Nike", product: "Air Max", headline: "Run Fast", description: "Best shoe" }, // duplicate
+        { brand: "Nike", product: "Air Max", headline: "Go Quick", description: "Premium quality" }, // unique
+      ];
+
+      render(
+        <HierarchyPreview
+          campaignConfig={defaultCampaignConfig}
+          hierarchyConfig={createValidHierarchyConfig()}
+          sampleData={mixedData}
+        />
+      );
+
+      // Then: 3 unique ads should appear
+      const statsPanel = screen.getByTestId("stat-ads");
+      expect(within(statsPanel).getByText("3")).toBeInTheDocument();
+    });
+
+    it("handles pipe character in content without causing false deduplication", () => {
+      // Given: two ads where headline|description contain pipes that could cause key collision
+      // With a pipe delimiter: "Buy|Now|Fast" vs "Buy|Now|Fast" (collision!)
+      // With null delimiter: "Buy|Now\0Fast" vs "Buy\0Now|Fast" (no collision)
+      const pipeData: Record<string, unknown>[] = [
+        { brand: "Nike", product: "Air Max", headline: "Buy|Now", description: "Fast" },
+        { brand: "Nike", product: "Air Max", headline: "Buy", description: "Now|Fast" },
+      ];
+
+      // When: rendered with these ads
+      render(
+        <HierarchyPreview
+          campaignConfig={defaultCampaignConfig}
+          hierarchyConfig={createValidHierarchyConfig()}
+          sampleData={pipeData}
+        />
+      );
+
+      // Then: both ads should appear (not deduplicated despite pipe collision potential)
+      const statsPanel = screen.getByTestId("stat-ads");
+      expect(within(statsPanel).getByText("2")).toBeInTheDocument();
+    });
+
+    it("handles template filter syntax with pipes without causing false deduplication", () => {
+      // Given: ads using template filter syntax like {brand|uppercase}
+      // The templating system uses | for filters, so this tests real-world usage
+      const filterData: Record<string, unknown>[] = [
+        { brand: "Nike", product: "Air Max", headline: "Shop {brand|uppercase}", description: "Now" },
+        { brand: "Nike", product: "Air Max", headline: "Shop {brand", description: "uppercase}|Now" },
+      ];
+
+      // When: rendered with these ads (the interpolatePattern will preserve the filter syntax)
+      render(
+        <HierarchyPreview
+          campaignConfig={defaultCampaignConfig}
+          hierarchyConfig={createValidHierarchyConfig()}
+          sampleData={filterData}
+        />
+      );
+
+      // Then: both ads should be distinct
+      const statsPanel = screen.getByTestId("stat-ads");
+      expect(within(statsPanel).getByText("2")).toBeInTheDocument();
     });
   });
 

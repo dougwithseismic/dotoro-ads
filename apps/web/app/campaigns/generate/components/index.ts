@@ -1,7 +1,9 @@
+export { CampaignEditor } from "./CampaignEditor";
 export { GenerateWizard } from "./GenerateWizard";
 export { StepIndicator } from "./StepIndicator";
 export { DataSourceSelector } from "./DataSourceSelector";
 export { RuleSelector } from "./RuleSelector";
+export { InlineRuleBuilder } from "./InlineRuleBuilder";
 export { PlatformSelector } from "./PlatformSelector";
 export { GenerationStats } from "./GenerationStats";
 export { PreviewCampaignCard } from "./PreviewCampaignCard";
