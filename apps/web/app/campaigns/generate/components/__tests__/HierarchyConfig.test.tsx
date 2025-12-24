@@ -896,7 +896,7 @@ describe("HierarchyConfig", () => {
       expect(screen.getByTestId("keywords-section-test-ag-1")).toBeInTheDocument();
     });
 
-    it("displays existing keywords in textarea", () => {
+    it("displays keywords section with three columns", () => {
       const config: HierarchyConfigType = {
         adGroups: [{
           id: "ag-1",
@@ -915,33 +915,13 @@ describe("HierarchyConfig", () => {
         />
       );
 
-      const textarea = screen.getByLabelText(/keywords/i);
-      expect(textarea).toHaveValue("buy shoes\nrunning shoes\nathletic footwear");
+      // KeywordCombinator has three columns: Prefixes, Core Terms, Suffixes
+      expect(screen.getByText("Prefixes")).toBeInTheDocument();
+      expect(screen.getByText("Core Terms")).toBeInTheDocument();
+      expect(screen.getByText("Suffixes")).toBeInTheDocument();
     });
 
-    it("calls onChange when keywords are added", async () => {
-      render(
-        <HierarchyConfig
-          config={createPopulatedHierarchyConfig()}
-          campaignConfig={defaultCampaignConfig}
-          availableColumns={mockColumns}
-          onChange={onChange}
-        />
-      );
-
-      const textarea = screen.getByLabelText(/keywords/i);
-
-      // Use fireEvent.change for more predictable testing of the final value
-      fireEvent.change(textarea, { target: { value: "buy shoes\nrunning shoes" } });
-
-      // Verify onChange was called with the keywords
-      expect(onChange).toHaveBeenCalled();
-      const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1];
-      expect(lastCall[0].adGroups[0].keywords).toContain("buy shoes");
-      expect(lastCall[0].adGroups[0].keywords).toContain("running shoes");
-    });
-
-    it("parses keywords one per line", async () => {
+    it("calls onChange when core terms are typed", async () => {
       const user = userEvent.setup();
 
       render(
@@ -953,14 +933,20 @@ describe("HierarchyConfig", () => {
         />
       );
 
-      const textarea = screen.getByLabelText(/keywords/i);
-      await user.clear(textarea);
-      await user.type(textarea, "keyword one{enter}keyword two{enter}keyword three");
+      // Find the Core Terms textarea by its aria-label
+      const coreTermsTextareas = screen.getAllByLabelText("Core Terms");
+      // Get the first Core Terms textarea (for the first ad group)
+      const coreTermsTextarea = coreTermsTextareas[0];
+      if (!coreTermsTextarea) throw new Error("No Core Terms textarea found");
 
+      await user.clear(coreTermsTextarea);
+      await user.type(coreTermsTextarea, "shoes");
+
+      // Verify onChange was called
       expect(onChange).toHaveBeenCalled();
     });
 
-    it("shows keywords as optional", () => {
+    it("shows keywords section label as optional", () => {
       render(
         <HierarchyConfig
           config={createPopulatedHierarchyConfig()}
@@ -1057,7 +1043,7 @@ describe("HierarchyConfig", () => {
   // ==========================================================================
 
   describe("Variable Search in Dropdown", () => {
-    it("shows search input when there are more than 5 columns", async () => {
+    it("shows dropdown when typing opening brace", async () => {
       const user = userEvent.setup();
 
       render(
@@ -1070,17 +1056,19 @@ describe("HierarchyConfig", () => {
       );
 
       const input = screen.getByLabelText(/ad group name pattern/i);
+      // Use double brace to escape for userEvent: {{ outputs literal {
       await user.type(input, "{{");
 
       await waitFor(() => {
         expect(screen.getByTestId("variable-dropdown")).toBeInTheDocument();
       });
 
-      // With 6 columns, search input should be shown
-      expect(screen.getByTestId("variable-search-input")).toBeInTheDocument();
+      // All columns should be visible in dropdown
+      expect(screen.getByTestId("variable-option-brand")).toBeInTheDocument();
+      expect(screen.getByTestId("variable-option-headline")).toBeInTheDocument();
     });
 
-    it("filters variables when typing in search input", async () => {
+    it("filters variables when typing after opening brace", async () => {
       const user = userEvent.setup();
 
       render(
@@ -1093,14 +1081,12 @@ describe("HierarchyConfig", () => {
       );
 
       const input = screen.getByLabelText(/ad group name pattern/i);
-      await user.type(input, "{{");
+      // Type opening brace followed by filter text - use {{ to escape the brace
+      await user.type(input, "{{bra");
 
       await waitFor(() => {
         expect(screen.getByTestId("variable-dropdown")).toBeInTheDocument();
       });
-
-      const searchInput = screen.getByTestId("variable-search-input");
-      await user.type(searchInput, "brand");
 
       // Should filter to only show "brand"
       expect(screen.getByTestId("variable-option-brand")).toBeInTheDocument();
@@ -1108,7 +1094,7 @@ describe("HierarchyConfig", () => {
       expect(screen.queryByTestId("variable-option-headline")).not.toBeInTheDocument();
     });
 
-    it("shows 'No matching variables' when search has no results", async () => {
+    it("shows 'No matching variables' when filter has no results", async () => {
       const user = userEvent.setup();
 
       render(
@@ -1121,19 +1107,17 @@ describe("HierarchyConfig", () => {
       );
 
       const input = screen.getByLabelText(/ad group name pattern/i);
-      await user.type(input, "{{");
+      // Type opening brace followed by non-matching text
+      await user.type(input, "{{nonexistent");
 
       await waitFor(() => {
         expect(screen.getByTestId("variable-dropdown")).toBeInTheDocument();
       });
 
-      const searchInput = screen.getByTestId("variable-search-input");
-      await user.type(searchInput, "nonexistentcolumn");
-
       expect(screen.getByText(/no matching variables/i)).toBeInTheDocument();
     });
 
-    it("does not show search input when there are 5 or fewer columns", async () => {
+    it("shows dropdown with few columns", async () => {
       const user = userEvent.setup();
       const fewColumns: DataSourceColumn[] = [
         { name: "col1", type: "string" },
@@ -1157,11 +1141,13 @@ describe("HierarchyConfig", () => {
         expect(screen.getByTestId("variable-dropdown")).toBeInTheDocument();
       });
 
-      // With only 3 columns, search input should not be shown
-      expect(screen.queryByTestId("variable-search-input")).not.toBeInTheDocument();
+      // All columns should be shown
+      expect(screen.getByTestId("variable-option-col1")).toBeInTheDocument();
+      expect(screen.getByTestId("variable-option-col2")).toBeInTheDocument();
+      expect(screen.getByTestId("variable-option-col3")).toBeInTheDocument();
     });
 
-    it("allows selecting variable with arrow keys in search mode", async () => {
+    it("allows selecting variable with arrow keys", async () => {
       const user = userEvent.setup();
 
       render(
@@ -1174,15 +1160,15 @@ describe("HierarchyConfig", () => {
       );
 
       const input = screen.getByLabelText(/ad group name pattern/i);
-      await user.type(input, "{{");
+      // Type opening brace followed by filter to get a single option
+      await user.type(input, "{{bra");
 
       await waitFor(() => {
         expect(screen.getByTestId("variable-dropdown")).toBeInTheDocument();
+        expect(screen.getByTestId("variable-option-brand")).toBeInTheDocument();
       });
 
-      const searchInput = screen.getByTestId("variable-search-input");
-      // Type to filter, then use arrow down and enter
-      await user.type(searchInput, "brand");
+      // Use arrow down and enter to select
       await user.keyboard("{ArrowDown}");
       await user.keyboard("{Enter}");
 

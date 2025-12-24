@@ -38,8 +38,12 @@ const createInitialState = (): WizardState => ({
   campaignConfig: null,
   hierarchyConfig: null,
   ruleIds: [],
+  inlineRules: [],
   selectedPlatforms: [],
+  selectedAdTypes: { google: [], reddit: [], facebook: [] },
   platformBudgets: {},
+  threadConfig: null,
+  targetingConfig: null,
   generateResult: null,
 });
 
@@ -847,8 +851,9 @@ describe('validateWizardStep', () => {
       state.availableColumns = sampleColumns;
       state.campaignConfig = {
         namePattern: '{brand_name}',
-
       };
+      // Need to also set ad types since validation checks them before hierarchy
+      state.selectedAdTypes = { google: ['responsive-search'], reddit: [], facebook: [] };
       const result = validateWizardStep('preview', state);
       expect(result.valid).toBe(false);
       expect(result.errors).toContain('Hierarchy configuration is required');
@@ -863,6 +868,7 @@ describe('validateWizardStep', () => {
       };
       state.hierarchyConfig = createValidHierarchyConfig();
       state.selectedPlatforms = ['google'];
+      state.selectedAdTypes = { google: ['responsive-search'], reddit: [], facebook: [] };
       const result = validateWizardStep('preview', state);
       expect(result.valid).toBe(true);
     });

@@ -280,21 +280,23 @@ describe('wizardReducer', () => {
 describe('step navigation helpers', () => {
   describe('getNextStep', () => {
     it('returns correct next steps', () => {
-      // Order: data-source, rules, campaign-config, platform, ad-type, hierarchy, preview
+      // Order: data-source, rules, campaign-config, platform, ad-type, hierarchy, targeting, preview
       expect(getNextStep('data-source')).toBe('rules');
       expect(getNextStep('rules')).toBe('campaign-config');
       expect(getNextStep('campaign-config')).toBe('platform');
       expect(getNextStep('platform')).toBe('ad-type');
       expect(getNextStep('ad-type')).toBe('hierarchy');
-      expect(getNextStep('hierarchy')).toBe('preview');
+      expect(getNextStep('hierarchy')).toBe('targeting');
+      expect(getNextStep('targeting')).toBe('preview');
       expect(getNextStep('preview')).toBe('preview');
     });
   });
 
   describe('getPreviousStep', () => {
     it('returns correct previous steps', () => {
-      // Order: data-source, rules, campaign-config, platform, ad-type, hierarchy, preview
-      expect(getPreviousStep('preview')).toBe('hierarchy');
+      // Order: data-source, rules, campaign-config, platform, ad-type, hierarchy, targeting, preview
+      expect(getPreviousStep('preview')).toBe('targeting');
+      expect(getPreviousStep('targeting')).toBe('hierarchy');
       expect(getPreviousStep('hierarchy')).toBe('ad-type');
       expect(getPreviousStep('ad-type')).toBe('platform');
       expect(getPreviousStep('platform')).toBe('campaign-config');
@@ -306,14 +308,15 @@ describe('step navigation helpers', () => {
 
   describe('getStepIndex', () => {
     it('returns correct index for each step', () => {
-      // Order: data-source(0), rules(1), campaign-config(2), platform(3), ad-type(4), hierarchy(5), preview(6)
+      // Order: data-source(0), rules(1), campaign-config(2), platform(3), ad-type(4), hierarchy(5), targeting(6), preview(7)
       expect(getStepIndex('data-source')).toBe(0);
       expect(getStepIndex('rules')).toBe(1);
       expect(getStepIndex('campaign-config')).toBe(2);
       expect(getStepIndex('platform')).toBe(3);
       expect(getStepIndex('ad-type')).toBe(4);
       expect(getStepIndex('hierarchy')).toBe(5);
-      expect(getStepIndex('preview')).toBe(6);
+      expect(getStepIndex('targeting')).toBe(6);
+      expect(getStepIndex('preview')).toBe(7);
     });
   });
 
@@ -325,6 +328,7 @@ describe('step navigation helpers', () => {
       expect(isOptionalStep('platform')).toBe(false);
       expect(isOptionalStep('ad-type')).toBe(false);
       expect(isOptionalStep('hierarchy')).toBe(false);
+      expect(isOptionalStep('targeting')).toBe(true);
       expect(isOptionalStep('preview')).toBe(false);
     });
   });
@@ -562,14 +566,14 @@ describe('useGenerateWizard hook', () => {
       expect(result.current.getCurrentStepIndex()).toBe(1);
     });
 
-    it('getTotalSteps returns 7', () => {
+    it('getTotalSteps returns 8', () => {
       const { result } = renderHook(() => useGenerateWizard());
-      expect(result.current.getTotalSteps()).toBe(7);
+      expect(result.current.getTotalSteps()).toBe(8);
     });
 
     it('getProgress returns correct percentage', () => {
       const { result } = renderHook(() => useGenerateWizard());
-      expect(result.current.getProgress()).toBeCloseTo(14.29, 1); // 1/7 steps
+      expect(result.current.getProgress()).toBeCloseTo(12.5, 1); // 1/8 steps
       act(() => result.current.setStep('preview'));
       expect(result.current.getProgress()).toBe(100);
     });
@@ -617,7 +621,12 @@ describe('useGenerateWizard hook', () => {
       expect(result.current.canProceed()).toBe(true);
       act(() => result.current.nextStep());
 
-      // Step 7: Preview
+      // Step 7: Targeting (optional)
+      expect(result.current.state.currentStep).toBe('targeting');
+      expect(result.current.canSkip()).toBe(true);
+      act(() => result.current.nextStep());
+
+      // Step 8: Preview
       expect(result.current.state.currentStep).toBe('preview');
       expect(result.current.canGoBack()).toBe(true);
 

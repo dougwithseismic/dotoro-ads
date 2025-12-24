@@ -271,10 +271,9 @@ describe("GenerateWizard", () => {
     it("renders with initial step 'data-source'", async () => {
       render(<GenerateWizard />);
 
-      // Check that the first step is marked as current
-      expect(
-        screen.getByRole("button", { name: /step 1.*current/i })
-      ).toBeInTheDocument();
+      // Check that the first step is marked as current (may have duplicates for mobile/desktop)
+      const currentStepButtons = screen.getAllByRole("button", { name: /step 1.*current/i });
+      expect(currentStepButtons.length).toBeGreaterThanOrEqual(1);
 
       // Wait for data sources to load
       await waitFor(() => {
@@ -285,20 +284,32 @@ describe("GenerateWizard", () => {
       expect(screen.getByRole("heading", { name: "Select Data Source" })).toBeInTheDocument();
     });
 
-    it("shows step indicator with all 6 steps", async () => {
+    it("shows step indicator with all 8 steps", async () => {
       render(<GenerateWizard />);
 
-      // All 6 step labels should be visible (keywords removed)
-      expect(screen.getByText("Data Source")).toBeInTheDocument();
-      expect(screen.getByText("Campaign Config")).toBeInTheDocument();
-      expect(screen.getByText("Ad Structure")).toBeInTheDocument();
-      expect(screen.getByText("Rules")).toBeInTheDocument();
-      expect(screen.getByText("Platforms")).toBeInTheDocument();
-      expect(screen.getByText("Preview & Generate")).toBeInTheDocument();
+      // Wait for initial render and data fetching to complete
+      await waitFor(() => {
+        expect(screen.getByTestId("datasource-list")).toBeInTheDocument();
+      });
+
+      // All 8 step labels should be visible (may have duplicates for mobile/desktop)
+      expect(screen.getAllByText("Data Source").length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText("Rules").length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText("Campaign Config").length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText("Platforms").length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText("Ad Types").length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText("Ad Structure").length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText("Targeting").length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText("Preview & Generate").length).toBeGreaterThanOrEqual(1);
     });
 
-    it("has Back button disabled on first step", () => {
+    it("has Back button disabled on first step", async () => {
       render(<GenerateWizard />);
+
+      // Wait for initial render and data fetching to complete
+      await waitFor(() => {
+        expect(screen.getByTestId("datasource-list")).toBeInTheDocument();
+      });
 
       const backButton = screen.getByRole("button", { name: /go to previous step/i });
       expect(backButton).toBeDisabled();
@@ -530,11 +541,11 @@ describe("GenerateWizard", () => {
       // Type { to trigger autocomplete
       await user.type(input, "{{");
 
-      // Should show columns from the selected data source
+      // Should show columns from the selected data source (may have duplicates)
       await waitFor(() => {
         expect(screen.getByTestId("variable-dropdown")).toBeInTheDocument();
-        expect(screen.getByText("brand_name")).toBeInTheDocument();
-        expect(screen.getByText("product_name")).toBeInTheDocument();
+        expect(screen.getAllByText("brand_name").length).toBeGreaterThanOrEqual(1);
+        expect(screen.getAllByText("product_name").length).toBeGreaterThanOrEqual(1);
       });
     });
 
@@ -567,7 +578,7 @@ describe("GenerateWizard", () => {
       });
     });
 
-    it("can navigate to hierarchy step when campaign config is complete", async () => {
+    it("can navigate to platform step when campaign config is complete", async () => {
       await navigateToCampaignConfigStep();
 
       const user = userEvent.setup();
@@ -586,9 +597,9 @@ describe("GenerateWizard", () => {
       // Click Next
       fireEvent.click(screen.getByRole("button", { name: /go to next step/i }));
 
-      // Should now be on hierarchy step
+      // Should now be on platform step (step after campaign-config)
       await waitFor(() => {
-        expect(screen.getByRole("heading", { name: "Ad Structure" })).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: "Platforms" })).toBeInTheDocument();
       });
     });
 
@@ -653,7 +664,38 @@ describe("GenerateWizard", () => {
 
       fireEvent.click(screen.getByRole("button", { name: /go to next step/i }));
 
-      // Now on hierarchy step (step 4)
+      // Step 4: Platform selection
+      await waitFor(() => {
+        expect(screen.getByRole("heading", { name: "Platforms" })).toBeInTheDocument();
+      });
+
+      // Select Google platform
+      fireEvent.click(screen.getByTestId("platform-checkbox-google"));
+
+      await waitFor(() => {
+        const nextButton = screen.getByRole("button", { name: /go to next step/i });
+        expect(nextButton).not.toBeDisabled();
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: /go to next step/i }));
+
+      // Step 5: Ad Type selection
+      await waitFor(() => {
+        expect(screen.getByRole("heading", { name: "Ad Types" })).toBeInTheDocument();
+      });
+
+      // Select an ad type
+      const adTypeCheckbox = screen.getByLabelText(/responsive search ad/i);
+      fireEvent.click(adTypeCheckbox);
+
+      await waitFor(() => {
+        const nextButton = screen.getByRole("button", { name: /go to next step/i });
+        expect(nextButton).not.toBeDisabled();
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: /go to next step/i }));
+
+      // Now on hierarchy step (step 6)
       await waitFor(() => {
         expect(screen.getByRole("heading", { name: "Ad Structure" })).toBeInTheDocument();
       });
@@ -703,15 +745,15 @@ describe("GenerateWizard", () => {
       // Integration testing for the full flow is better handled by E2E tests
     });
 
-    it("can navigate back to campaign config step", async () => {
+    it("can navigate back to ad types step", async () => {
       await navigateToHierarchyStep();
 
       // Click back
       fireEvent.click(screen.getByRole("button", { name: /go to previous step/i }));
 
-      // Should be back on campaign config step
+      // Should be back on ad types step (the step before hierarchy)
       await waitFor(() => {
-        expect(screen.getByRole("heading", { name: "Campaign Config" })).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: "Ad Types" })).toBeInTheDocument();
       });
     });
   });
@@ -801,9 +843,9 @@ describe("GenerateWizard", () => {
         expect(screen.getByRole("heading", { name: "Rules" })).toBeInTheDocument();
       });
 
-      // Click on step 1 in the indicator
-      const step1Button = screen.getByRole("button", { name: /step 1.*completed/i });
-      fireEvent.click(step1Button);
+      // Click on step 1 in the indicator (may have duplicates for mobile/desktop)
+      const step1Buttons = screen.getAllByRole("button", { name: /step 1.*completed/i });
+      fireEvent.click(step1Buttons[0]);
 
       // Should navigate back to step 1
       await waitFor(() => {
@@ -814,7 +856,14 @@ describe("GenerateWizard", () => {
     it("renders wizard navigation with correct aria labels", async () => {
       render(<GenerateWizard />);
 
-      expect(screen.getByRole("navigation", { name: /wizard progress/i })).toBeInTheDocument();
+      // Wait for initial render and data fetching to complete
+      await waitFor(() => {
+        expect(screen.getByTestId("datasource-list")).toBeInTheDocument();
+      });
+
+      // May have duplicates for mobile/desktop
+      const progressNavs = screen.getAllByRole("navigation", { name: /wizard progress/i });
+      expect(progressNavs.length).toBeGreaterThanOrEqual(1);
       expect(screen.getByRole("navigation", { name: /wizard navigation/i })).toBeInTheDocument();
     });
   });
@@ -878,7 +927,7 @@ describe("GenerateWizard", () => {
     it("prevents proceeding from hierarchy config with empty fields by disabling Next", async () => {
       render(<GenerateWizard />);
 
-      // Navigate to hierarchy step (step 4)
+      // Navigate to hierarchy step (step 6)
       await waitFor(() => {
         expect(screen.getByTestId("datasource-list")).toBeInTheDocument();
       });
@@ -908,7 +957,29 @@ describe("GenerateWizard", () => {
       });
       fireEvent.click(screen.getByRole("button", { name: /go to next step/i }));
 
-      // On hierarchy step (step 4)
+      // Platform step (step 4)
+      await waitFor(() => {
+        expect(screen.getByRole("heading", { name: "Platforms" })).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByTestId("platform-checkbox-google"));
+      await waitFor(() => {
+        const nextButton = screen.getByRole("button", { name: /go to next step/i });
+        expect(nextButton).not.toBeDisabled();
+      });
+      fireEvent.click(screen.getByRole("button", { name: /go to next step/i }));
+
+      // Ad Type step (step 5)
+      await waitFor(() => {
+        expect(screen.getByRole("heading", { name: "Ad Types" })).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByLabelText(/responsive search ad/i));
+      await waitFor(() => {
+        const nextButton = screen.getByRole("button", { name: /go to next step/i });
+        expect(nextButton).not.toBeDisabled();
+      });
+      fireEvent.click(screen.getByRole("button", { name: /go to next step/i }));
+
+      // On hierarchy step (step 6)
       await waitFor(() => {
         expect(screen.getByRole("heading", { name: "Ad Structure" })).toBeInTheDocument();
       });

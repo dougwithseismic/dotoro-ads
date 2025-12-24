@@ -11,6 +11,7 @@ import { PlatformSelector } from "./PlatformSelector";
 import { GenerationPreview } from "./GenerationPreview";
 import { ValidationMessage } from "./ValidationMessage";
 import { WizardSidePanel } from "./WizardSidePanel";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useGenerateWizard } from "../hooks/useGenerateWizard";
 import {
   useWizardPersistence,
@@ -604,7 +605,12 @@ export function GenerateWizard() {
           {validationMessage && (
             <ValidationMessage message={validationMessage} type="error" />
           )}
-          {renderStepContent()}
+          <ErrorBoundary
+            errorMessage="Something went wrong loading this step. Please try refreshing the page."
+            onError={(error) => console.error(`Error in wizard step ${currentStep}:`, error)}
+          >
+            {renderStepContent()}
+          </ErrorBoundary>
 
           {/* Navigation inside content area */}
           {showNavigation && (
