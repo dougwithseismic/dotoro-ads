@@ -97,8 +97,9 @@ export function AdTypeSelector({
   const previewAdType = useMemo(() => {
     if (!activePlatform) return null;
     const selected = safeSelectedAdTypes[activePlatform] ?? [];
-    if (selected.length === 0) return null;
-    return getAdType(activePlatform, selected[selected.length - 1]);
+    const lastSelected = selected[selected.length - 1];
+    if (!lastSelected) return null;
+    return getAdType(activePlatform, lastSelected);
   }, [activePlatform, safeSelectedAdTypes, getAdType]);
 
   // Empty state if no platforms

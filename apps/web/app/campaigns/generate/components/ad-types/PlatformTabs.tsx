@@ -80,12 +80,14 @@ export function PlatformTabs({
         case "Enter":
         case " ":
           e.preventDefault();
-          onChange(platforms[currentIndex]);
+          const currentPlatform = platforms[currentIndex];
+          if (currentPlatform) onChange(currentPlatform);
           return;
       }
 
       if (newIndex !== null) {
         const newPlatform = platforms[newIndex];
+        if (!newPlatform) return;
         onChange(newPlatform);
 
         // Focus the new tab

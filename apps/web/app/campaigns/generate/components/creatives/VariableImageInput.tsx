@@ -29,7 +29,7 @@ interface VariableImageInputProps {
  */
 function extractColumnName(pattern: string): string {
   const match = pattern.match(/^\{(.+)\}$/);
-  return match ? match[1] : "";
+  return match?.[1] ?? "";
 }
 
 /**

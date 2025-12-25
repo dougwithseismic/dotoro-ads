@@ -1,6 +1,6 @@
 "use client";
 
-import type { AdTypeDefinition, FieldDefinition, CreativeRequirement } from "@repo/core/ad-types";
+import type { AdTypeDefinition, AdFieldDefinition, CreativeRequirement } from "@repo/core/ad-types";
 import styles from "./AdTypePreview.module.css";
 
 export interface AdTypePreviewProps {
@@ -18,7 +18,7 @@ function formatCategory(category: string): string {
 /**
  * Formats a field's constraints for display
  */
-function formatFieldConstraints(field: FieldDefinition): string {
+function formatFieldConstraints(field: AdFieldDefinition): string {
   const parts: string[] = [];
 
   if (field.maxLength) {
