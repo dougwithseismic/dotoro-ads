@@ -145,7 +145,96 @@ export interface ApiKeyConfig {
 }
 
 /**
- * Data Source Config interface with API key support
+ * Sync frequency options for API data sources
+ */
+export type SyncFrequency = 'manual' | '1h' | '6h' | '24h' | '7d';
+
+/**
+ * Sync status for tracking last sync operation
+ */
+export type SyncStatus = 'success' | 'error' | 'syncing';
+
+/**
+ * Authentication type for API endpoints
+ */
+export type ApiAuthType = 'none' | 'bearer' | 'api-key' | 'basic';
+
+/**
+ * JSON Flatten Config for API response processing
+ * Matches @repo/core JsonFlattenConfig interface
+ */
+export interface JsonFlattenConfig {
+  /**
+   * JSONPath to the array of items to flatten (e.g., "data.items", "results").
+   * If not provided, the root data is used directly.
+   */
+  dataPath?: string;
+
+  /**
+   * Maximum nesting depth for flattening objects.
+   * Objects nested deeper than this will be kept as-is.
+   * @default 3
+   */
+  maxDepth?: number;
+
+  /**
+   * How to handle arrays within objects:
+   * - 'join': Concatenate array elements into a string
+   * - 'first': Take only the first element
+   * - 'expand': Create separate rows for each array element (cartesian product)
+   */
+  arrayHandling: 'join' | 'first' | 'expand';
+
+  /**
+   * Separator for 'join' mode.
+   * @default ", "
+   */
+  arraySeparator?: string;
+}
+
+/**
+ * Configuration for API-type data sources that fetch from external APIs
+ */
+export interface ApiFetchConfig {
+  /** URL of the API endpoint to fetch data from */
+  url: string;
+
+  /** HTTP method for the request */
+  method: 'GET' | 'POST';
+
+  /** Optional HTTP headers to include in the request */
+  headers?: Record<string, string>;
+
+  /** Optional JSON string body for POST requests */
+  body?: string;
+
+  /** How often to sync data from the API */
+  syncFrequency: SyncFrequency;
+
+  /** ISO timestamp of the last successful sync */
+  lastSyncAt?: string;
+
+  /** Status of the last sync operation */
+  lastSyncStatus?: SyncStatus;
+
+  /** Error message from the last failed sync */
+  lastSyncError?: string;
+
+  /** Duration of the last sync in milliseconds */
+  lastSyncDuration?: number;
+
+  /** Configuration for flattening the JSON response */
+  flattenConfig?: JsonFlattenConfig;
+
+  /** Type of authentication to use */
+  authType?: ApiAuthType;
+
+  /** Authentication credentials (token for bearer, key for api-key, base64 for basic) */
+  authCredentials?: string;
+}
+
+/**
+ * Data Source Config interface with API key and API fetch support
  */
 export interface DataSourceConfig {
   // CSV parsing options
@@ -157,6 +246,9 @@ export interface DataSourceConfig {
 
   // API Key for external push
   apiKey?: ApiKeyConfig;
+
+  // API Fetch configuration (for type: 'api' data sources)
+  apiFetch?: ApiFetchConfig;
 
   // Additional dynamic properties
   [key: string]: unknown;

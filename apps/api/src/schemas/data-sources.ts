@@ -380,3 +380,61 @@ export const apiKeyRegenerateResponseSchema = apiKeyResponseSchema.extend({
 });
 
 export type ApiKeyRegenerateResponse = z.infer<typeof apiKeyRegenerateResponseSchema>;
+
+// ============================================================================
+// API Fetch Schemas (Phase 2B)
+// ============================================================================
+
+/**
+ * Sync Frequency Schema
+ */
+export const syncFrequencySchema = z.enum(["manual", "1h", "6h", "24h", "7d"]);
+export type SyncFrequency = z.infer<typeof syncFrequencySchema>;
+
+/**
+ * Auth Type Schema
+ */
+export const apiAuthTypeSchema = z.enum(["none", "bearer", "api-key", "basic"]);
+export type ApiAuthType = z.infer<typeof apiAuthTypeSchema>;
+
+/**
+ * JSON Flatten Config Schema
+ */
+export const jsonFlattenConfigSchema = z.object({
+  dataPath: z.string().optional(),
+  maxDepth: z.number().int().min(1).max(10).optional(),
+  arrayHandling: z.enum(["join", "first", "expand"]),
+  arraySeparator: z.string().optional(),
+});
+
+export type JsonFlattenConfig = z.infer<typeof jsonFlattenConfigSchema>;
+
+/**
+ * Test Connection Request Schema
+ * Used for POST /api/v1/data-sources/test-connection
+ */
+export const testConnectionRequestSchema = z.object({
+  url: z.string().url("Invalid URL format"),
+  method: z.enum(["GET", "POST"]),
+  headers: z.record(z.string()).optional(),
+  body: z.string().optional(),
+  flattenConfig: jsonFlattenConfigSchema.optional(),
+  authType: apiAuthTypeSchema.optional(),
+  authCredentials: z.string().optional(),
+});
+
+export type TestConnectionRequest = z.infer<typeof testConnectionRequestSchema>;
+
+/**
+ * Test Connection Response Schema
+ */
+export const testConnectionResponseSchema = z.object({
+  success: z.boolean(),
+  preview: z.object({
+    headers: z.array(z.string()),
+    rows: z.array(z.unknown()),
+  }).optional(),
+  error: z.string().optional(),
+});
+
+export type TestConnectionResponse = z.infer<typeof testConnectionResponseSchema>;

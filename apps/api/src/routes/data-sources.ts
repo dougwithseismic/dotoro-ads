@@ -26,6 +26,9 @@ import {
   // API Key schemas (Phase 0B)
   apiKeyResponseSchema,
   apiKeyRegenerateResponseSchema,
+  // API Fetch schemas (Phase 2B)
+  testConnectionRequestSchema,
+  testConnectionResponseSchema,
 } from "../schemas/data-sources.js";
 import { randomBytes } from "crypto";
 import bcrypt from "bcrypt";
@@ -49,6 +52,7 @@ import {
   deleteStoredData,
   clearAllStoredData,
 } from "../services/data-ingestion.js";
+import { testApiConnection } from "../services/api-fetch-service.js";
 import type { ValidationRule } from "@repo/core";
 import { db, dataSources, dataRows, transforms, columnMappings } from "../services/db.js";
 import type { DataSourceStatus } from "../schemas/data-sources.js";
@@ -695,6 +699,40 @@ const regenerateApiKeyRoute = createRoute({
       content: {
         "application/json": {
           schema: apiKeyRegenerateResponseSchema,
+        },
+      },
+    },
+    ...commonResponses,
+  },
+});
+
+// ============================================================================
+// API Fetch Route Definitions (Phase 2B)
+// ============================================================================
+
+// POST /api/v1/data-sources/test-connection - Test API connection
+const testConnectionRoute = createRoute({
+  method: "post",
+  path: "/api/v1/data-sources/test-connection",
+  tags: ["Data Sources"],
+  summary: "Test API connection",
+  description:
+    "Tests an API connection without creating a data source. Returns a preview of the flattened data if successful. Use this to validate API configuration before creating a data source.",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: testConnectionRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Connection test result with preview data",
+      content: {
+        "application/json": {
+          schema: testConnectionResponseSchema,
         },
       },
     },
@@ -1807,6 +1845,35 @@ dataSourcesApp.openapi(regenerateApiKeyRoute, async (c) => {
     },
     201
   );
+});
+
+// ============================================================================
+// API Fetch Route Handlers (Phase 2B)
+// ============================================================================
+
+// POST /api/v1/data-sources/test-connection - Test API connection
+dataSourcesApp.openapi(testConnectionRoute, async (c) => {
+  const body = c.req.valid("json");
+
+  // Convert schema types to service types
+  const result = await testApiConnection({
+    url: body.url,
+    method: body.method,
+    headers: body.headers,
+    body: body.body,
+    flattenConfig: body.flattenConfig
+      ? {
+          dataPath: body.flattenConfig.dataPath,
+          maxDepth: body.flattenConfig.maxDepth,
+          arrayHandling: body.flattenConfig.arrayHandling,
+          arraySeparator: body.flattenConfig.arraySeparator,
+        }
+      : undefined,
+    authType: body.authType,
+    authCredentials: body.authCredentials,
+  });
+
+  return c.json(result, 200);
 });
 
 // Error handler for API exceptions

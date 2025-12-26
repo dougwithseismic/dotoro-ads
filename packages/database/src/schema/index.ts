@@ -17,6 +17,11 @@ export type {
   NewColumnMapping,
   ApiKeyConfig,
   DataSourceConfig,
+  SyncFrequency,
+  SyncStatus,
+  ApiAuthType,
+  JsonFlattenConfig,
+  ApiFetchConfig,
 } from "./data-sources.js";
 
 // Campaign Templates
