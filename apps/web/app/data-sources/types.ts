@@ -1,7 +1,13 @@
+/** Sync status for API and Google Sheets data sources */
+export type SyncStatus = "synced" | "syncing" | "error";
+
+/** Sync frequency options for scheduled data sources */
+export type SyncFrequency = "manual" | "hourly" | "daily" | "weekly";
+
 export interface DataSource {
   id: string;
   name: string;
-  type: "csv" | "api" | "manual";
+  type: "csv" | "api" | "manual" | "google-sheets";
   rowCount: number;
   createdAt: Date;
   updatedAt: Date;
@@ -17,6 +23,12 @@ export interface DataSource {
   } | null;
   /** ID of the transform that created this data source (for virtual sources) */
   transformId?: string;
+  /** Sync status for API and Google Sheets sources */
+  syncStatus?: SyncStatus;
+  /** Last time the data source was synced (for API/Google Sheets) */
+  lastSyncedAt?: Date;
+  /** How often the data source syncs (for API/Google Sheets) */
+  syncFrequency?: SyncFrequency;
 }
 
 export interface ColumnMapping {

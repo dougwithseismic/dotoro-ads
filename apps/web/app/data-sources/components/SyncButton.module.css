@@ -1,0 +1,122 @@
+.syncButton {
+  --gray-rgb: 0, 0, 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  border: 1px solid;
+  white-space: nowrap;
+}
+
+.syncButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Icon container */
+.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Text */
+.text {
+  line-height: 1;
+}
+
+/* Idle state - primary color */
+.status-idle {
+  color: #6366f1;
+  background: transparent;
+  border-color: rgba(99, 102, 241, 0.2);
+}
+
+.status-idle:hover:not(:disabled) {
+  background: rgba(99, 102, 241, 0.05);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+/* Syncing state - blue with spinner */
+.status-syncing {
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.05);
+  border-color: rgba(59, 130, 246, 0.2);
+}
+
+/* Success state - green */
+.status-success {
+  color: #059669;
+  background: rgba(5, 150, 105, 0.05);
+  border-color: rgba(5, 150, 105, 0.2);
+}
+
+/* Error state - red/warning */
+.status-error {
+  color: #dc2626;
+  background: transparent;
+  border-color: rgba(220, 38, 38, 0.2);
+}
+
+.status-error:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.05);
+  border-color: rgba(220, 38, 38, 0.3);
+}
+
+/* Spinner animation */
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .syncButton {
+    --gray-rgb: 255, 255, 255;
+  }
+
+  .status-idle {
+    color: #818cf8;
+    border-color: rgba(129, 140, 248, 0.3);
+  }
+
+  .status-idle:hover:not(:disabled) {
+    background: rgba(129, 140, 248, 0.1);
+  }
+
+  .status-syncing {
+    color: #60a5fa;
+    background: rgba(96, 165, 250, 0.1);
+    border-color: rgba(96, 165, 250, 0.3);
+  }
+
+  .status-success {
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.1);
+    border-color: rgba(16, 185, 129, 0.3);
+  }
+
+  .status-error {
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.3);
+  }
+
+  .status-error:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.1);
+  }
+}

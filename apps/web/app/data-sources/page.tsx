@@ -7,13 +7,24 @@ import {
   UploadZone,
   Pagination,
   EmptyState,
+  type SyncButtonStatus,
 } from "./components";
 import type { DataSource, DataSourceListResponse, SortDirection } from "./types";
 import styles from "./DataSourceList.module.css";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+const SYNC_POLL_INTERVAL = 10000; // Poll every 10 seconds when syncing
 
 type SortableColumn = "name" | "updatedAt";
+
+/**
+ * Toast notification state
+ */
+interface ToastState {
+  message: string;
+  type: "success" | "error";
+  visible: boolean;
+}
 
 export default function DataSourcesPage() {
   const router = useRouter();
@@ -45,37 +56,216 @@ export default function DataSourcesPage() {
   );
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
-  const fetchDataSources = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
+  // Sync button statuses for optimistic UI
+  const [syncButtonStatuses, setSyncButtonStatuses] = useState<
+    Record<string, SyncButtonStatus>
+  >({});
 
-      let url = `${API_BASE}/api/v1/data-sources?page=${currentPage}&limit=${pageSize}`;
-      if (searchTerm) {
-        url += `&search=${encodeURIComponent(searchTerm)}`;
-      }
-      if (sortColumn) {
-        url += `&sortBy=${sortColumn}&sortOrder=${sortDirection}`;
-      }
+  // Toast notification state
+  const [toast, setToast] = useState<ToastState>({
+    message: "",
+    type: "success",
+    visible: false,
+  });
 
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error("Failed to fetch data sources");
+  // Polling ref to track interval
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Toast timeout ref to prevent memory leaks
+  const toastTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Sync timeouts ref to track and cleanup sync status revert timeouts
+  const syncTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+
+  /**
+   * Show a toast notification
+   */
+  const showToast = useCallback(
+    (message: string, type: "success" | "error") => {
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
       }
-      const data: DataSourceListResponse = await response.json();
-      setDataSources(data.data);
-      setTotalPages(data.totalPages);
-      setTotal(data.total);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setLoading(false);
-    }
-  }, [currentPage, pageSize, searchTerm, sortColumn, sortDirection]);
+      setToast({ message, type, visible: true });
+      // Auto-hide after 4 seconds
+      toastTimeoutRef.current = setTimeout(() => {
+        setToast((prev) => ({ ...prev, visible: false }));
+      }, 4000);
+    },
+    []
+  );
+
+  // Cleanup toast timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) {
+        clearTimeout(toastTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Cleanup sync timeouts on unmount
+  useEffect(() => {
+    return () => {
+      syncTimeoutsRef.current.forEach((timeout) => clearTimeout(timeout));
+      syncTimeoutsRef.current.clear();
+    };
+  }, []);
+
+  const fetchDataSources = useCallback(
+    async (silent = false) => {
+      try {
+        if (!silent) {
+          setLoading(true);
+        }
+        setError(null);
+
+        let url = `${API_BASE}/api/v1/data-sources?page=${currentPage}&limit=${pageSize}`;
+        if (searchTerm) {
+          url += `&search=${encodeURIComponent(searchTerm)}`;
+        }
+        if (sortColumn) {
+          url += `&sortBy=${sortColumn}&sortOrder=${sortDirection}`;
+        }
+
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error("Failed to fetch data sources");
+        }
+        const data: DataSourceListResponse = await response.json();
+        setDataSources(data.data);
+        setTotalPages(data.totalPages);
+        setTotal(data.total);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "An error occurred");
+      } finally {
+        if (!silent) {
+          setLoading(false);
+        }
+      }
+    },
+    [currentPage, pageSize, searchTerm, sortColumn, sortDirection]
+  );
 
   useEffect(() => {
     fetchDataSources();
   }, [fetchDataSources]);
+
+  /**
+   * Check if any data source is currently syncing
+   */
+  const hasAnySyncing = useMemo(() => {
+    return dataSources.some(
+      (ds) =>
+        ds.syncStatus === "syncing" ||
+        syncButtonStatuses[ds.id] === "syncing"
+    );
+  }, [dataSources, syncButtonStatuses]);
+
+  /**
+   * Set up polling when any data source is syncing
+   */
+  useEffect(() => {
+    if (hasAnySyncing) {
+      // Start polling
+      if (!pollIntervalRef.current) {
+        pollIntervalRef.current = setInterval(() => {
+          fetchDataSources(true); // Silent fetch
+        }, SYNC_POLL_INTERVAL);
+      }
+    } else {
+      // Stop polling
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+    };
+  }, [hasAnySyncing, fetchDataSources]);
+
+  /**
+   * Handle sync for a data source
+   */
+  const handleSync = useCallback(
+    async (id: string) => {
+      // Clear any existing timeout for this data source
+      const existingTimeout = syncTimeoutsRef.current.get(id);
+      if (existingTimeout) {
+        clearTimeout(existingTimeout);
+        syncTimeoutsRef.current.delete(id);
+      }
+
+      // Optimistic UI update
+      setSyncButtonStatuses((prev) => ({
+        ...prev,
+        [id]: "syncing",
+      }));
+
+      try {
+        const response = await fetch(
+          `${API_BASE}/api/v1/data-sources/${id}/sync`,
+          {
+            method: "POST",
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to trigger sync");
+        }
+
+        // On success, show success state briefly then revert
+        setSyncButtonStatuses((prev) => ({
+          ...prev,
+          [id]: "success",
+        }));
+
+        showToast("Sync completed successfully", "success");
+
+        // Revert to idle after 3 seconds
+        const successTimeoutId = setTimeout(() => {
+          setSyncButtonStatuses((prev) => {
+            const updated = { ...prev };
+            delete updated[id];
+            return updated;
+          });
+          syncTimeoutsRef.current.delete(id);
+        }, 3000);
+        syncTimeoutsRef.current.set(id, successTimeoutId);
+
+        // Refresh the data
+        await fetchDataSources(true);
+      } catch (err) {
+        // Show error state
+        setSyncButtonStatuses((prev) => ({
+          ...prev,
+          [id]: "error",
+        }));
+
+        showToast(
+          err instanceof Error ? err.message : "Failed to sync",
+          "error"
+        );
+
+        // Keep error state for a bit before clearing
+        const errorTimeoutId = setTimeout(() => {
+          setSyncButtonStatuses((prev) => {
+            const updated = { ...prev };
+            delete updated[id];
+            return updated;
+          });
+          syncTimeoutsRef.current.delete(id);
+        }, 5000);
+        syncTimeoutsRef.current.set(id, errorTimeoutId);
+      }
+    },
+    [fetchDataSources, showToast]
+  );
 
   // Simulated upload progress for UI demonstration
   const simulateUploadProgress = useCallback(() => {
@@ -237,7 +427,7 @@ export default function DataSourcesPage() {
         <div className={styles.error}>
           <h2>Error</h2>
           <p>{error}</p>
-          <button onClick={fetchDataSources} className={styles.retryButton}>
+          <button onClick={() => fetchDataSources()} className={styles.retryButton}>
             Try Again
           </button>
         </div>
@@ -250,6 +440,50 @@ export default function DataSourcesPage() {
 
   return (
     <div className={styles.page}>
+      {/* Toast Notification */}
+      {toast.visible && (
+        <div
+          className={`${styles.toast} ${styles[`toast-${toast.type}`]}`}
+          role="alert"
+          aria-live="polite"
+        >
+          {toast.type === "success" ? (
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M13.5 4.5L6 12L2.5 8.5"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          ) : (
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M12 4L4 12M4 4L12 12"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          )}
+          <span>{toast.message}</span>
+        </div>
+      )}
+
       <header className={styles.header}>
         <div className={styles.headerContent}>
           <h1 className={styles.title}>Data Sources</h1>
@@ -308,9 +542,11 @@ export default function DataSourcesPage() {
               dataSources={sortedDataSources}
               onRowClick={handleRowClick}
               onDelete={handleDelete}
+              onSync={handleSync}
               sortColumn={sortColumn}
               sortDirection={sortDirection}
               onSort={handleSort}
+              syncButtonStatuses={syncButtonStatuses}
             />
 
             {total > 0 && (

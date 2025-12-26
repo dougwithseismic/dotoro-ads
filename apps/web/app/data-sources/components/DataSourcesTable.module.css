@@ -159,6 +159,56 @@
   background: rgba(220, 38, 38, 0.1);
 }
 
+/* Sync status badge */
+.syncStatusBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 9999px;
+}
+
+.syncStatus-synced {
+  color: #059669;
+  background: rgba(5, 150, 105, 0.1);
+}
+
+.syncStatus-syncing {
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.syncStatus-error {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.1);
+}
+
+/* Last synced cell */
+.lastSyncedCell {
+  font-family: var(--font-geist-mono);
+  font-size: 13px;
+  color: rgba(var(--gray-rgb), 0.6);
+}
+
+/* Sync frequency cell */
+.syncFreqCell {
+  font-size: 13px;
+  color: rgba(var(--gray-rgb), 0.7);
+  text-transform: capitalize;
+}
+
+/* No sync placeholder */
+.noSync {
+  color: rgba(var(--gray-rgb), 0.3);
+}
+
+/* Google Sheets type badge */
+.googlesheets {
+  color: #0f9d58;
+  background: rgba(15, 157, 88, 0.1);
+}
+
 /* Actions */
 .actionsHeader {
   text-align: right;
@@ -274,5 +324,25 @@
   .virtual {
     color: #a78bfa;
     background: rgba(167, 139, 250, 0.15);
+  }
+
+  .syncStatus-synced {
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.15);
+  }
+
+  .syncStatus-syncing {
+    color: #60a5fa;
+    background: rgba(96, 165, 250, 0.15);
+  }
+
+  .syncStatus-error {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.15);
+  }
+
+  .googlesheets {
+    color: #34d399;
+    background: rgba(52, 211, 153, 0.15);
   }
 }
