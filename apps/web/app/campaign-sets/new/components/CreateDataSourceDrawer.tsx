@@ -270,8 +270,9 @@ export function CreateDataSourceDrawer({
 
   /**
    * Handle CSV paste form submission
-   * 1. Create data source with type: 'csv', config: { source: 'paste' }
-   * 2. Insert rows via items endpoint
+   * 1. Parse CSV content via preview endpoint to get structured data
+   * 2. Create data source with type: 'csv', config: { source: 'paste' }
+   * 3. Insert parsed rows via items endpoint
    */
   const handleCsvPasteSubmit = useCallback(
     async (dataSourceName: string, csvContent: string) => {
@@ -279,7 +280,31 @@ export function CreateDataSourceDrawer({
       setError(null);
 
       try {
-        // Step 1: Create the data source
+        // Step 1: Parse CSV content via preview endpoint
+        // Note: max 50000 rows supported by the API
+        const previewResponse = await fetch("/api/v1/data-sources/preview-csv", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            content: csvContent,
+            rows: 50000, // Get all rows (API max is 50000)
+          }),
+        });
+
+        if (!previewResponse.ok) {
+          const data = await previewResponse.json();
+          throw new Error(data.error || "Failed to parse CSV content");
+        }
+
+        const { preview: parsedItems } = await previewResponse.json();
+
+        if (!parsedItems || parsedItems.length === 0) {
+          throw new Error("CSV content is empty or invalid");
+        }
+
+        // Step 2: Create the data source
         const createResponse = await fetch("/api/v1/data-sources", {
           method: "POST",
           headers: {
@@ -299,7 +324,7 @@ export function CreateDataSourceDrawer({
 
         const { id: dataSourceId } = await createResponse.json();
 
-        // Step 2: Insert rows via items endpoint
+        // Step 3: Insert parsed rows via items endpoint
         const itemsResponse = await fetch(
           `/api/v1/data-sources/${dataSourceId}/items`,
           {
@@ -309,7 +334,7 @@ export function CreateDataSourceDrawer({
             },
             body: JSON.stringify({
               mode: "replace",
-              content: csvContent,
+              items: parsedItems,
             }),
           }
         );

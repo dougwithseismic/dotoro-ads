@@ -115,10 +115,12 @@ export type PreviewRequest = z.infer<typeof previewRequestSchema>;
 
 /**
  * CSV Preview Request Schema - for previewing CSV content before upload
+ * Note: max rows increased to 50000 to support CSV paste functionality
+ * which needs to parse all rows before inserting into the items endpoint.
  */
 export const csvPreviewRequestSchema = z.object({
   content: z.string().min(1),
-  rows: z.number().int().min(1).max(100).default(10),
+  rows: z.number().int().min(1).max(50000).default(10),
 });
 
 export type CsvPreviewRequest = z.infer<typeof csvPreviewRequestSchema>;
