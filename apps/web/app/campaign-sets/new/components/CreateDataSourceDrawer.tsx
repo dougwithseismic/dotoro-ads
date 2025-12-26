@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import styles from "./CreateDataSourceDrawer.module.css";
 import { CsvPasteForm } from "./CsvPasteForm";
 import { ApiPushConfig, type ApiKeyConfig } from "./ApiPushConfig";
+import { ApiDataSourceForm, type ApiFetchConfig } from "./ApiDataSourceForm";
 
 interface CreateDataSourceDrawerProps {
   isOpen: boolean;
@@ -11,7 +12,7 @@ interface CreateDataSourceDrawerProps {
   onCreated: (dataSourceId: string) => void;
 }
 
-type SourceType = "csv-upload" | "csv-paste" | "api";
+type SourceType = "csv-upload" | "csv-paste" | "api" | "api-fetch";
 
 export function CreateDataSourceDrawer({
   isOpen,
@@ -224,6 +225,48 @@ export function CreateDataSourceDrawer({
       onCreated(apiDataSourceId);
     }
   }, [apiDataSourceId, onCreated]);
+
+  /**
+   * Handle API Fetch data source creation
+   * Creates a data source that fetches from an external API
+   */
+  const handleApiFetchSubmit = useCallback(
+    async (dataSourceName: string, config: ApiFetchConfig) => {
+      setUploading(true);
+      setError(null);
+
+      try {
+        const response = await fetch("/api/v1/data-sources", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: dataSourceName,
+            type: "api",
+            config: {
+              source: "api-fetch",
+              ...config,
+            },
+          }),
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || "Failed to create data source");
+        }
+
+        const { id: dataSourceId } = await response.json();
+        onCreated(dataSourceId);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "An error occurred");
+        throw err; // Re-throw so the form knows submission failed
+      } finally {
+        setUploading(false);
+      }
+    },
+    [onCreated]
+  );
 
   /**
    * Handle CSV paste form submission
@@ -452,6 +495,37 @@ export function CreateDataSourceDrawer({
                     <span className={styles.sourceTypeName}>API Push</span>
                     <span className={styles.sourceTypeDesc}>
                       External systems push data via API
+                    </span>
+                  </div>
+                </button>
+
+                {/* API Fetch option */}
+                <button
+                  type="button"
+                  className={styles.sourceTypeCard}
+                  onClick={() => setSourceType("api-fetch")}
+                >
+                  <div className={styles.sourceTypeIcon}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                      <path
+                        d="M12 3C7.02944 3 3 7.02944 3 12C3 16.9706 7.02944 21 12 21C16.9706 21 21 16.9706 21 12"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                      />
+                      <path
+                        d="M15 3L21 9M21 3V9M21 3H15"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </div>
+                  <div className={styles.sourceTypeInfo}>
+                    <span className={styles.sourceTypeName}>API Fetch</span>
+                    <span className={styles.sourceTypeDesc}>
+                      Pull data from an external API
                     </span>
                   </div>
                 </button>
@@ -704,6 +778,37 @@ export function CreateDataSourceDrawer({
               >
                 Done
               </button>
+            </div>
+          )}
+
+          {/* Step 2d: API Fetch Configuration */}
+          {sourceType === "api-fetch" && (
+            <div className={styles.step}>
+              <button
+                type="button"
+                className={styles.backButton}
+                onClick={() => setSourceType(null)}
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path
+                    d="M10 12L6 8L10 4"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                Back
+              </button>
+
+              {/* Error message from parent */}
+              {error && <p className={styles.error}>{error}</p>}
+
+              <ApiDataSourceForm
+                onSubmit={handleApiFetchSubmit}
+                onCancel={() => setSourceType(null)}
+                isLoading={uploading}
+              />
             </div>
           )}
         </div>
