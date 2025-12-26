@@ -13,6 +13,8 @@ import { campaignsApp } from "./routes/campaigns.js";
 import { accountsApp } from "./routes/accounts.js";
 import { redditApp } from "./routes/reddit.js";
 import { transformsApp } from "./routes/transforms.js";
+import { campaignSetsApp } from "./routes/campaign-sets.js";
+import { jobsApp } from "./routes/jobs.js";
 import { registerOpenAPIEndpoints, openApiConfig } from "./lib/openapi.js";
 import { ApiException, ErrorCode } from "./lib/errors.js";
 
@@ -36,7 +38,7 @@ app.use(
   cors({
     origin: corsOrigins,
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization"],
+    allowHeaders: ["Content-Type", "Authorization", "x-user-id"],
     exposeHeaders: ["Content-Length"],
     maxAge: 600,
     credentials: true,
@@ -104,6 +106,8 @@ app.route("/", campaignsApp);
 app.route("/", accountsApp);
 app.route("/", redditApp);
 app.route("/", transformsApp);
+app.route("/", campaignSetsApp);
+app.route("/", jobsApp);
 
 // ============================================================================
 // OpenAPI Documentation

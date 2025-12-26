@@ -30,7 +30,7 @@ const dataNavItems: NavItem[] = [
 ];
 
 const managementNavItems: NavItem[] = [
-  { label: "Campaigns", href: "/campaigns", icon: Megaphone },
+  { label: "Campaign Sets", href: "/campaign-sets", icon: Megaphone },
   { label: "Accounts", href: "/accounts", icon: User },
 ];
 

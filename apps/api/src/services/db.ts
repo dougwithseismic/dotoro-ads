@@ -40,6 +40,18 @@ export {
 
   // Transforms
   transforms,
+
+  // Campaign Sets
+  campaignSets,
+
+  // Ad Groups
+  adGroups,
+
+  // Ads
+  ads,
+
+  // Keywords
+  keywords,
 } from "@repo/database";
 
 // Export types
@@ -101,4 +113,22 @@ export type {
   TransformConfig,
   AggregationConfig,
   AggregationFunction,
+
+  // Campaign Sets
+  CampaignSet,
+  NewCampaignSet,
+  CampaignSetConfig,
+
+  // Ad Groups
+  AdGroup,
+  NewAdGroup,
+
+  // Ads
+  Ad,
+  NewAd,
+  AdAssets,
+
+  // Keywords
+  Keyword,
+  NewKeyword,
 } from "@repo/database";

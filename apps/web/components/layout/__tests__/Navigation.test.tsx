@@ -26,7 +26,7 @@ describe("Navigation", () => {
     expect(screen.getByRole("link", { name: /transforms/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /templates/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /rules/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /campaigns/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /campaign sets/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /accounts/i })).toBeInTheDocument();
   });
 
@@ -38,7 +38,7 @@ describe("Navigation", () => {
     expect(screen.getByRole("link", { name: /transforms/i })).toHaveAttribute("href", "/transforms");
     expect(screen.getByRole("link", { name: /templates/i })).toHaveAttribute("href", "/templates");
     expect(screen.getByRole("link", { name: /rules/i })).toHaveAttribute("href", "/rules");
-    expect(screen.getByRole("link", { name: /campaigns/i })).toHaveAttribute("href", "/campaigns");
+    expect(screen.getByRole("link", { name: /campaign sets/i })).toHaveAttribute("href", "/campaign-sets");
     expect(screen.getByRole("link", { name: /accounts/i })).toHaveAttribute("href", "/accounts");
   });
 

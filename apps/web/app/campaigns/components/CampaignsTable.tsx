@@ -119,7 +119,7 @@ export function CampaignsTable({
           </svg>
         </div>
         <h2>No campaigns found</h2>
-        <p>Generate campaigns from your templates to see them here.</p>
+        <p>Create a campaign set to see your campaigns here.</p>
         <Link href="/templates" className={styles.ctaButton}>
           Go to Templates
         </Link>

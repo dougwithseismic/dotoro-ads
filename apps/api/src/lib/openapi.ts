@@ -44,6 +44,10 @@ export const openApiConfig = {
       description: "Generated campaigns and platform sync",
     },
     {
+      name: "Campaign Sets",
+      description: "Campaign sets - collections of campaigns created from the wizard",
+    },
+    {
       name: "Accounts",
       description: "Ad platform account connections",
     },

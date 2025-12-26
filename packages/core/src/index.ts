@@ -183,3 +183,42 @@ export type {
   TargetingReachEstimate,
   LanguageOption,
 } from "./targeting/index.js";
+
+// Re-export campaign set types
+export type {
+  // Status types
+  CampaignSetStatus,
+  CampaignSetSyncStatus,
+  EntityStatus,
+  CampaignStatus,
+  KeywordMatchType,
+  // Supporting types
+  BudgetInfo,
+  AdGroupSettings,
+  AdAssets,
+  HierarchyConfigSnapshot,
+  InlineRule,
+  // Config types
+  CampaignSetConfig,
+  // Main entity types
+  CampaignSet,
+  Campaign,
+  AdGroup,
+  Ad,
+  Keyword,
+  // DTO types
+  CreateCampaignSetInput,
+  UpdateCampaignSetInput,
+  CreateCampaignInput,
+  UpdateCampaignInput,
+  CreateAdGroupInput,
+  UpdateAdGroupInput,
+  CreateAdInput,
+  UpdateAdInput,
+  CreateKeywordInput,
+  UpdateKeywordInput,
+  // Utility types
+  CampaignSetWithRelations,
+  CampaignSetSummary,
+  SyncResult,
+} from "./campaign-set/index.js";

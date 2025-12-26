@@ -120,11 +120,11 @@ const quickActions: QuickAction[] = [
     description: "Design a new ad template with variables",
   },
   {
-    id: "generate",
-    label: "Generate Campaigns",
-    href: "/campaigns/generate",
+    id: "create-set",
+    label: "Create Campaign Set",
+    href: "/campaign-sets/new",
     icon: <GenerateIcon />,
-    description: "Create campaigns from your templates and data",
+    description: "Create a campaign set from your data",
   },
 ];
 

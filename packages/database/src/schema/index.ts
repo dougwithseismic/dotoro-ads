@@ -120,3 +120,41 @@ export type {
   AggregationConfig,
   AggregationFunction,
 } from "./transforms.js";
+
+// Campaign Sets
+export {
+  campaignSets,
+  campaignSetsRelations,
+  campaignSetStatusEnum,
+  campaignSetSyncStatusEnum,
+} from "./campaign-sets.js";
+export type {
+  CampaignSet,
+  NewCampaignSet,
+  CampaignSetConfig,
+} from "./campaign-sets.js";
+
+// Ad Groups (normalized from JSONB)
+export {
+  adGroups,
+  adGroupsRelations,
+  adGroupStatusEnum,
+} from "./ad-groups.js";
+export type {
+  AdGroup,
+  NewAdGroup,
+  AdGroupSettings as NormalizedAdGroupSettings,
+} from "./ad-groups.js";
+
+// Ads
+export { ads, adsRelations, adStatusEnum } from "./ads.js";
+export type { Ad, NewAd, AdAssets } from "./ads.js";
+
+// Keywords
+export {
+  keywords,
+  keywordsRelations,
+  keywordMatchTypeEnum,
+  keywordStatusEnum,
+} from "./keywords.js";
+export type { Keyword, NewKeyword } from "./keywords.js";

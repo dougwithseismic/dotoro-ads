@@ -414,8 +414,8 @@ export default function CampaignsPage() {
           </p>
         </div>
         <div className={styles.headerActions}>
-          <Link href="/campaigns/generate" className={styles.generateButton}>
-            + Generate Campaigns
+          <Link href="/campaign-sets/new" className={styles.generateButton}>
+            + Create Campaign Set
           </Link>
           <div className={styles.stats}>
           <div className={styles.stat}>

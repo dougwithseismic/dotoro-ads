@@ -21,6 +21,10 @@ interface RequestOptions extends Omit<RequestInit, "body"> {
   body?: unknown;
 }
 
+// TODO: Replace with actual auth when available
+// For development, uses a mock user ID (must be valid UUID)
+const DEV_USER_ID = process.env.NEXT_PUBLIC_DEV_USER_ID || "00000000-0000-0000-0000-000000000001";
+
 /**
  * Base fetch wrapper with error handling and JSON parsing
  */
@@ -34,6 +38,7 @@ export async function apiRequest<T>(
     ...rest,
     headers: {
       "Content-Type": "application/json",
+      "x-user-id": DEV_USER_ID,
       ...headers,
     },
   };

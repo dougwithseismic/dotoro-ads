@@ -104,3 +104,6 @@ export * from "./accounts.js";
 
 // Creatives schemas
 export * from "./creatives.js";
+
+// Campaign Sets schemas
+export * from "./campaign-sets.js";

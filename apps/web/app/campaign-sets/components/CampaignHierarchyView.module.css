@@ -1,0 +1,361 @@
+.hierarchy {
+  --gray-rgb: 0, 0, 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .hierarchy {
+    --gray-rgb: 255, 255, 255;
+  }
+}
+
+/* Empty state */
+.emptyState {
+  padding: 48px 24px;
+  text-align: center;
+  color: rgba(var(--gray-rgb), 0.5);
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+}
+
+.emptyMessage {
+  padding: 16px 24px;
+  color: rgba(var(--gray-rgb), 0.5);
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-style: italic;
+  margin: 0;
+}
+
+/* Chevron icon */
+.chevron {
+  flex-shrink: 0;
+  color: rgba(var(--gray-rgb), 0.4);
+  transition: transform 0.2s;
+}
+
+.chevron.expanded {
+  transform: rotate(90deg);
+}
+
+/* Campaign item */
+.campaignItem {
+  border: 1px solid rgba(var(--gray-rgb), 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.campaignToggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  background: rgba(var(--gray-rgb), 0.02);
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+  font-family: inherit;
+}
+
+.campaignToggle:hover {
+  background: rgba(var(--gray-rgb), 0.05);
+}
+
+.campaignName {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--foreground);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.campaignMeta {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  color: rgba(var(--gray-rgb), 0.5);
+  white-space: nowrap;
+}
+
+.campaignContent {
+  padding: 8px 16px 16px 40px;
+  background: var(--background);
+}
+
+/* Platform badge */
+.platformBadge {
+  font-family: var(--font-geist-sans);
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  background: rgba(var(--gray-rgb), 0.08);
+  color: rgba(var(--gray-rgb), 0.7);
+}
+
+.platformBadge[data-platform="google"] {
+  background: rgba(66, 133, 244, 0.1);
+  color: #4285f4;
+}
+
+.platformBadge[data-platform="meta"] {
+  background: rgba(24, 119, 242, 0.1);
+  color: #1877f2;
+}
+
+.platformBadge[data-platform="linkedin"] {
+  background: rgba(0, 119, 181, 0.1);
+  color: #0077b5;
+}
+
+.platformBadge[data-platform="tiktok"] {
+  background: rgba(0, 0, 0, 0.06);
+  color: #000;
+}
+
+@media (prefers-color-scheme: dark) {
+  .platformBadge[data-platform="tiktok"] {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+  }
+}
+
+.platformBadge[data-platform="reddit"] {
+  background: rgba(255, 69, 0, 0.1);
+  color: #ff4500;
+}
+
+/* Ad Group item */
+.adGroupsList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.adGroupItem {
+  border: 1px solid rgba(var(--gray-rgb), 0.08);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.adGroupToggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+  font-family: inherit;
+}
+
+.adGroupToggle:hover {
+  background: rgba(var(--gray-rgb), 0.03);
+}
+
+.adGroupName {
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--foreground);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adGroupMeta {
+  font-family: var(--font-geist-sans);
+  font-size: 11px;
+  color: rgba(var(--gray-rgb), 0.5);
+  white-space: nowrap;
+}
+
+.entityStatus {
+  font-family: var(--font-geist-sans);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(var(--gray-rgb), 0.06);
+  color: rgba(var(--gray-rgb), 0.6);
+}
+
+.entityStatus[data-status="active"] {
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+}
+
+.entityStatus[data-status="paused"] {
+  background: rgba(234, 179, 8, 0.1);
+  color: #ca8a04;
+}
+
+.entityStatus[data-status="removed"] {
+  background: rgba(220, 38, 38, 0.1);
+  color: #dc2626;
+}
+
+.adGroupContent {
+  padding: 12px 12px 12px 32px;
+  border-top: 1px solid rgba(var(--gray-rgb), 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Sections */
+.sectionTitle {
+  font-family: var(--font-geist-sans);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(var(--gray-rgb), 0.5);
+  margin: 0 0 8px;
+}
+
+.adsSection,
+.keywordsSection {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Ads */
+.adsList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.adItem {
+  padding: 10px 12px;
+  background: rgba(var(--gray-rgb), 0.02);
+  border-radius: 6px;
+  border: 1px solid rgba(var(--gray-rgb), 0.06);
+}
+
+.adHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.adHeadline {
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--foreground);
+  flex: 1;
+}
+
+.adStatus {
+  font-family: var(--font-geist-sans);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(var(--gray-rgb), 0.06);
+  color: rgba(var(--gray-rgb), 0.6);
+}
+
+.adStatus[data-status="active"] {
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+}
+
+.adDescription {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  color: rgba(var(--gray-rgb), 0.7);
+  margin: 0 0 4px;
+  line-height: 1.4;
+}
+
+.adUrl {
+  font-family: var(--font-geist-mono);
+  font-size: 11px;
+  color: #3b82f6;
+}
+
+/* Keywords */
+.keywordsList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.keywordItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(var(--gray-rgb), 0.04);
+  border: 1px solid rgba(var(--gray-rgb), 0.08);
+  border-radius: 4px;
+}
+
+.keywordText {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  color: var(--foreground);
+}
+
+.matchType {
+  font-family: var(--font-geist-mono);
+  font-size: 10px;
+  color: rgba(var(--gray-rgb), 0.5);
+}
+
+.keywordStatus {
+  font-family: var(--font-geist-sans);
+  font-size: 9px;
+  font-weight: 500;
+  text-transform: uppercase;
+  padding: 1px 4px;
+  border-radius: 2px;
+  background: rgba(var(--gray-rgb), 0.06);
+  color: rgba(var(--gray-rgb), 0.5);
+}
+
+.keywordStatus[data-status="active"] {
+  background: rgba(34, 197, 94, 0.1);
+  color: #16a34a;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .campaignToggle {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .campaignName {
+    width: 100%;
+    flex: none;
+  }
+
+  .campaignContent {
+    padding-left: 16px;
+  }
+
+  .adGroupContent {
+    padding-left: 16px;
+  }
+}

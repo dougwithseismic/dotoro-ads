@@ -1,0 +1,187 @@
+.header {
+  --gray-rgb: 0, 0, 0;
+  padding: 24px 0;
+  border-bottom: 1px solid rgba(var(--gray-rgb), 0.1);
+  margin-bottom: 24px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .header {
+    --gray-rgb: 255, 255, 255;
+  }
+}
+
+.content {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+/* Title section */
+.titleSection {
+  flex: 1;
+  min-width: 0;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.name {
+  font-family: var(--font-geist-sans);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--foreground);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.description {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  color: rgba(var(--gray-rgb), 0.6);
+  margin: 0 0 12px;
+  max-width: 600px;
+}
+
+.syncStatus {
+  margin-top: 8px;
+}
+
+/* Actions */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* Button base styles */
+.primaryButton,
+.secondaryButton,
+.dangerButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+  white-space: nowrap;
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.dangerButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Primary button */
+.primaryButton {
+  background: #3b82f6;
+  color: #fff;
+}
+
+.primaryButton:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+/* Secondary button */
+.secondaryButton {
+  background: rgba(var(--gray-rgb), 0.06);
+  color: var(--foreground);
+  border: 1px solid rgba(var(--gray-rgb), 0.12);
+}
+
+.secondaryButton:hover:not(:disabled) {
+  background: rgba(var(--gray-rgb), 0.1);
+}
+
+/* Danger button */
+.dangerButton {
+  background: rgba(220, 38, 38, 0.08);
+  color: #dc2626;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+}
+
+.dangerButton:hover:not(:disabled) {
+  background: rgba(220, 38, 38, 0.15);
+}
+
+@media (prefers-color-scheme: dark) {
+  .dangerButton {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.3);
+  }
+
+  .dangerButton:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.2);
+  }
+}
+
+/* Spinner */
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .content {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .primaryButton {
+    flex: 1;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .header {
+    padding: 16px 0;
+  }
+
+  .name {
+    font-size: 20px;
+  }
+
+  .actions {
+    gap: 8px;
+  }
+
+  .primaryButton,
+  .secondaryButton,
+  .dangerButton {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+}

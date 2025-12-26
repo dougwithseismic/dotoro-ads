@@ -1,0 +1,78 @@
+/**
+ * Job Events Module
+ *
+ * Provides a typed event emitter for background job progress updates.
+ * Used for Server-Sent Events (SSE) streaming of sync progress.
+ */
+import { EventEmitter } from "events";
+
+/**
+ * Event types for sync progress updates.
+ */
+export type SyncProgressEventType =
+  | "progress"
+  | "campaign_synced"
+  | "campaign_failed"
+  | "completed"
+  | "error";
+
+/**
+ * Data payload for sync progress events.
+ */
+export interface SyncProgressData {
+  /** Number of campaigns synced so far */
+  synced?: number;
+  /** Number of campaigns that failed */
+  failed?: number;
+  /** Total number of campaigns to sync */
+  total?: number;
+  /** Campaign ID (for campaign_synced/campaign_failed) */
+  campaignId?: string;
+  /** Platform-assigned ID (for campaign_synced) */
+  platformId?: string;
+  /** Error message (for campaign_failed/error) */
+  error?: string;
+}
+
+/**
+ * Sync progress event structure.
+ */
+export interface SyncProgressEvent {
+  /** The pg-boss job ID */
+  jobId: string;
+  /** The campaign set being synced */
+  campaignSetId: string;
+  /** Event type */
+  type: SyncProgressEventType;
+  /** Event data payload */
+  data: SyncProgressData;
+  /** ISO timestamp of the event */
+  timestamp: string;
+}
+
+/**
+ * Singleton event emitter for job events.
+ * Used to communicate between job handlers and SSE endpoints.
+ */
+export const jobEvents = new EventEmitter();
+
+// Increase max listeners to support multiple concurrent SSE connections
+jobEvents.setMaxListeners(100);
+
+/**
+ * Emits a typed sync progress event.
+ *
+ * Events are emitted on the pattern `sync:{jobId}` for progress listeners.
+ * For terminal events (completed, error), also emits `sync:{jobId}:done`.
+ *
+ * @param event - The sync progress event to emit
+ */
+export function emitSyncProgress(event: SyncProgressEvent): void {
+  // Emit to the main sync event channel
+  jobEvents.emit(`sync:${event.jobId}`, event);
+
+  // For terminal events, also emit done signal
+  if (event.type === "completed" || event.type === "error") {
+    jobEvents.emit(`sync:${event.jobId}:done`);
+  }
+}
