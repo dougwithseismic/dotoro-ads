@@ -1,5 +1,5 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
-import { eq, count, asc, inArray } from "drizzle-orm";
+import { eq, count, asc, inArray, max } from "drizzle-orm";
 import {
   dataSourceSchema,
   createDataSourceSchema,
@@ -16,6 +16,13 @@ import {
   validationResponseSchema,
   analyzeResponseSchema,
   dataSourceDetailSchema,
+  // Item CRUD schemas
+  bulkInsertItemsRequestSchema,
+  bulkInsertItemsResponseSchema,
+  updateItemRequestSchema,
+  clearItemsQuerySchema,
+  clearItemsResponseSchema,
+  itemIdParamSchema,
 } from "../schemas/data-sources.js";
 import { idParamSchema, paginationSchema } from "../schemas/common.js";
 import { commonResponses, createPaginatedResponse } from "../lib/openapi.js";
@@ -517,6 +524,114 @@ const getColumnsRoute = createRoute({
           schema: z.object({
             data: z.array(columnResponseSchema),
           }),
+        },
+      },
+    },
+    ...commonResponses,
+  },
+});
+
+// ============================================================================
+// Item CRUD Route Definitions (Phase 0A)
+// ============================================================================
+
+// POST /api/v1/data-sources/:id/items - Bulk insert items
+const bulkInsertItemsRoute = createRoute({
+  method: "post",
+  path: "/api/v1/data-sources/{id}/items",
+  tags: ["Data Sources"],
+  summary: "Bulk insert items",
+  description:
+    "Inserts multiple items into a data source. Use mode 'append' to add to existing data or 'replace' to clear and insert. Inserts are batched in chunks of 100 for performance.",
+  request: {
+    params: idParamSchema,
+    body: {
+      content: {
+        "application/json": {
+          schema: bulkInsertItemsRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    201: {
+      description: "Items inserted successfully",
+      content: {
+        "application/json": {
+          schema: bulkInsertItemsResponseSchema,
+        },
+      },
+    },
+    ...commonResponses,
+  },
+});
+
+// PUT /api/v1/data-sources/:id/items/:itemId - Update single item
+const updateItemRoute = createRoute({
+  method: "put",
+  path: "/api/v1/data-sources/{id}/items/{itemId}",
+  tags: ["Data Sources"],
+  summary: "Update a single item",
+  description: "Updates the data of a single item in a data source.",
+  request: {
+    params: itemIdParamSchema,
+    body: {
+      content: {
+        "application/json": {
+          schema: updateItemRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Item updated successfully",
+      content: {
+        "application/json": {
+          schema: dataRowSchema,
+        },
+      },
+    },
+    ...commonResponses,
+  },
+});
+
+// DELETE /api/v1/data-sources/:id/items/:itemId - Delete single item
+const deleteItemRoute = createRoute({
+  method: "delete",
+  path: "/api/v1/data-sources/{id}/items/{itemId}",
+  tags: ["Data Sources"],
+  summary: "Delete a single item",
+  description: "Deletes a single item from a data source.",
+  request: {
+    params: itemIdParamSchema,
+  },
+  responses: {
+    204: {
+      description: "Item deleted successfully",
+    },
+    ...commonResponses,
+  },
+});
+
+// DELETE /api/v1/data-sources/:id/items - Clear all items
+const clearItemsRoute = createRoute({
+  method: "delete",
+  path: "/api/v1/data-sources/{id}/items",
+  tags: ["Data Sources"],
+  summary: "Clear all items",
+  description:
+    "Deletes all items from a data source. Requires confirm=true query parameter to prevent accidental deletion.",
+  request: {
+    params: idParamSchema,
+    query: clearItemsQuerySchema,
+  },
+  responses: {
+    200: {
+      description: "Items cleared successfully",
+      content: {
+        "application/json": {
+          schema: clearItemsResponseSchema,
         },
       },
     },
@@ -1283,6 +1398,222 @@ dataSourcesApp.openapi(getColumnsRoute, async (c) => {
   });
 
   return c.json({ data: columns }, 200);
+});
+
+// ============================================================================
+// Item CRUD Route Handlers (Phase 0A)
+// ============================================================================
+
+/**
+ * Scale-aware configuration for bulk operations
+ */
+const MAX_ROWS = parseInt(process.env.DATA_SOURCE_MAX_ROWS ?? "500000");
+const BATCH_SIZE = 100;
+const LOG_INTERVAL = 10000; // Log progress every N rows
+
+// POST /api/v1/data-sources/:id/items - Bulk insert items
+dataSourcesApp.openapi(bulkInsertItemsRoute, async (c) => {
+  const { id } = c.req.valid("param");
+  const body = c.req.valid("json");
+  const { items, mode } = body;
+
+  // Check if data source exists
+  const [dataSource] = await db
+    .select()
+    .from(dataSources)
+    .where(eq(dataSources.id, id))
+    .limit(1);
+
+  if (!dataSource) {
+    throw createNotFoundError("Data source", id);
+  }
+
+  // Get current row count for append mode validation
+  let currentRowCount = 0;
+  if (mode === "append") {
+    currentRowCount = await computeRowCount(id);
+  }
+
+  // Check row limit BEFORE starting insert
+  const projectedTotal = mode === "append" ? currentRowCount + items.length : items.length;
+  if (projectedTotal > MAX_ROWS) {
+    throw createValidationError(`Would exceed row limit of ${MAX_ROWS}`, {
+      currentRows: currentRowCount,
+      newItems: items.length,
+      projectedTotal,
+      maxRows: MAX_ROWS,
+    });
+  }
+
+  // Get starting row index for append mode (before transaction)
+  let startingRowIndex = 0;
+  if (mode === "append") {
+    // Use max() aggregate to get the highest existing row index
+    const [maxResult] = await db
+      .select({ maxIndex: max(dataRows.rowIndex) })
+      .from(dataRows)
+      .where(eq(dataRows.dataSourceId, id));
+
+    // If there are existing rows, start after the max index; otherwise start at 0
+    startingRowIndex = maxResult?.maxIndex != null ? maxResult.maxIndex + 1 : 0;
+  }
+
+  // Perform delete (if replace) and all inserts in a single transaction
+  // This ensures atomicity: if any insert fails, the delete is rolled back
+  let insertedCount = 0;
+
+  await db.transaction(async (tx) => {
+    // If replace mode, delete existing items first (within transaction)
+    if (mode === "replace") {
+      await tx.delete(dataRows).where(eq(dataRows.dataSourceId, id));
+    }
+
+    // Batch insert in chunks of BATCH_SIZE
+    for (let i = 0; i < items.length; i += BATCH_SIZE) {
+      const batch = items.slice(i, i + BATCH_SIZE);
+      const batchValues = batch.map((item, idx) => ({
+        dataSourceId: id,
+        rowData: item,
+        rowIndex: startingRowIndex + i + idx,
+      }));
+
+      await tx.insert(dataRows).values(batchValues);
+      insertedCount += batch.length;
+
+      // Log progress for large inserts
+      if (insertedCount % LOG_INTERVAL === 0) {
+        console.log(`[bulkInsert] Inserted ${insertedCount}/${items.length} rows for dataSourceId=${id}`);
+      }
+    }
+  });
+
+  // Calculate final total (after transaction committed)
+  const finalTotal = await computeRowCount(id);
+  const limitReached = finalTotal >= MAX_ROWS * 0.9; // Warn when 90% of limit
+
+  return c.json(
+    {
+      inserted: insertedCount,
+      total: finalTotal,
+      ...(limitReached && { limitReached: true }),
+    },
+    201
+  );
+});
+
+// PUT /api/v1/data-sources/:id/items/:itemId - Update single item
+dataSourcesApp.openapi(updateItemRoute, async (c) => {
+  const { id, itemId } = c.req.valid("param");
+  const body = c.req.valid("json");
+  const { data } = body;
+
+  // Check if data source exists
+  const [dataSource] = await db
+    .select()
+    .from(dataSources)
+    .where(eq(dataSources.id, id))
+    .limit(1);
+
+  if (!dataSource) {
+    throw createNotFoundError("Data source", id);
+  }
+
+  // Check if item exists and belongs to this data source
+  const [existingItem] = await db
+    .select()
+    .from(dataRows)
+    .where(eq(dataRows.id, itemId))
+    .limit(1);
+
+  if (!existingItem) {
+    throw createNotFoundError("Item", itemId);
+  }
+
+  if (existingItem.dataSourceId !== id) {
+    throw createNotFoundError("Item", itemId);
+  }
+
+  // Update the item
+  const [updatedItem] = await db
+    .update(dataRows)
+    .set({ rowData: data })
+    .where(eq(dataRows.id, itemId))
+    .returning();
+
+  if (!updatedItem) {
+    throw createNotFoundError("Item", itemId);
+  }
+
+  return c.json(
+    {
+      id: updatedItem.id,
+      dataSourceId: updatedItem.dataSourceId,
+      rowData: updatedItem.rowData,
+      rowIndex: updatedItem.rowIndex,
+      createdAt: updatedItem.createdAt.toISOString(),
+    },
+    200
+  );
+});
+
+// DELETE /api/v1/data-sources/:id/items/:itemId - Delete single item
+dataSourcesApp.openapi(deleteItemRoute, async (c) => {
+  const { id, itemId } = c.req.valid("param");
+
+  // Check if data source exists
+  const [dataSource] = await db
+    .select()
+    .from(dataSources)
+    .where(eq(dataSources.id, id))
+    .limit(1);
+
+  if (!dataSource) {
+    throw createNotFoundError("Data source", id);
+  }
+
+  // Check if item exists and belongs to this data source
+  const [existingItem] = await db
+    .select()
+    .from(dataRows)
+    .where(eq(dataRows.id, itemId))
+    .limit(1);
+
+  if (!existingItem) {
+    throw createNotFoundError("Item", itemId);
+  }
+
+  if (existingItem.dataSourceId !== id) {
+    throw createNotFoundError("Item", itemId);
+  }
+
+  // Delete the item
+  await db.delete(dataRows).where(eq(dataRows.id, itemId));
+
+  return c.body(null, 204);
+});
+
+// DELETE /api/v1/data-sources/:id/items - Clear all items
+dataSourcesApp.openapi(clearItemsRoute, async (c) => {
+  const { id } = c.req.valid("param");
+
+  // Check if data source exists
+  const [dataSource] = await db
+    .select()
+    .from(dataSources)
+    .where(eq(dataSources.id, id))
+    .limit(1);
+
+  if (!dataSource) {
+    throw createNotFoundError("Data source", id);
+  }
+
+  // Get count before deletion
+  const deletedCount = await computeRowCount(id);
+
+  // Delete all items
+  await db.delete(dataRows).where(eq(dataRows.dataSourceId, id));
+
+  return c.json({ deleted: deletedCount }, 200);
 });
 
 // Error handler for API exceptions

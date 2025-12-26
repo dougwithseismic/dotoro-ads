@@ -264,3 +264,79 @@ export const dataSourceDetailSchema = dataSourceSchema.extend({
 });
 
 export type DataSourceDetailResponse = z.infer<typeof dataSourceDetailSchema>;
+
+// ============================================================================
+// Item CRUD Schemas (Phase 0A)
+// ============================================================================
+
+/**
+ * Insert mode for bulk insert operations.
+ * - "append": Add items to existing data
+ * - "replace": Clear existing items and insert new ones
+ */
+export const insertModeSchema = z.enum(["append", "replace"]);
+export type InsertMode = z.infer<typeof insertModeSchema>;
+
+/**
+ * Bulk Insert Items Request Schema
+ * Used for POST /api/v1/data-sources/:id/items
+ */
+export const bulkInsertItemsRequestSchema = z.object({
+  items: z.array(z.record(z.unknown())).min(1, "At least one item is required"),
+  mode: insertModeSchema,
+});
+
+export type BulkInsertItemsRequest = z.infer<typeof bulkInsertItemsRequestSchema>;
+
+/**
+ * Bulk Insert Items Response Schema
+ * Returns insert statistics and limit status
+ */
+export const bulkInsertItemsResponseSchema = z.object({
+  inserted: z.number().int().min(0),
+  total: z.number().int().min(0),
+  limitReached: z.boolean().optional(),
+});
+
+export type BulkInsertItemsResponse = z.infer<typeof bulkInsertItemsResponseSchema>;
+
+/**
+ * Update Item Request Schema
+ * Used for PUT /api/v1/data-sources/:id/items/:itemId
+ */
+export const updateItemRequestSchema = z.object({
+  data: z.record(z.unknown()),
+});
+
+export type UpdateItemRequest = z.infer<typeof updateItemRequestSchema>;
+
+/**
+ * Clear Items Query Schema
+ * Requires confirm=true to prevent accidental deletion
+ */
+export const clearItemsQuerySchema = z.object({
+  confirm: z.enum(["true"]).describe("Must be 'true' to confirm deletion"),
+});
+
+export type ClearItemsQuery = z.infer<typeof clearItemsQuerySchema>;
+
+/**
+ * Clear Items Response Schema
+ * Returns count of deleted items
+ */
+export const clearItemsResponseSchema = z.object({
+  deleted: z.number().int().min(0),
+});
+
+export type ClearItemsResponse = z.infer<typeof clearItemsResponseSchema>;
+
+/**
+ * Item ID Path Parameters Schema
+ * Used for single item operations
+ */
+export const itemIdParamSchema = z.object({
+  id: uuidSchema,
+  itemId: uuidSchema,
+});
+
+export type ItemIdParam = z.infer<typeof itemIdParamSchema>;
