@@ -23,7 +23,14 @@ import {
   clearItemsQuerySchema,
   clearItemsResponseSchema,
   itemIdParamSchema,
+  // API Key schemas (Phase 0B)
+  apiKeyResponseSchema,
+  apiKeyRegenerateResponseSchema,
 } from "../schemas/data-sources.js";
+import { randomBytes } from "crypto";
+import bcrypt from "bcrypt";
+import { apiKeyAuth } from "../middleware/api-key-auth.js";
+import type { DataSourceConfig, ApiKeyConfig } from "@repo/database/schema";
 import { idParamSchema, paginationSchema } from "../schemas/common.js";
 import { commonResponses, createPaginatedResponse } from "../lib/openapi.js";
 import {
@@ -146,6 +153,10 @@ function deriveStatus(
 
 // Create the OpenAPI Hono app
 export const dataSourcesApp = new OpenAPIHono();
+
+// Apply API key auth middleware to bulk insert route
+// This middleware validates X-API-Key header if present, otherwise falls through
+dataSourcesApp.use("/api/v1/data-sources/:id/items", apiKeyAuth());
 
 // ============================================================================
 // Route Definitions
@@ -632,6 +643,58 @@ const clearItemsRoute = createRoute({
       content: {
         "application/json": {
           schema: clearItemsResponseSchema,
+        },
+      },
+    },
+    ...commonResponses,
+  },
+});
+
+// ============================================================================
+// API Key Route Definitions (Phase 0B)
+// ============================================================================
+
+// POST /api/v1/data-sources/:id/api-key - Generate API key
+const generateApiKeyRoute = createRoute({
+  method: "post",
+  path: "/api/v1/data-sources/{id}/api-key",
+  tags: ["Data Sources"],
+  summary: "Generate API key for data source",
+  description:
+    "Generates a new API key for external push access to the data source. The key is shown ONLY ONCE in this response and cannot be retrieved later. Store it securely.",
+  request: {
+    params: idParamSchema,
+  },
+  responses: {
+    201: {
+      description: "API key generated successfully",
+      content: {
+        "application/json": {
+          schema: apiKeyResponseSchema,
+        },
+      },
+    },
+    ...commonResponses,
+  },
+});
+
+// POST /api/v1/data-sources/:id/api-key/regenerate - Regenerate API key
+const regenerateApiKeyRoute = createRoute({
+  method: "post",
+  path: "/api/v1/data-sources/{id}/api-key/regenerate",
+  tags: ["Data Sources"],
+  summary: "Regenerate API key for data source",
+  description:
+    "Generates a new API key and invalidates the previous key. The new key is shown ONLY ONCE in this response. Any systems using the old key will need to be updated.",
+  request: {
+    params: idParamSchema,
+  },
+  responses: {
+    201: {
+      description: "API key regenerated successfully",
+      content: {
+        "application/json": {
+          schema: apiKeyRegenerateResponseSchema,
         },
       },
     },
@@ -1614,6 +1677,136 @@ dataSourcesApp.openapi(clearItemsRoute, async (c) => {
   await db.delete(dataRows).where(eq(dataRows.dataSourceId, id));
 
   return c.json({ deleted: deletedCount }, 200);
+});
+
+// ============================================================================
+// API Key Route Handlers (Phase 0B)
+// ============================================================================
+
+/**
+ * Constants for API key generation.
+ */
+const API_KEY_PREFIX = "ds_live_";
+const API_KEY_BYTES = 32; // 32 bytes = 64 hex chars
+const BCRYPT_COST = 10;
+
+/**
+ * Generate a secure API key.
+ * @returns The plaintext key with prefix
+ */
+function generateApiKey(): string {
+  const keyBytes = randomBytes(API_KEY_BYTES);
+  return `${API_KEY_PREFIX}${keyBytes.toString("hex")}`;
+}
+
+/**
+ * Create a display prefix for the API key.
+ * Shows first 8 chars after prefix, then ellipsis.
+ * @param key - Full API key
+ * @returns Truncated key for display
+ */
+function createKeyPrefix(key: string): string {
+  // Extract the hex part after ds_live_
+  const hexPart = key.substring(API_KEY_PREFIX.length);
+  return `${API_KEY_PREFIX}${hexPart.substring(0, 8)}...`;
+}
+
+// POST /api/v1/data-sources/:id/api-key - Generate API key
+dataSourcesApp.openapi(generateApiKeyRoute, async (c) => {
+  const { id } = c.req.valid("param");
+
+  // Check if data source exists
+  const [dataSource] = await db
+    .select()
+    .from(dataSources)
+    .where(eq(dataSources.id, id))
+    .limit(1);
+
+  if (!dataSource) {
+    throw createNotFoundError("Data source", id);
+  }
+
+  // Generate new API key
+  const plaintextKey = generateApiKey();
+  const keyHash = await bcrypt.hash(plaintextKey, BCRYPT_COST);
+  const keyPrefix = createKeyPrefix(plaintextKey);
+  const createdAt = new Date().toISOString();
+
+  // Build new config with API key
+  const existingConfig = (dataSource.config as DataSourceConfig) ?? {};
+  const newConfig: DataSourceConfig = {
+    ...existingConfig,
+    apiKey: {
+      keyHash,
+      keyPrefix,
+      createdAt,
+    },
+  };
+
+  // Update the data source config
+  await db
+    .update(dataSources)
+    .set({ config: newConfig })
+    .where(eq(dataSources.id, id));
+
+  return c.json(
+    {
+      key: plaintextKey,
+      keyPrefix,
+      createdAt,
+    },
+    201
+  );
+});
+
+// POST /api/v1/data-sources/:id/api-key/regenerate - Regenerate API key
+dataSourcesApp.openapi(regenerateApiKeyRoute, async (c) => {
+  const { id } = c.req.valid("param");
+
+  // Check if data source exists
+  const [dataSource] = await db
+    .select()
+    .from(dataSources)
+    .where(eq(dataSources.id, id))
+    .limit(1);
+
+  if (!dataSource) {
+    throw createNotFoundError("Data source", id);
+  }
+
+  // Generate new API key
+  const plaintextKey = generateApiKey();
+  const keyHash = await bcrypt.hash(plaintextKey, BCRYPT_COST);
+  const keyPrefix = createKeyPrefix(plaintextKey);
+  const createdAt = new Date().toISOString();
+
+  // Build new config with API key (replace old key, clear lastUsedAt)
+  const existingConfig = (dataSource.config as DataSourceConfig) ?? {};
+  const newConfig: DataSourceConfig = {
+    ...existingConfig,
+    apiKey: {
+      keyHash,
+      keyPrefix,
+      createdAt,
+      // Note: lastUsedAt is intentionally NOT included to clear it
+    },
+  };
+
+  // Update the data source config
+  await db
+    .update(dataSources)
+    .set({ config: newConfig })
+    .where(eq(dataSources.id, id));
+
+  return c.json(
+    {
+      key: plaintextKey,
+      keyPrefix,
+      createdAt,
+      previousKeyRevoked: true as const,
+    },
+    201
+  );
 });
 
 // Error handler for API exceptions

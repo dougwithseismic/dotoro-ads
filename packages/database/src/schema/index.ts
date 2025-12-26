@@ -15,6 +15,8 @@ export type {
   NewDataRow,
   ColumnMapping,
   NewColumnMapping,
+  ApiKeyConfig,
+  DataSourceConfig,
 } from "./data-sources.js";
 
 // Campaign Templates

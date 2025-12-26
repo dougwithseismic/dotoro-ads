@@ -340,3 +340,43 @@ export const itemIdParamSchema = z.object({
 });
 
 export type ItemIdParam = z.infer<typeof itemIdParamSchema>;
+
+// ============================================================================
+// API Key Schemas (Phase 0B)
+// ============================================================================
+
+/**
+ * API Key Config Schema
+ * Stored in data source config JSONB field
+ */
+export const apiKeyConfigSchema = z.object({
+  keyHash: z.string(), // bcrypt hash
+  keyPrefix: z.string(), // ds_live_xxxx... for display
+  createdAt: z.string().datetime(), // ISO timestamp
+  lastUsedAt: z.string().datetime().optional(), // ISO timestamp
+  rateLimit: z.number().int().min(1).optional(), // requests per minute (default 100)
+});
+
+export type ApiKeyConfig = z.infer<typeof apiKeyConfigSchema>;
+
+/**
+ * API Key Generation Response Schema
+ * Returned when generating a new API key
+ */
+export const apiKeyResponseSchema = z.object({
+  key: z.string(), // ds_live_xxxxxxxxxxxx (shown ONCE)
+  keyPrefix: z.string(), // ds_live_xxxx... (for display)
+  createdAt: z.string().datetime(), // ISO timestamp
+});
+
+export type ApiKeyResponse = z.infer<typeof apiKeyResponseSchema>;
+
+/**
+ * API Key Regeneration Response Schema
+ * Returned when regenerating an API key
+ */
+export const apiKeyRegenerateResponseSchema = apiKeyResponseSchema.extend({
+  previousKeyRevoked: z.literal(true),
+});
+
+export type ApiKeyRegenerateResponse = z.infer<typeof apiKeyRegenerateResponseSchema>;

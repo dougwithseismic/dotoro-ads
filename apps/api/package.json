@@ -19,6 +19,7 @@
     "@repo/core": "workspace:^",
     "@repo/database": "workspace:*",
     "@repo/reddit-ads": "workspace:^",
+    "bcrypt": "^6.0.0",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.38.0",
     "hono": "^4.0.0",
@@ -29,6 +30,7 @@
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
+    "@types/bcrypt": "^6.0.0",
     "@types/node": "^22.0.0",
     "tsx": "^4.21.0",
     "typescript": "^5.9.0",

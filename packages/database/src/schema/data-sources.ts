@@ -132,3 +132,32 @@ export type NewDataRow = typeof dataRows.$inferInsert;
 
 export type ColumnMapping = typeof columnMappings.$inferSelect;
 export type NewColumnMapping = typeof columnMappings.$inferInsert;
+
+/**
+ * API Key configuration stored in data source config JSONB
+ */
+export interface ApiKeyConfig {
+  keyHash: string;           // bcrypt hash
+  keyPrefix: string;         // ds_live_xxxx for display
+  createdAt: string;         // ISO timestamp
+  lastUsedAt?: string;       // ISO timestamp
+  rateLimit?: number;        // requests per minute (default 100)
+}
+
+/**
+ * Data Source Config interface with API key support
+ */
+export interface DataSourceConfig {
+  // CSV parsing options
+  hasHeader?: boolean;
+  delimiter?: string;
+
+  // Error state
+  error?: string;
+
+  // API Key for external push
+  apiKey?: ApiKeyConfig;
+
+  // Additional dynamic properties
+  [key: string]: unknown;
+}
