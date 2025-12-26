@@ -970,7 +970,7 @@ dataSourcesApp.openapi(updateDataSourceRoute, async (c) => {
   // Build update object
   const updates: Partial<{
     name: string;
-    type: "csv" | "api" | "manual";
+    type: "csv" | "api" | "manual" | "google-sheets";
     config: Record<string, unknown> | null;
   }> = {};
 
@@ -1728,6 +1728,7 @@ dataSourcesApp.openapi(deleteItemRoute, async (c) => {
 // DELETE /api/v1/data-sources/:id/items - Clear all items
 dataSourcesApp.openapi(clearItemsRoute, async (c) => {
   const { id } = c.req.valid("param");
+  const _query = c.req.valid("query"); // Validates confirm=true query param
 
   // Check if data source exists
   const [dataSource] = await db
