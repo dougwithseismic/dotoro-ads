@@ -1,6 +1,9 @@
 // Re-export all services
 export * from "./services/index.js";
 
+// Re-export data utilities
+export * from "./data/index.js";
+
 // Re-export validators
 export * from "./validators/index.js";
 
