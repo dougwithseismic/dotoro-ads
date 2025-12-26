@@ -1,0 +1,549 @@
+"use client";
+
+import { useState, useEffect, useRef, useCallback } from "react";
+import styles from "./CreateDataSourceDrawer.module.css";
+import { CsvPasteForm } from "./CsvPasteForm";
+
+interface CreateDataSourceDrawerProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onCreated: (dataSourceId: string) => void;
+}
+
+type SourceType = "csv-upload" | "csv-paste" | "api";
+
+export function CreateDataSourceDrawer({
+  isOpen,
+  onClose,
+  onCreated,
+}: CreateDataSourceDrawerProps) {
+  const [sourceType, setSourceType] = useState<SourceType | null>(null);
+  const [name, setName] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [dragActive, setDragActive] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Focus close button when opened
+  useEffect(() => {
+    if (isOpen) {
+      closeButtonRef.current?.focus();
+    }
+  }, [isOpen]);
+
+  // Handle escape key and body scroll lock
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+
+    document.addEventListener("keydown", handleEscape);
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+      document.body.style.overflow = "";
+    };
+  }, [isOpen, onClose]);
+
+  // Reset state when closed
+  useEffect(() => {
+    if (!isOpen) {
+      setSourceType(null);
+      setName("");
+      setFile(null);
+      setError(null);
+    }
+  }, [isOpen]);
+
+  // Handle file drop
+  const handleDrag = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    const droppedFile = e.dataTransfer.files[0];
+    if (droppedFile && droppedFile.type === "text/csv") {
+      setFile(droppedFile);
+      if (!name) {
+        setName(droppedFile.name.replace(/\.csv$/i, ""));
+      }
+    } else {
+      setError("Please upload a CSV file");
+    }
+  }, [name]);
+
+  const handleFileSelect = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const selectedFile = e.target.files?.[0];
+      if (selectedFile) {
+        setFile(selectedFile);
+        if (!name) {
+          setName(selectedFile.name.replace(/\.csv$/i, ""));
+        }
+      }
+    },
+    [name]
+  );
+
+  // Handle form submission
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!name.trim()) {
+      setError("Please enter a name for your data source");
+      return;
+    }
+
+    if (sourceType === "csv-upload" && !file) {
+      setError("Please select a CSV file");
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      if (sourceType === "csv-upload" && file) {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("name", name.trim());
+
+        const response = await fetch("/api/v1/data-sources/upload", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || "Failed to upload file");
+        }
+
+        const data = await response.json();
+        onCreated(data.id);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  /**
+   * Handle CSV paste form submission
+   * 1. Create data source with type: 'csv', config: { source: 'paste' }
+   * 2. Insert rows via items endpoint
+   */
+  const handleCsvPasteSubmit = useCallback(
+    async (dataSourceName: string, csvContent: string) => {
+      setUploading(true);
+      setError(null);
+
+      try {
+        // Step 1: Create the data source
+        const createResponse = await fetch("/api/v1/data-sources", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: dataSourceName,
+            type: "csv",
+            config: { source: "paste" },
+          }),
+        });
+
+        if (!createResponse.ok) {
+          const data = await createResponse.json();
+          throw new Error(data.error || "Failed to create data source");
+        }
+
+        const { id: dataSourceId } = await createResponse.json();
+
+        // Step 2: Insert rows via items endpoint
+        const itemsResponse = await fetch(
+          `/api/v1/data-sources/${dataSourceId}/items`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              mode: "replace",
+              content: csvContent,
+            }),
+          }
+        );
+
+        if (!itemsResponse.ok) {
+          const data = await itemsResponse.json();
+          throw new Error(data.error || "Failed to import CSV data");
+        }
+
+        onCreated(dataSourceId);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "An error occurred");
+        throw err; // Re-throw so the form knows submission failed
+      } finally {
+        setUploading(false);
+      }
+    },
+    [onCreated]
+  );
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className={styles.overlay}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <aside
+        className={styles.drawer}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="drawer-title"
+      >
+        {/* Header */}
+        <header className={styles.header}>
+          <h2 id="drawer-title" className={styles.title}>
+            Create Data Source
+          </h2>
+          <button
+            ref={closeButtonRef}
+            type="button"
+            className={styles.closeButton}
+            onClick={onClose}
+            aria-label="Close"
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path
+                d="M5 5L15 15M15 5L5 15"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+        </header>
+
+        {/* Content */}
+        <div className={styles.content}>
+          {/* Step 1: Choose source type */}
+          {!sourceType && (
+            <div className={styles.step}>
+              <p className={styles.stepDescription}>
+                Choose how you want to import your data
+              </p>
+
+              <div className={styles.sourceTypes}>
+                {/* Upload CSV option */}
+                <button
+                  type="button"
+                  className={styles.sourceTypeCard}
+                  onClick={() => setSourceType("csv-upload")}
+                >
+                  <div className={styles.sourceTypeIcon}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                      <path
+                        d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <path
+                        d="M14 2V8H20"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <path
+                        d="M8 13H16"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                      />
+                      <path
+                        d="M8 17H16"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  </div>
+                  <div className={styles.sourceTypeInfo}>
+                    <span className={styles.sourceTypeName}>Upload CSV</span>
+                    <span className={styles.sourceTypeDesc}>
+                      Import data from a CSV file
+                    </span>
+                  </div>
+                </button>
+
+                {/* Paste CSV option */}
+                <button
+                  type="button"
+                  className={styles.sourceTypeCard}
+                  onClick={() => setSourceType("csv-paste")}
+                >
+                  <div className={styles.sourceTypeIcon}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                      <path
+                        d="M16 4H18C18.5304 4 19.0391 4.21071 19.4142 4.58579C19.7893 4.96086 20 5.46957 20 6V20C20 20.5304 19.7893 21.0391 19.4142 21.4142C19.0391 21.7893 18.5304 22 18 22H6C5.46957 22 4.96086 21.7893 4.58579 21.4142C4.21071 21.0391 4 20.5304 4 20V6C4 5.46957 4.21071 4.96086 4.58579 4.58579C4.96086 4.21071 5.46957 4 6 4H8"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <path
+                        d="M15 2H9C8.44772 2 8 2.44772 8 3V5C8 5.55228 8.44772 6 9 6H15C15.5523 6 16 5.55228 16 5V3C16 2.44772 15.5523 2 15 2Z"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <path
+                        d="M8 12H16"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                      />
+                      <path
+                        d="M8 16H12"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  </div>
+                  <div className={styles.sourceTypeInfo}>
+                    <span className={styles.sourceTypeName}>Paste CSV</span>
+                    <span className={styles.sourceTypeDesc}>
+                      Paste CSV content directly
+                    </span>
+                  </div>
+                </button>
+
+                {/* Connect API option - Coming soon */}
+                <button
+                  type="button"
+                  className={`${styles.sourceTypeCard} ${styles.sourceTypeDisabled}`}
+                  disabled
+                >
+                  <div className={styles.sourceTypeIcon}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                      <path
+                        d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                      />
+                      <path
+                        d="M21 3L15 9M21 3V8M21 3H16"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </div>
+                  <div className={styles.sourceTypeInfo}>
+                    <span className={styles.sourceTypeName}>Connect API</span>
+                    <span className={styles.sourceTypeDesc}>
+                      Coming soon
+                    </span>
+                  </div>
+                  <span className={styles.comingSoonBadge}>Soon</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 2a: CSV Upload */}
+          {sourceType === "csv-upload" && (
+            <form onSubmit={handleSubmit} className={styles.step}>
+              <button
+                type="button"
+                className={styles.backButton}
+                onClick={() => setSourceType(null)}
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path
+                    d="M10 12L6 8L10 4"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                Back
+              </button>
+
+              {/* Name input */}
+              <div className={styles.field}>
+                <label htmlFor="ds-name" className={styles.fieldLabel}>
+                  Name
+                </label>
+                <input
+                  id="ds-name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="My Data Source"
+                  className={styles.input}
+                />
+              </div>
+
+              {/* File upload */}
+              <div className={styles.field}>
+                <label className={styles.fieldLabel}>CSV File</label>
+                <div
+                  className={`${styles.dropzone} ${dragActive ? styles.dropzoneActive : ""} ${file ? styles.dropzoneHasFile : ""}`}
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".csv"
+                    onChange={handleFileSelect}
+                    className={styles.fileInput}
+                  />
+
+                  {file ? (
+                    <div className={styles.fileInfo}>
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path
+                          d="M11.667 1.667H5a1.667 1.667 0 00-1.667 1.666v13.334A1.667 1.667 0 005 18.333h10a1.667 1.667 0 001.667-1.666V6.667l-5-5z"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                        <path
+                          d="M11.667 1.667v5h5"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                      <span className={styles.fileName}>{file.name}</span>
+                      <span className={styles.fileSize}>
+                        {(file.size / 1024).toFixed(1)} KB
+                      </span>
+                    </div>
+                  ) : (
+                    <div className={styles.dropzoneContent}>
+                      <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                        <path
+                          d="M28 20V25.3333C28 26.0406 27.719 26.7189 27.219 27.219C26.7189 27.719 26.0406 28 25.3333 28H6.66667C5.95942 28 5.28115 27.719 4.78105 27.219C4.28095 26.7189 4 26.0406 4 25.3333V20"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                        <path
+                          d="M22.6667 10.6667L16 4L9.33333 10.6667"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                        <path
+                          d="M16 4V20"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                      <p className={styles.dropzoneText}>
+                        Drag and drop your CSV file here, or click to browse
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Error message */}
+              {error && <p className={styles.error}>{error}</p>}
+
+              {/* Submit button */}
+              <button
+                type="submit"
+                className={styles.submitButton}
+                disabled={uploading || !name.trim() || !file}
+              >
+                {uploading ? (
+                  <>
+                    <span className={styles.spinner} />
+                    Uploading...
+                  </>
+                ) : (
+                  "Create Data Source"
+                )}
+              </button>
+            </form>
+          )}
+
+          {/* Step 2b: CSV Paste */}
+          {sourceType === "csv-paste" && (
+            <div className={styles.step}>
+              <button
+                type="button"
+                className={styles.backButton}
+                onClick={() => setSourceType(null)}
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path
+                    d="M10 12L6 8L10 4"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                Back
+              </button>
+
+              {/* Error message from parent */}
+              {error && <p className={styles.error}>{error}</p>}
+
+              <CsvPasteForm
+                onSubmit={handleCsvPasteSubmit}
+                onCancel={() => setSourceType(null)}
+                isLoading={uploading}
+              />
+            </div>
+          )}
+        </div>
+      </aside>
+    </div>
+  );
+}
