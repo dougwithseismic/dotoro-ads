@@ -44,3 +44,23 @@ export {
   type RetryFailedSyncsJob,
   type RetryResult,
 } from "./handlers/retry-failed-syncs.js";
+
+// Sync API data source job handler (Phase 2C)
+export {
+  SYNC_API_DATA_SOURCE_JOB,
+  createSyncApiDataSourceHandler,
+  registerSyncApiDataSourceHandler,
+  isSyncDue,
+  SYNC_INTERVALS,
+  type SyncApiDataSourceJob,
+  type SyncApiDataSourceResult,
+} from "./handlers/sync-api-data-source.js";
+
+// Schedule API syncs job handler (Phase 2C)
+export {
+  SCHEDULE_API_SYNCS_JOB,
+  SCHEDULE_API_SYNCS_CRON,
+  createScheduleApiSyncsHandler,
+  registerScheduleApiSyncsHandler,
+  type ScheduleApiSyncsResult,
+} from "./handlers/schedule-api-syncs.js";

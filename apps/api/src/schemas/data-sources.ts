@@ -438,3 +438,18 @@ export const testConnectionResponseSchema = z.object({
 });
 
 export type TestConnectionResponse = z.infer<typeof testConnectionResponseSchema>;
+
+// ============================================================================
+// Sync Job Schemas (Phase 2C)
+// ============================================================================
+
+/**
+ * Manual Sync Response Schema
+ * Returned when triggering a manual sync job
+ */
+export const manualSyncResponseSchema = z.object({
+  jobId: z.string(),
+  status: z.literal("queued"),
+});
+
+export type ManualSyncResponse = z.infer<typeof manualSyncResponseSchema>;

@@ -29,6 +29,8 @@ import {
   // API Fetch schemas (Phase 2B)
   testConnectionRequestSchema,
   testConnectionResponseSchema,
+  // Sync Job schemas (Phase 2C)
+  manualSyncResponseSchema,
 } from "../schemas/data-sources.js";
 import { randomBytes } from "crypto";
 import bcrypt from "bcrypt";
@@ -53,6 +55,8 @@ import {
   clearAllStoredData,
 } from "../services/data-ingestion.js";
 import { testApiConnection } from "../services/api-fetch-service.js";
+import { getJobQueue } from "../jobs/queue.js";
+import { SYNC_API_DATA_SOURCE_JOB, type SyncApiDataSourceJob } from "../jobs/handlers/sync-api-data-source.js";
 import type { ValidationRule } from "@repo/core";
 import { db, dataSources, dataRows, transforms, columnMappings } from "../services/db.js";
 import type { DataSourceStatus } from "../schemas/data-sources.js";
@@ -733,6 +737,34 @@ const testConnectionRoute = createRoute({
       content: {
         "application/json": {
           schema: testConnectionResponseSchema,
+        },
+      },
+    },
+    ...commonResponses,
+  },
+});
+
+// ============================================================================
+// Sync Job Route Definitions (Phase 2C)
+// ============================================================================
+
+// POST /api/v1/data-sources/:id/sync - Trigger manual sync
+const triggerSyncRoute = createRoute({
+  method: "post",
+  path: "/api/v1/data-sources/{id}/sync",
+  tags: ["Data Sources"],
+  summary: "Trigger manual sync",
+  description:
+    "Triggers a manual sync for an API data source. Enqueues a sync job that will fetch the latest data from the configured API endpoint.",
+  request: {
+    params: idParamSchema,
+  },
+  responses: {
+    200: {
+      description: "Sync job queued successfully",
+      content: {
+        "application/json": {
+          schema: manualSyncResponseSchema,
         },
       },
     },
@@ -1874,6 +1906,63 @@ dataSourcesApp.openapi(testConnectionRoute, async (c) => {
   });
 
   return c.json(result, 200);
+});
+
+// ============================================================================
+// Sync Job Route Handlers (Phase 2C)
+// ============================================================================
+
+// POST /api/v1/data-sources/:id/sync - Trigger manual sync
+dataSourcesApp.openapi(triggerSyncRoute, async (c) => {
+  const { id } = c.req.valid("param");
+
+  // Check if data source exists
+  const [dataSource] = await db
+    .select()
+    .from(dataSources)
+    .where(eq(dataSources.id, id))
+    .limit(1);
+
+  if (!dataSource) {
+    throw createNotFoundError("Data source", id);
+  }
+
+  // Validate it's an API type
+  if (dataSource.type !== "api") {
+    throw createValidationError("Invalid data source type", {
+      message: "Only API type data sources can be synced",
+      type: dataSource.type,
+    });
+  }
+
+  // Validate it has apiFetch configuration
+  const config = dataSource.config as DataSourceConfig | null;
+  if (!config?.apiFetch) {
+    throw createValidationError("Missing API configuration", {
+      message: "Data source has no API fetch configuration",
+    });
+  }
+
+  // Get the job queue and enqueue the sync job
+  const boss = await getJobQueue();
+  const jobData: SyncApiDataSourceJob = {
+    dataSourceId: id,
+    triggeredBy: "manual",
+  };
+
+  const jobId = await boss.send(SYNC_API_DATA_SOURCE_JOB, jobData);
+
+  if (!jobId) {
+    throw new ApiException(500, ErrorCode.INTERNAL_ERROR, "Failed to queue sync job");
+  }
+
+  return c.json(
+    {
+      jobId,
+      status: "queued" as const,
+    },
+    200
+  );
 });
 
 // Error handler for API exceptions
