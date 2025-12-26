@@ -1,0 +1,464 @@
+/* ApiPushConfig Component Styles */
+
+.container {
+  --gray-rgb: 0, 0, 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .container {
+    --gray-rgb: 255, 255, 255;
+  }
+}
+
+/* Section Title */
+.sectionTitle {
+  font-family: var(--font-geist-sans);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0;
+}
+
+/* Field Groups */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fieldLabel {
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(var(--gray-rgb), 0.7);
+}
+
+.fieldHint {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  color: rgba(var(--gray-rgb), 0.5);
+  margin: 0;
+}
+
+/* Endpoint Display */
+.endpointContainer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  background: rgba(var(--gray-rgb), 0.03);
+  border: 1px solid rgba(var(--gray-rgb), 0.1);
+  border-radius: 8px;
+}
+
+.endpointCode {
+  flex: 1;
+  font-family: var(--font-geist-mono);
+  font-size: 13px;
+  color: var(--foreground);
+  word-break: break-all;
+}
+
+/* Copy Button */
+.copyButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: rgba(var(--gray-rgb), 0.5);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.copyButton:hover {
+  color: var(--foreground);
+  background: rgba(var(--gray-rgb), 0.06);
+}
+
+.copiedText {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: #22c55e;
+}
+
+/* API Key Display */
+.keyDisplay {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: rgba(var(--gray-rgb), 0.03);
+  border: 1px solid rgba(var(--gray-rgb), 0.1);
+  border-radius: 8px;
+}
+
+.keyInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.keyPrefix {
+  font-family: var(--font-geist-mono);
+  font-size: 13px;
+  color: var(--foreground);
+  word-break: break-all;
+}
+
+.keyMeta {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  color: rgba(var(--gray-rgb), 0.5);
+}
+
+/* Buttons */
+.generateButton,
+.regenerateButton {
+  padding: 10px 16px;
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.generateButton {
+  width: 100%;
+  color: white;
+  background: #0066ff;
+  border: none;
+}
+
+.generateButton:hover:not(:disabled) {
+  background: #0052cc;
+}
+
+.generateButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.regenerateButton {
+  padding: 8px 14px;
+  font-size: 13px;
+  color: rgba(var(--gray-rgb), 0.7);
+  background: transparent;
+  border: 1px solid rgba(var(--gray-rgb), 0.15);
+  flex-shrink: 0;
+}
+
+.regenerateButton:hover:not(:disabled) {
+  color: var(--foreground);
+  border-color: rgba(var(--gray-rgb), 0.25);
+  background: rgba(var(--gray-rgb), 0.04);
+}
+
+.regenerateButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Error Message */
+.error {
+  padding: 12px;
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.06);
+  border-radius: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .error {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+  }
+}
+
+/* Example Section (Collapsible) */
+.exampleSection {
+  border: 1px solid rgba(var(--gray-rgb), 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.exampleHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 14px;
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(var(--gray-rgb), 0.7);
+  background: rgba(var(--gray-rgb), 0.02);
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.exampleHeader:hover {
+  color: var(--foreground);
+  background: rgba(var(--gray-rgb), 0.04);
+}
+
+.chevron {
+  transition: transform 0.2s ease;
+}
+
+.chevronExpanded {
+  transform: rotate(180deg);
+}
+
+.exampleContent {
+  padding: 14px;
+  border-top: 1px solid rgba(var(--gray-rgb), 0.08);
+}
+
+.codeBlock {
+  position: relative;
+  padding: 14px;
+  background: rgba(var(--gray-rgb), 0.03);
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+.codeBlock pre {
+  margin: 0;
+  font-family: var(--font-geist-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--foreground);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.codeBlock code {
+  font-family: inherit;
+}
+
+.codeBlock .copyButton {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+
+.exampleHint {
+  margin: 10px 0 0;
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  color: rgba(var(--gray-rgb), 0.5);
+}
+
+.exampleHint code {
+  font-family: var(--font-geist-mono);
+  padding: 2px 4px;
+  background: rgba(var(--gray-rgb), 0.06);
+  border-radius: 3px;
+}
+
+/* Modal Overlay */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 300;
+}
+
+/* Key Modal */
+.keyModal {
+  width: 100%;
+  max-width: 480px;
+  margin: 20px;
+  padding: 24px;
+  background: var(--background);
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+}
+
+.modalTitle {
+  font-family: var(--font-geist-sans);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0 0 16px;
+}
+
+.warningBanner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  background: rgba(234, 179, 8, 0.1);
+  border: 1px solid rgba(234, 179, 8, 0.3);
+  border-radius: 8px;
+  color: #ca8a04;
+}
+
+@media (prefers-color-scheme: dark) {
+  .warningBanner {
+    color: #fbbf24;
+  }
+}
+
+.warningBanner svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.warningBanner span {
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.keyDisplayModal {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px;
+  margin-bottom: 20px;
+  background: rgba(var(--gray-rgb), 0.03);
+  border: 1px solid rgba(var(--gray-rgb), 0.1);
+  border-radius: 8px;
+}
+
+.fullKey {
+  flex: 1;
+  font-family: var(--font-geist-mono);
+  font-size: 12px;
+  color: var(--foreground);
+  word-break: break-all;
+  line-height: 1.5;
+}
+
+.dismissButton {
+  width: 100%;
+  padding: 14px 20px;
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  background: #0066ff;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dismissButton:hover {
+  background: #0052cc;
+}
+
+/* Confirm Dialog */
+.confirmDialog {
+  width: 100%;
+  max-width: 400px;
+  margin: 20px;
+  padding: 24px;
+  background: var(--background);
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+}
+
+.confirmTitle {
+  font-family: var(--font-geist-sans);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0 0 12px;
+}
+
+.confirmText {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  color: rgba(var(--gray-rgb), 0.7);
+  line-height: 1.5;
+  margin: 0 0 20px;
+}
+
+.confirmButtons {
+  display: flex;
+  gap: 12px;
+}
+
+.cancelButton,
+.confirmButton {
+  flex: 1;
+  padding: 12px 20px;
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cancelButton {
+  color: var(--foreground);
+  background: rgba(var(--gray-rgb), 0.06);
+  border: 1px solid rgba(var(--gray-rgb), 0.15);
+}
+
+.cancelButton:hover {
+  background: rgba(var(--gray-rgb), 0.1);
+}
+
+.confirmButton {
+  color: white;
+  background: #dc2626;
+  border: none;
+}
+
+.confirmButton:hover {
+  background: #b91c1c;
+}
+
+@media (prefers-color-scheme: dark) {
+  .confirmButton {
+    background: #ef4444;
+  }
+
+  .confirmButton:hover {
+    background: #dc2626;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 520px) {
+  .keyModal,
+  .confirmDialog {
+    max-width: 100%;
+    margin: 16px;
+    padding: 20px;
+  }
+
+  .keyDisplay {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .regenerateButton {
+    width: 100%;
+    text-align: center;
+  }
+}

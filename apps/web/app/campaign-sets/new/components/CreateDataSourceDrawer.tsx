@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import styles from "./CreateDataSourceDrawer.module.css";
 import { CsvPasteForm } from "./CsvPasteForm";
+import { ApiPushConfig, type ApiKeyConfig } from "./ApiPushConfig";
 
 interface CreateDataSourceDrawerProps {
   isOpen: boolean;
@@ -23,6 +24,9 @@ export function CreateDataSourceDrawer({
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // API Push specific state
+  const [apiDataSourceId, setApiDataSourceId] = useState<string | null>(null);
+  const [apiKeyConfig, setApiKeyConfig] = useState<ApiKeyConfig | undefined>(undefined);
 
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -60,6 +64,8 @@ export function CreateDataSourceDrawer({
       setName("");
       setFile(null);
       setError(null);
+      setApiDataSourceId(null);
+      setApiKeyConfig(undefined);
     }
   }, [isOpen]);
 
@@ -145,6 +151,79 @@ export function CreateDataSourceDrawer({
       setUploading(false);
     }
   };
+
+  /**
+   * Handle API Push data source creation
+   * 1. Create data source with type: 'api'
+   * 2. Show the ApiPushConfig component for key generation
+   */
+  const handleApiPushCreate = useCallback(async () => {
+    if (!name.trim()) {
+      setError("Please enter a name for your data source");
+      return;
+    }
+
+    setUploading(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/v1/data-sources", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: name.trim(),
+          type: "api",
+          config: { source: "api-push" },
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to create data source");
+      }
+
+      const { id: dataSourceId } = await response.json();
+      setApiDataSourceId(dataSourceId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setUploading(false);
+    }
+  }, [name]);
+
+  /**
+   * Handle API key generation callback - refresh API key config
+   */
+  const handleApiKeyGenerated = useCallback(async () => {
+    if (!apiDataSourceId) return;
+
+    try {
+      const response = await fetch(`/api/v1/data-sources/${apiDataSourceId}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.config?.apiKey) {
+          setApiKeyConfig({
+            keyPrefix: data.config.apiKey.keyPrefix,
+            createdAt: data.config.apiKey.createdAt,
+            lastUsedAt: data.config.apiKey.lastUsedAt,
+          });
+        }
+      }
+    } catch {
+      // Silently fail - the key was generated, just can't refresh the config
+    }
+  }, [apiDataSourceId]);
+
+  /**
+   * Handle finishing API Push setup
+   */
+  const handleApiPushFinish = useCallback(() => {
+    if (apiDataSourceId) {
+      onCreated(apiDataSourceId);
+    }
+  }, [apiDataSourceId, onCreated]);
 
   /**
    * Handle CSV paste form submission
@@ -346,11 +425,11 @@ export function CreateDataSourceDrawer({
                   </div>
                 </button>
 
-                {/* Connect API option - Coming soon */}
+                {/* API Push option */}
                 <button
                   type="button"
-                  className={`${styles.sourceTypeCard} ${styles.sourceTypeDisabled}`}
-                  disabled
+                  className={styles.sourceTypeCard}
+                  onClick={() => setSourceType("api")}
                 >
                   <div className={styles.sourceTypeIcon}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -370,12 +449,11 @@ export function CreateDataSourceDrawer({
                     </svg>
                   </div>
                   <div className={styles.sourceTypeInfo}>
-                    <span className={styles.sourceTypeName}>Connect API</span>
+                    <span className={styles.sourceTypeName}>API Push</span>
                     <span className={styles.sourceTypeDesc}>
-                      Coming soon
+                      External systems push data via API
                     </span>
                   </div>
-                  <span className={styles.comingSoonBadge}>Soon</span>
                 </button>
               </div>
             </div>
@@ -540,6 +618,92 @@ export function CreateDataSourceDrawer({
                 onCancel={() => setSourceType(null)}
                 isLoading={uploading}
               />
+            </div>
+          )}
+
+          {/* Step 2c: API Push - Name input */}
+          {sourceType === "api" && !apiDataSourceId && (
+            <div className={styles.step}>
+              <button
+                type="button"
+                className={styles.backButton}
+                onClick={() => setSourceType(null)}
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path
+                    d="M10 12L6 8L10 4"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                Back
+              </button>
+
+              <p className={styles.stepDescription}>
+                Create a data source that accepts data via API calls
+              </p>
+
+              {/* Name input */}
+              <div className={styles.field}>
+                <label htmlFor="api-ds-name" className={styles.fieldLabel}>
+                  Name
+                </label>
+                <input
+                  id="api-ds-name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="My API Data Source"
+                  className={styles.input}
+                />
+              </div>
+
+              {/* Error message */}
+              {error && <p className={styles.error}>{error}</p>}
+
+              {/* Create button */}
+              <button
+                type="button"
+                className={styles.submitButton}
+                disabled={uploading || !name.trim()}
+                onClick={handleApiPushCreate}
+              >
+                {uploading ? (
+                  <>
+                    <span className={styles.spinner} />
+                    Creating...
+                  </>
+                ) : (
+                  "Create Data Source"
+                )}
+              </button>
+            </div>
+          )}
+
+          {/* Step 3: API Push Configuration */}
+          {sourceType === "api" && apiDataSourceId && (
+            <div className={styles.step}>
+              <p className={styles.stepDescription}>
+                Configure your API endpoint and generate an API key
+              </p>
+
+              <ApiPushConfig
+                dataSourceId={apiDataSourceId}
+                apiKeyConfig={apiKeyConfig}
+                onKeyGenerated={handleApiKeyGenerated}
+              />
+
+              {/* Done button */}
+              <button
+                type="button"
+                className={styles.submitButton}
+                onClick={handleApiPushFinish}
+                style={{ marginTop: "20px" }}
+              >
+                Done
+              </button>
             </div>
           )}
         </div>
