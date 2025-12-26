@@ -4,7 +4,7 @@ import { timestampsSchema, uuidSchema, paginationSchema } from "./common.js";
 /**
  * Data Source Type Enum
  */
-export const dataSourceTypeSchema = z.enum(["csv", "api", "manual"]);
+export const dataSourceTypeSchema = z.enum(["csv", "api", "manual", "google-sheets"]);
 export type DataSourceType = z.infer<typeof dataSourceTypeSchema>;
 
 /**

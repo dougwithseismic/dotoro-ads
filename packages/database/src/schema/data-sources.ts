@@ -19,6 +19,7 @@ export const dataSourceTypeEnum = pgEnum("data_source_type", [
   "csv",
   "api",
   "manual",
+  "google-sheets",
 ]);
 
 /**
@@ -193,6 +194,35 @@ export interface JsonFlattenConfig {
 }
 
 /**
+ * Configuration for Google Sheets data sources
+ */
+export interface GoogleSheetsConfig {
+  /** The Google Spreadsheet ID (from the URL) */
+  spreadsheetId: string;
+
+  /** Human-readable name of the spreadsheet for display */
+  spreadsheetName: string;
+
+  /** The name of the specific sheet/tab within the spreadsheet */
+  sheetName: string;
+
+  /** How often to sync data from Google Sheets */
+  syncFrequency: SyncFrequency;
+
+  /** ISO timestamp of the last successful sync */
+  lastSyncAt?: string;
+
+  /** Status of the last sync operation */
+  lastSyncStatus?: SyncStatus;
+
+  /** Error message from the last failed sync */
+  lastSyncError?: string;
+
+  /** Row number that contains headers (1-indexed). Defaults to 1 */
+  headerRow?: number;
+}
+
+/**
  * Configuration for API-type data sources that fetch from external APIs
  */
 export interface ApiFetchConfig {
@@ -234,7 +264,7 @@ export interface ApiFetchConfig {
 }
 
 /**
- * Data Source Config interface with API key and API fetch support
+ * Data Source Config interface with API key, API fetch, and Google Sheets support
  */
 export interface DataSourceConfig {
   // CSV parsing options
@@ -249,6 +279,9 @@ export interface DataSourceConfig {
 
   // API Fetch configuration (for type: 'api' data sources)
   apiFetch?: ApiFetchConfig;
+
+  // Google Sheets configuration (for type: 'google-sheets' data sources)
+  googleSheets?: GoogleSheetsConfig;
 
   // Additional dynamic properties
   [key: string]: unknown;

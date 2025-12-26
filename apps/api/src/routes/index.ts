@@ -7,3 +7,4 @@ export { accountsApp } from "./accounts.js";
 export { redditApp } from "./reddit.js";
 export { creativesApp } from "./creatives.js";
 export { transformsApp } from "./transforms.js";
+export { googleAuthApp } from "./google.js";

@@ -22,6 +22,7 @@ export type {
   ApiAuthType,
   JsonFlattenConfig,
   ApiFetchConfig,
+  GoogleSheetsConfig,
 } from "./data-sources.js";
 
 // Campaign Templates
