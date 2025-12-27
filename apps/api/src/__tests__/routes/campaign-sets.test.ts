@@ -56,6 +56,12 @@ vi.mock("../../services/db.js", () => {
       accountId: "account_id",
       status: "status",
     },
+    dataSources: {
+      id: "id",
+      userId: "user_id",
+      name: "name",
+      type: "type",
+    },
     adGroups: { id: "id", campaignId: "campaign_id" },
     ads: { id: "id", adGroupId: "ad_group_id" },
     keywords: { id: "id", adGroupId: "ad_group_id" },
@@ -525,6 +531,160 @@ describe("Campaign Sets API", () => {
       );
 
       expect([404, 500]).toContain(response.status);
+    });
+
+    it("should return 404 for non-existent campaign set", async () => {
+      // Mock database to return empty array (no campaign set found)
+      const mockDbLimit = vi.fn().mockResolvedValue([]);
+      const mockDbWhere = vi.fn().mockReturnValue({ limit: mockDbLimit });
+      const mockDbFrom = vi.fn().mockReturnValue({ where: mockDbWhere });
+      const mockDbSelect = vi.fn().mockReturnValue({ from: mockDbFrom });
+      (db.select as Mock) = mockDbSelect;
+
+      const response = await makeRequest(
+        "POST",
+        `/api/v1/campaign-sets/${mockCampaignSetId}/generate`,
+        {}
+      );
+
+      expect(response.status).toBe(404);
+      const body = await response.json();
+      expect(body.error).toContain("not found");
+    });
+
+    it("should return 400 when campaign set has no config", async () => {
+      // Mock campaign set with null config
+      const mockSet = createMockCampaignSet({ config: null });
+      const mockDbLimit = vi.fn().mockResolvedValue([mockSet]);
+      const mockDbWhere = vi.fn().mockReturnValue({ limit: mockDbLimit });
+      const mockDbFrom = vi.fn().mockReturnValue({ where: mockDbWhere });
+      const mockDbSelect = vi.fn().mockReturnValue({ from: mockDbFrom });
+      (db.select as Mock) = mockDbSelect;
+
+      const response = await makeRequest(
+        "POST",
+        `/api/v1/campaign-sets/${mockCampaignSetId}/generate`,
+        {}
+      );
+
+      expect(response.status).toBe(400);
+      const body = await response.json();
+      expect(body.error).toContain("configuration");
+    });
+
+    it("should return 400 when campaign set has no data source", async () => {
+      // Mock campaign set without dataSourceId
+      const mockSet = createMockCampaignSet({
+        config: { ...sampleConfig, dataSourceId: "" },
+      });
+      const mockDbLimit = vi.fn().mockResolvedValue([mockSet]);
+      const mockDbWhere = vi.fn().mockReturnValue({ limit: mockDbLimit });
+      const mockDbFrom = vi.fn().mockReturnValue({ where: mockDbWhere });
+      const mockDbSelect = vi.fn().mockReturnValue({ from: mockDbFrom });
+      (db.select as Mock) = mockDbSelect;
+
+      const response = await makeRequest(
+        "POST",
+        `/api/v1/campaign-sets/${mockCampaignSetId}/generate`,
+        {}
+      );
+
+      expect(response.status).toBe(400);
+      const body = await response.json();
+      expect(body.error).toContain("data source");
+    });
+
+    it("should return 400 when campaign set has no platforms selected", async () => {
+      // Mock campaign set without platforms
+      const mockSet = createMockCampaignSet({
+        config: { ...sampleConfig, selectedPlatforms: [] },
+      });
+      const mockDbLimit = vi.fn().mockResolvedValue([mockSet]);
+      const mockDbWhere = vi.fn().mockReturnValue({ limit: mockDbLimit });
+      const mockDbFrom = vi.fn().mockReturnValue({ where: mockDbWhere });
+      const mockDbSelect = vi.fn().mockReturnValue({ from: mockDbFrom });
+      (db.select as Mock) = mockDbSelect;
+
+      const response = await makeRequest(
+        "POST",
+        `/api/v1/campaign-sets/${mockCampaignSetId}/generate`,
+        {}
+      );
+
+      expect(response.status).toBe(400);
+      const body = await response.json();
+      expect(body.error).toContain("platforms");
+    });
+
+    it("should return 400 when data source does not belong to user", async () => {
+      // Mock campaign set exists and has valid config
+      const mockSet = createMockCampaignSet({
+        config: { ...sampleConfig, dataSourceId: mockDataSourceId },
+      });
+
+      // First query returns campaign set, second returns no data source (doesn't belong to user)
+      let callCount = 0;
+      const mockDbLimit = vi.fn().mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          return Promise.resolve([mockSet]);
+        }
+        // Data source check - return empty (not found for this user)
+        return Promise.resolve([]);
+      });
+      const mockDbWhere = vi.fn().mockReturnValue({ limit: mockDbLimit });
+      const mockDbFrom = vi.fn().mockReturnValue({ where: mockDbWhere });
+      const mockDbSelect = vi.fn().mockReturnValue({ from: mockDbFrom });
+      (db.select as Mock) = mockDbSelect;
+
+      const response = await makeRequest(
+        "POST",
+        `/api/v1/campaign-sets/${mockCampaignSetId}/generate`,
+        {}
+      );
+
+      expect(response.status).toBe(400);
+      const body = await response.json();
+      expect(body.error).toContain("Data source not found or access denied");
+    });
+
+    it("should return 400 when data source belongs to different user", async () => {
+      // Mock campaign set exists and has valid config
+      const mockSet = createMockCampaignSet({
+        config: { ...sampleConfig, dataSourceId: mockDataSourceId },
+      });
+      // Data source exists but belongs to a different user
+      const differentUserDataSource = {
+        id: mockDataSourceId,
+        userId: "different-user-id",
+        name: "Other User's Data",
+        type: "csv",
+      };
+
+      // First query returns campaign set, second returns data source with different userId
+      let callCount = 0;
+      const mockDbLimit = vi.fn().mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          return Promise.resolve([mockSet]);
+        }
+        // Data source check - query filters by userId, so return empty
+        return Promise.resolve([]);
+      });
+      const mockDbWhere = vi.fn().mockReturnValue({ limit: mockDbLimit });
+      const mockDbFrom = vi.fn().mockReturnValue({ where: mockDbWhere });
+      const mockDbSelect = vi.fn().mockReturnValue({ from: mockDbFrom });
+      (db.select as Mock) = mockDbSelect;
+
+      const response = await makeRequest(
+        "POST",
+        `/api/v1/campaign-sets/${mockCampaignSetId}/generate`,
+        {}
+      );
+
+      expect(response.status).toBe(400);
+      const body = await response.json();
+      expect(body.error).toContain("Data source not found or access denied");
     });
   });
 

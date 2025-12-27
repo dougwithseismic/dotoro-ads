@@ -35,6 +35,7 @@ import {
   ads,
   keywords,
   adAccounts,
+  dataSources,
   type CampaignSetConfig as DbCampaignSetConfig,
 } from "../services/db.js";
 import { getJobQueueReady } from "../jobs/queue.js";
@@ -953,7 +954,7 @@ campaignSetsApp.openapi(deleteCampaignSetRoute, async (c) => {
 campaignSetsApp.openapi(generateCampaignsRoute, async (c) => {
   const userId = getUserId(c);
   const { setId } = c.req.valid("param");
-  const _body = c.req.valid("json"); // TODO: Use body.regenerate when implementing generation logic
+  const body = c.req.valid("json");
 
   // Check if set exists and belongs to user
   const [set] = await db
@@ -966,14 +967,66 @@ campaignSetsApp.openapi(generateCampaignsRoute, async (c) => {
     throw createNotFoundError("Campaign set", setId);
   }
 
-  // For now, return a placeholder response
-  // Full implementation would use the config to generate campaigns
-  // TODO: Implement actual campaign generation logic
+  // Validate that the campaign set has the required config
+  const config = set.config as DbCampaignSetConfig | null;
+  if (!config) {
+    throw createValidationError("Campaign set has no configuration");
+  }
+
+  if (!config.dataSourceId) {
+    throw createValidationError("Campaign set has no data source configured");
+  }
+
+  if (!config.selectedPlatforms || config.selectedPlatforms.length === 0) {
+    throw createValidationError("Campaign set has no platforms selected");
+  }
+
+  if (!config.campaignConfig || !config.campaignConfig.namePattern) {
+    throw createValidationError("Campaign set has no campaign name pattern configured");
+  }
+
+  if (!config.hierarchyConfig || !config.hierarchyConfig.adGroups || config.hierarchyConfig.adGroups.length === 0) {
+    throw createValidationError("Campaign set has no hierarchy configuration");
+  }
+
+  // CRITICAL: Verify data source belongs to the requesting user
+  const [dataSource] = await db
+    .select()
+    .from(dataSources)
+    .where(and(eq(dataSources.id, config.dataSourceId), eq(dataSources.userId, userId)))
+    .limit(1);
+
+  if (!dataSource) {
+    throw createValidationError("Data source not found or access denied");
+  }
+
+  // Import and use the campaign generation service
+  const { campaignGenerationService, extractGenerationConfig } = await import("../services/campaign-generation.js");
+
+  // Extract generation config from campaign set config
+  const generationConfig = extractGenerationConfig(setId, config);
+
+  // Generate campaigns
+  const result = await campaignGenerationService.generateCampaigns(generationConfig, {
+    regenerate: body.regenerate ?? false,
+  });
+
+  // Fetch the full campaign hierarchy for the response
+  const createdCampaigns = await db
+    .select()
+    .from(generatedCampaigns)
+    .where(eq(generatedCampaigns.campaignSetId, setId))
+    .orderBy(asc(generatedCampaigns.orderIndex));
+
+  const campaignsWithHierarchy = await Promise.all(
+    createdCampaigns.map((campaign) => fetchCampaignWithHierarchy(campaign, setId))
+  );
+
   return c.json(
     {
-      campaigns: [],
-      created: 0,
-      updated: 0,
+      campaigns: campaignsWithHierarchy,
+      created: result.created,
+      updated: result.updated,
     },
     200
   );
