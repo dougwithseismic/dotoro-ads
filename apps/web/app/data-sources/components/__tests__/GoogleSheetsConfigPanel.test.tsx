@@ -4,6 +4,24 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { GoogleSheetsConfigPanel } from "../GoogleSheetsConfigPanel";
 import type { GoogleSheetsConfig } from "../../types";
 
+// Mock the api client module
+const mockApiPatch = vi.fn();
+vi.mock("@/lib/api-client", () => ({
+  api: {
+    get: vi.fn(),
+    post: vi.fn(),
+    put: vi.fn(),
+    patch: (...args: unknown[]) => mockApiPatch(...args),
+    delete: vi.fn(),
+  },
+  ApiError: class ApiError extends Error {
+    constructor(message: string, public status: number, public data?: unknown) {
+      super(message);
+      this.name = "ApiError";
+    }
+  },
+}));
+
 /**
  * Creates a mock Google Sheets config with sensible defaults
  */
@@ -21,15 +39,12 @@ function createMockSheetsConfig(overrides?: Partial<GoogleSheetsConfig>): Google
 }
 
 describe("GoogleSheetsConfigPanel", () => {
-  let mockFetch: ReturnType<typeof vi.fn>;
-
   beforeEach(() => {
-    mockFetch = vi.fn();
-    global.fetch = mockFetch;
+    mockApiPatch.mockReset();
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   describe("Read-only mode (default)", () => {
@@ -257,10 +272,7 @@ describe("GoogleSheetsConfigPanel", () => {
   describe("Save functionality", () => {
     it("calls PATCH API with updated config on save", async () => {
       const user = userEvent.setup();
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ success: true }),
-      });
+      mockApiPatch.mockResolvedValueOnce({ success: true });
 
       render(<GoogleSheetsConfigPanel config={createMockSheetsConfig()} dataSourceId="test-id-123" />);
 
@@ -273,11 +285,14 @@ describe("GoogleSheetsConfigPanel", () => {
       await user.click(screen.getByRole("button", { name: /save changes/i }));
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith(
-          expect.stringContaining("/data-sources/test-id-123"),
+        expect(mockApiPatch).toHaveBeenCalledWith(
+          "/api/v1/data-sources/test-id-123",
           expect.objectContaining({
-            method: "PATCH",
-            body: expect.stringContaining("Products"),
+            config: expect.objectContaining({
+              googleSheets: expect.objectContaining({
+                sheetName: "Products",
+              }),
+            }),
           })
         );
       });
@@ -285,7 +300,7 @@ describe("GoogleSheetsConfigPanel", () => {
 
     it("shows loading state while saving", async () => {
       const user = userEvent.setup();
-      mockFetch.mockImplementation(() => new Promise(() => {})); // Never resolves
+      mockApiPatch.mockImplementation(() => new Promise(() => {})); // Never resolves
 
       render(<GoogleSheetsConfigPanel config={createMockSheetsConfig()} dataSourceId="1" />);
 
@@ -298,7 +313,7 @@ describe("GoogleSheetsConfigPanel", () => {
 
     it("disables Cancel button while saving", async () => {
       const user = userEvent.setup();
-      mockFetch.mockImplementation(() => new Promise(() => {})); // Never resolves
+      mockApiPatch.mockImplementation(() => new Promise(() => {})); // Never resolves
 
       render(<GoogleSheetsConfigPanel config={createMockSheetsConfig()} dataSourceId="1" />);
 
@@ -310,10 +325,7 @@ describe("GoogleSheetsConfigPanel", () => {
 
     it("returns to read-only mode on successful save", async () => {
       const user = userEvent.setup();
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ success: true }),
-      });
+      mockApiPatch.mockResolvedValueOnce({ success: true });
 
       render(<GoogleSheetsConfigPanel config={createMockSheetsConfig()} dataSourceId="1" />);
 
@@ -327,10 +339,7 @@ describe("GoogleSheetsConfigPanel", () => {
 
     it("updates displayed config after successful save", async () => {
       const user = userEvent.setup();
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ success: true }),
-      });
+      mockApiPatch.mockResolvedValueOnce({ success: true });
 
       render(<GoogleSheetsConfigPanel config={createMockSheetsConfig()} dataSourceId="1" />);
 
@@ -350,10 +359,7 @@ describe("GoogleSheetsConfigPanel", () => {
     it("calls onConfigUpdate callback after successful save", async () => {
       const user = userEvent.setup();
       const onConfigUpdate = vi.fn();
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ success: true }),
-      });
+      mockApiPatch.mockResolvedValueOnce({ success: true });
 
       render(
         <GoogleSheetsConfigPanel
@@ -373,14 +379,12 @@ describe("GoogleSheetsConfigPanel", () => {
   });
 
   describe("Error handling", () => {
-    it("displays error message when save fails", async () => {
+    it("displays error message when save fails with ApiError", async () => {
       const user = userEvent.setup();
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        statusText: "Internal Server Error",
-        json: () => Promise.resolve({ error: "Failed to update" }),
-      });
+      // Import the mocked ApiError class
+      const { ApiError } = await import("@/lib/api-client");
+      const error = new ApiError("API request failed", 500, { error: "Failed to update" });
+      mockApiPatch.mockRejectedValueOnce(error);
 
       render(<GoogleSheetsConfigPanel config={createMockSheetsConfig()} dataSourceId="1" />);
 
@@ -395,11 +399,9 @@ describe("GoogleSheetsConfigPanel", () => {
 
     it("remains in edit mode when save fails", async () => {
       const user = userEvent.setup();
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        json: () => Promise.resolve({ error: "Failed" }),
-      });
+      const { ApiError } = await import("@/lib/api-client");
+      const error = new ApiError("API request failed", 500, { error: "Failed" });
+      mockApiPatch.mockRejectedValueOnce(error);
 
       render(<GoogleSheetsConfigPanel config={createMockSheetsConfig()} dataSourceId="1" />);
 
@@ -414,16 +416,11 @@ describe("GoogleSheetsConfigPanel", () => {
 
     it("allows retry after error", async () => {
       const user = userEvent.setup();
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: false,
-          status: 500,
-          json: () => Promise.resolve({ error: "Failed" }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve({ success: true }),
-        });
+      const { ApiError } = await import("@/lib/api-client");
+      const error = new ApiError("API request failed", 500, { error: "Failed" });
+      mockApiPatch
+        .mockRejectedValueOnce(error)
+        .mockResolvedValueOnce({ success: true });
 
       render(<GoogleSheetsConfigPanel config={createMockSheetsConfig()} dataSourceId="1" />);
 
@@ -444,11 +441,9 @@ describe("GoogleSheetsConfigPanel", () => {
 
     it("clears error when Cancel is clicked", async () => {
       const user = userEvent.setup();
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        json: () => Promise.resolve({ error: "Failed to update" }),
-      });
+      const { ApiError } = await import("@/lib/api-client");
+      const error = new ApiError("API request failed", 500, { error: "Failed to update" });
+      mockApiPatch.mockRejectedValueOnce(error);
 
       render(<GoogleSheetsConfigPanel config={createMockSheetsConfig()} dataSourceId="1" />);
 
@@ -466,7 +461,7 @@ describe("GoogleSheetsConfigPanel", () => {
 
     it("handles network errors gracefully", async () => {
       const user = userEvent.setup();
-      mockFetch.mockRejectedValueOnce(new Error("Network error"));
+      mockApiPatch.mockRejectedValueOnce(new Error("Network error"));
 
       render(<GoogleSheetsConfigPanel config={createMockSheetsConfig()} dataSourceId="1" />);
 
@@ -538,11 +533,9 @@ describe("GoogleSheetsConfigPanel", () => {
 
     it("uses proper aria attributes for error state", async () => {
       const user = userEvent.setup();
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        json: () => Promise.resolve({ error: "Failed" }),
-      });
+      const { ApiError } = await import("@/lib/api-client");
+      const error = new ApiError("API request failed", 500, { error: "Failed" });
+      mockApiPatch.mockRejectedValueOnce(error);
 
       render(<GoogleSheetsConfigPanel config={createMockSheetsConfig()} dataSourceId="1" />);
 
@@ -557,7 +550,7 @@ describe("GoogleSheetsConfigPanel", () => {
 
     it("indicates loading state with aria-busy", async () => {
       const user = userEvent.setup();
-      mockFetch.mockImplementation(() => new Promise(() => {}));
+      mockApiPatch.mockImplementation(() => new Promise(() => {}));
 
       render(<GoogleSheetsConfigPanel config={createMockSheetsConfig()} dataSourceId="1" />);
 

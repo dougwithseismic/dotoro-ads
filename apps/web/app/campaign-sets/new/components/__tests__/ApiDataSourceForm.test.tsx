@@ -2,17 +2,32 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { ApiDataSourceForm } from "../ApiDataSourceForm";
+import { ApiError } from "@/lib/api-client";
 
-// Mock fetch globally
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
+// Mock the api client module
+const mockApiPost = vi.fn();
+vi.mock("@/lib/api-client", () => ({
+  api: {
+    get: vi.fn(),
+    post: (...args: unknown[]) => mockApiPost(...args),
+    put: vi.fn(),
+    patch: vi.fn(),
+    delete: vi.fn(),
+  },
+  ApiError: class ApiError extends Error {
+    constructor(message: string, public status: number, public data?: unknown) {
+      super(message);
+      this.name = "ApiError";
+    }
+  },
+}));
 
 describe("ApiDataSourceForm", () => {
   let onSubmit: ReturnType<typeof vi.fn>;
   let onCancel: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    mockFetch.mockReset();
+    mockApiPost.mockReset();
     onSubmit = vi.fn().mockResolvedValue(undefined);
     onCancel = vi.fn();
   });
@@ -152,17 +167,12 @@ describe("ApiDataSourceForm", () => {
   describe("Test Connection", () => {
     it("calls test-connection endpoint", async () => {
       const user = userEvent.setup();
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            success: true,
-            columns: ["id", "name", "email"],
-            preview: [
-              { id: "1", name: "John", email: "john@test.com" },
-            ],
-            rowCount: 1,
-          }),
+      mockApiPost.mockResolvedValueOnce({
+        columns: ["id", "name", "email"],
+        preview: [
+          { id: "1", name: "John", email: "john@test.com" },
+        ],
+        rowCount: 1,
       });
 
       render(<ApiDataSourceForm onSubmit={onSubmit} onCancel={onCancel} />);
@@ -176,37 +186,25 @@ describe("ApiDataSourceForm", () => {
       await user.click(testButton);
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith(
+        expect(mockApiPost).toHaveBeenCalledWith(
           "/api/v1/data-sources/api-fetch/test-connection",
           expect.objectContaining({
-            method: "POST",
-            headers: expect.objectContaining({
-              "Content-Type": "application/json",
-            }),
+            url: "https://api.example.com/data",
+            method: "GET",
           })
         );
       });
-
-      // Verify request body
-      const callBody = JSON.parse(mockFetch.mock.calls[0][1].body);
-      expect(callBody.url).toBe("https://api.example.com/data");
-      expect(callBody.method).toBe("GET");
     });
 
     it("shows preview on success", async () => {
       const user = userEvent.setup();
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            success: true,
-            columns: ["id", "name", "email"],
-            preview: [
-              { id: "1", name: "John Doe", email: "john@test.com" },
-              { id: "2", name: "Jane Smith", email: "jane@test.com" },
-            ],
-            rowCount: 2,
-          }),
+      mockApiPost.mockResolvedValueOnce({
+        columns: ["id", "name", "email"],
+        preview: [
+          { id: "1", name: "John Doe", email: "john@test.com" },
+          { id: "2", name: "Jane Smith", email: "jane@test.com" },
+        ],
+        rowCount: 2,
       });
 
       render(<ApiDataSourceForm onSubmit={onSubmit} onCancel={onCancel} />);
@@ -233,15 +231,10 @@ describe("ApiDataSourceForm", () => {
 
     it("shows detected columns count on success", async () => {
       const user = userEvent.setup();
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            success: true,
-            columns: ["id", "name", "email", "company"],
-            preview: [{ id: "1", name: "John", email: "john@test.com", company: "Acme" }],
-            rowCount: 1,
-          }),
+      mockApiPost.mockResolvedValueOnce({
+        columns: ["id", "name", "email", "company"],
+        preview: [{ id: "1", name: "John", email: "john@test.com", company: "Acme" }],
+        rowCount: 1,
       });
 
       render(<ApiDataSourceForm onSubmit={onSubmit} onCancel={onCancel} />);
@@ -259,13 +252,9 @@ describe("ApiDataSourceForm", () => {
 
     it("shows error on failure", async () => {
       const user = userEvent.setup();
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        json: () =>
-          Promise.resolve({
-            error: "Failed to connect: Connection refused",
-          }),
-      });
+      // ApiError is thrown by the api client when the response is not ok
+      const error = new ApiError("API request failed", 500, { error: "Failed to connect: Connection refused" });
+      mockApiPost.mockRejectedValueOnce(error);
 
       render(<ApiDataSourceForm onSubmit={onSubmit} onCancel={onCancel} />);
 
@@ -296,7 +285,7 @@ describe("ApiDataSourceForm", () => {
         expect(screen.getByTestId("error-message")).toBeInTheDocument();
       });
       expect(screen.getByTestId("error-message")).toHaveTextContent(/valid.*url/i);
-      expect(mockFetch).not.toHaveBeenCalled();
+      expect(mockApiPost).not.toHaveBeenCalled();
     });
 
     it("disables test button when URL is empty", () => {
@@ -308,20 +297,15 @@ describe("ApiDataSourceForm", () => {
 
     it("shows loading state during test", async () => {
       const user = userEvent.setup();
-      mockFetch.mockImplementation(
+      mockApiPost.mockImplementation(
         () =>
           new Promise((resolve) =>
             setTimeout(
               () =>
                 resolve({
-                  ok: true,
-                  json: () =>
-                    Promise.resolve({
-                      success: true,
-                      columns: ["id"],
-                      preview: [{ id: "1" }],
-                      rowCount: 1,
-                    }),
+                  columns: ["id"],
+                  preview: [{ id: "1" }],
+                  rowCount: 1,
                 }),
               100
             )
@@ -341,15 +325,10 @@ describe("ApiDataSourceForm", () => {
 
     it("includes headers in test connection request", async () => {
       const user = userEvent.setup();
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            success: true,
-            columns: ["id"],
-            preview: [{ id: "1" }],
-            rowCount: 1,
-          }),
+      mockApiPost.mockResolvedValueOnce({
+        columns: ["id"],
+        preview: [{ id: "1" }],
+        rowCount: 1,
       });
 
       render(<ApiDataSourceForm onSubmit={onSubmit} onCancel={onCancel} />);
@@ -385,25 +364,24 @@ describe("ApiDataSourceForm", () => {
       await user.click(testButton);
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalled();
+        expect(mockApiPost).toHaveBeenCalled();
       });
 
-      // Verify headers were sent
-      const callBody = JSON.parse(mockFetch.mock.calls[0][1].body);
-      expect(callBody.headers).toBeDefined();
+      // Verify headers were sent - the api client receives the body directly
+      expect(mockApiPost).toHaveBeenCalledWith(
+        "/api/v1/data-sources/api-fetch/test-connection",
+        expect.objectContaining({
+          headers: expect.any(Object),
+        })
+      );
     });
 
     it("includes auth config in test connection request", async () => {
       const user = userEvent.setup();
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            success: true,
-            columns: ["id"],
-            preview: [{ id: "1" }],
-            rowCount: 1,
-          }),
+      mockApiPost.mockResolvedValueOnce({
+        columns: ["id"],
+        preview: [{ id: "1" }],
+        rowCount: 1,
       });
 
       render(<ApiDataSourceForm onSubmit={onSubmit} onCancel={onCancel} />);
@@ -420,22 +398,21 @@ describe("ApiDataSourceForm", () => {
       await user.click(testButton);
 
       await waitFor(() => {
-        const callBody = JSON.parse(mockFetch.mock.calls[0][1].body);
-        expect(callBody.auth).toEqual({ type: "bearer", value: "my-secret-token" });
+        expect(mockApiPost).toHaveBeenCalledWith(
+          "/api/v1/data-sources/api-fetch/test-connection",
+          expect.objectContaining({
+            auth: { type: "bearer", value: "my-secret-token" },
+          })
+        );
       });
     });
 
     it("includes body for POST method in test connection", async () => {
       const user = userEvent.setup();
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            success: true,
-            columns: ["id"],
-            preview: [{ id: "1" }],
-            rowCount: 1,
-          }),
+      mockApiPost.mockResolvedValueOnce({
+        columns: ["id"],
+        preview: [{ id: "1" }],
+        rowCount: 1,
       });
 
       render(<ApiDataSourceForm onSubmit={onSubmit} onCancel={onCancel} />);
@@ -461,24 +438,22 @@ describe("ApiDataSourceForm", () => {
       await user.click(testButton);
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalled();
-        const callBody = JSON.parse(mockFetch.mock.calls[0][1].body);
-        expect(callBody.method).toBe("POST");
-        expect(callBody.body).toBe('{"query": "test"}');
+        expect(mockApiPost).toHaveBeenCalledWith(
+          "/api/v1/data-sources/api-fetch/test-connection",
+          expect.objectContaining({
+            method: "POST",
+            body: '{"query": "test"}',
+          })
+        );
       });
     });
 
     it("includes data path in test connection request", async () => {
       const user = userEvent.setup();
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            success: true,
-            columns: ["id"],
-            preview: [{ id: "1" }],
-            rowCount: 1,
-          }),
+      mockApiPost.mockResolvedValueOnce({
+        columns: ["id"],
+        preview: [{ id: "1" }],
+        rowCount: 1,
       });
 
       render(<ApiDataSourceForm onSubmit={onSubmit} onCancel={onCancel} />);
@@ -491,8 +466,12 @@ describe("ApiDataSourceForm", () => {
       await user.click(testButton);
 
       await waitFor(() => {
-        const callBody = JSON.parse(mockFetch.mock.calls[0][1].body);
-        expect(callBody.dataPath).toBe("$.response.data");
+        expect(mockApiPost).toHaveBeenCalledWith(
+          "/api/v1/data-sources/api-fetch/test-connection",
+          expect.objectContaining({
+            dataPath: "$.response.data",
+          })
+        );
       });
     });
   });
@@ -902,7 +881,7 @@ describe("ApiDataSourceForm", () => {
   describe("Edge Cases", () => {
     it("handles network error during test connection", async () => {
       const user = userEvent.setup();
-      mockFetch.mockRejectedValueOnce(new Error("Network error"));
+      mockApiPost.mockRejectedValueOnce(new Error("Network error"));
 
       render(<ApiDataSourceForm onSubmit={onSubmit} onCancel={onCancel} />);
 
@@ -920,15 +899,10 @@ describe("ApiDataSourceForm", () => {
 
     it("clears preview when URL changes", async () => {
       const user = userEvent.setup();
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            success: true,
-            columns: ["id"],
-            preview: [{ id: "1" }],
-            rowCount: 1,
-          }),
+      mockApiPost.mockResolvedValueOnce({
+        columns: ["id"],
+        preview: [{ id: "1" }],
+        rowCount: 1,
       });
 
       render(<ApiDataSourceForm onSubmit={onSubmit} onCancel={onCancel} />);
@@ -954,15 +928,10 @@ describe("ApiDataSourceForm", () => {
 
     it("handles empty response from API", async () => {
       const user = userEvent.setup();
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            success: true,
-            columns: [],
-            preview: [],
-            rowCount: 0,
-          }),
+      mockApiPost.mockResolvedValueOnce({
+        columns: [],
+        preview: [],
+        rowCount: 0,
       });
 
       render(<ApiDataSourceForm onSubmit={onSubmit} onCancel={onCancel} />);
@@ -980,15 +949,10 @@ describe("ApiDataSourceForm", () => {
 
     it("allows special characters in URL", async () => {
       const user = userEvent.setup();
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            success: true,
-            columns: ["id"],
-            preview: [{ id: "1" }],
-            rowCount: 1,
-          }),
+      mockApiPost.mockResolvedValueOnce({
+        columns: ["id"],
+        preview: [{ id: "1" }],
+        rowCount: 1,
       });
 
       render(<ApiDataSourceForm onSubmit={onSubmit} onCancel={onCancel} />);
@@ -1003,7 +967,7 @@ describe("ApiDataSourceForm", () => {
       await user.click(testButton);
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalled();
+        expect(mockApiPost).toHaveBeenCalled();
       });
     });
   });

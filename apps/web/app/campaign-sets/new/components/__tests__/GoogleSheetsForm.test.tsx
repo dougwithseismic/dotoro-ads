@@ -13,15 +13,20 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { GoogleSheetsForm } from "../GoogleSheetsForm";
 
-// Mock fetch globally
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
+// Mock the api module
+const mockApiGet = vi.fn();
 
-// Mock spreadsheet data
+vi.mock("@/lib/api-client", () => ({
+  api: {
+    get: (...args: unknown[]) => mockApiGet(...args),
+  },
+}));
+
+// Mock spreadsheet data with modifiedTime for the combobox
 const mockSpreadsheets = [
-  { id: "sheet1", name: "Budget 2025" },
-  { id: "sheet2", name: "Product Inventory" },
-  { id: "sheet3", name: "Customer Data" },
+  { id: "sheet1", name: "Budget 2025", modifiedTime: new Date().toISOString() },
+  { id: "sheet2", name: "Product Inventory", modifiedTime: new Date().toISOString() },
+  { id: "sheet3", name: "Customer Data", modifiedTime: new Date().toISOString() },
 ];
 
 // Mock sheets (tabs) data
@@ -31,14 +36,15 @@ const mockSheets = [
   { sheetId: 2, title: "Summary", index: 2 },
 ];
 
-// Mock preview data
+// Mock preview data - matches the API response format
 const mockPreviewData = {
-  headers: ["Name", "Email", "Age"],
-  rows: [
+  data: [
     { Name: "Alice", Email: "alice@example.com", Age: "30" },
     { Name: "Bob", Email: "bob@example.com", Age: "25" },
     { Name: "Carol", Email: "carol@example.com", Age: "35" },
   ],
+  columns: ["Name", "Email", "Age"],
+  rowCount: 3,
 };
 
 describe("GoogleSheetsForm", () => {
@@ -47,7 +53,7 @@ describe("GoogleSheetsForm", () => {
   let onConnect: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    mockFetch.mockReset();
+    mockApiGet.mockReset();
     onSubmit = vi.fn();
     onCancel = vi.fn();
     onConnect = vi.fn();
@@ -85,7 +91,7 @@ describe("GoogleSheetsForm", () => {
       expect(onConnect).toHaveBeenCalled();
     });
 
-    it("disables form inputs when not connected", () => {
+    it("does not show spreadsheet picker when not connected", () => {
       render(
         <GoogleSheetsForm
           onSubmit={onSubmit}
@@ -95,11 +101,8 @@ describe("GoogleSheetsForm", () => {
         />
       );
 
-      // Spreadsheet picker should be disabled
-      const spreadsheetInput = screen.queryByLabelText(/spreadsheet/i);
-      if (spreadsheetInput) {
-        expect(spreadsheetInput).toBeDisabled();
-      }
+      // Spreadsheet picker should not be visible
+      expect(screen.queryByText("Spreadsheet")).not.toBeInTheDocument();
     });
 
     it("shows message explaining connection is required", () => {
@@ -120,11 +123,8 @@ describe("GoogleSheetsForm", () => {
 
   describe("when connected to Google", () => {
     it("shows spreadsheet picker when connected", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ data: mockSpreadsheets }),
-        headers: new Headers({ "content-type": "application/json" }),
-      });
+      // Returns { spreadsheets: [...] }
+      mockApiGet.mockResolvedValueOnce({ spreadsheets: mockSpreadsheets });
 
       render(
         <GoogleSheetsForm
@@ -135,17 +135,14 @@ describe("GoogleSheetsForm", () => {
         />
       );
 
+      // Wait for the spreadsheet label to appear (custom combobox)
       await waitFor(() => {
-        expect(screen.getByLabelText(/spreadsheet/i)).toBeInTheDocument();
+        expect(screen.getByText("Spreadsheet")).toBeInTheDocument();
       });
     });
 
     it("loads spreadsheets on mount when connected", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ data: mockSpreadsheets }),
-        headers: new Headers({ "content-type": "application/json" }),
-      });
+      mockApiGet.mockResolvedValueOnce({ spreadsheets: mockSpreadsheets });
 
       render(
         <GoogleSheetsForm
@@ -157,27 +154,16 @@ describe("GoogleSheetsForm", () => {
       );
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith(
-          expect.stringContaining("/api/v1/google/spreadsheets"),
-          expect.any(Object)
-        );
+        expect(mockApiGet).toHaveBeenCalledWith("/api/v1/google/spreadsheets");
       });
     });
 
     it("loads sheets after spreadsheet is selected", async () => {
       // First call returns spreadsheets
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ data: mockSpreadsheets }),
-        headers: new Headers({ "content-type": "application/json" }),
-      });
-
-      // Second call returns sheets
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ data: mockSheets }),
-        headers: new Headers({ "content-type": "application/json" }),
-      });
+      mockApiGet
+        .mockResolvedValueOnce({ spreadsheets: mockSpreadsheets })
+        // Second call returns sheets
+        .mockResolvedValueOnce({ sheets: mockSheets });
 
       render(
         <GoogleSheetsForm
@@ -190,40 +176,31 @@ describe("GoogleSheetsForm", () => {
 
       // Wait for spreadsheets to load
       await waitFor(() => {
-        expect(screen.getByLabelText(/spreadsheet/i)).toBeInTheDocument();
+        expect(screen.getByText("Select a spreadsheet")).toBeInTheDocument();
       });
 
-      // Select a spreadsheet
-      const spreadsheetSelect = screen.getByLabelText(/spreadsheet/i);
-      fireEvent.change(spreadsheetSelect, { target: { value: "sheet1" } });
+      // Click the spreadsheet combobox to open it
+      const spreadsheetCombobox = screen.getByText("Select a spreadsheet").closest("div");
+      fireEvent.click(spreadsheetCombobox!);
+
+      // Wait for options to appear and select one
+      await waitFor(() => {
+        expect(screen.getByRole("option", { name: /Budget 2025/i })).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByRole("option", { name: /Budget 2025/i }));
 
       // Wait for sheets to load
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith(
-          expect.stringContaining("/api/v1/google/spreadsheets/sheet1/sheets"),
-          expect.any(Object)
-        );
+        expect(mockApiGet).toHaveBeenCalledWith("/api/v1/google/spreadsheets/sheet1/sheets");
       });
     });
 
     it("shows preview after sheet is selected", async () => {
       // Setup mock responses
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve({ data: mockSpreadsheets }),
-          headers: new Headers({ "content-type": "application/json" }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve({ data: mockSheets }),
-          headers: new Headers({ "content-type": "application/json" }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve({ data: mockPreviewData }),
-          headers: new Headers({ "content-type": "application/json" }),
-        });
+      mockApiGet
+        .mockResolvedValueOnce({ spreadsheets: mockSpreadsheets })
+        .mockResolvedValueOnce({ sheets: mockSheets })
+        .mockResolvedValueOnce(mockPreviewData);
 
       render(
         <GoogleSheetsForm
@@ -236,20 +213,30 @@ describe("GoogleSheetsForm", () => {
 
       // Wait for spreadsheets to load
       await waitFor(() => {
-        expect(screen.getByLabelText("Spreadsheet")).toBeInTheDocument();
+        expect(screen.getByText("Select a spreadsheet")).toBeInTheDocument();
       });
 
       // Select spreadsheet
-      fireEvent.change(screen.getByLabelText("Spreadsheet"), { target: { value: "sheet1" } });
+      const spreadsheetCombobox = screen.getByText("Select a spreadsheet").closest("div");
+      fireEvent.click(spreadsheetCombobox!);
 
-      // Wait for sheets to load - the Sheet / Tab dropdown should become enabled
       await waitFor(() => {
-        const sheetSelect = screen.getByLabelText("Sheet / Tab");
-        expect(sheetSelect).not.toBeDisabled();
+        expect(screen.getByRole("option", { name: /Budget 2025/i })).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByRole("option", { name: /Budget 2025/i }));
+
+      // Wait for sheets to load and select sheet
+      await waitFor(() => {
+        expect(screen.getByText("Select a sheet")).toBeInTheDocument();
       });
 
-      // Select sheet
-      fireEvent.change(screen.getByLabelText("Sheet / Tab"), { target: { value: "Sheet1" } });
+      const sheetCombobox = screen.getByText("Select a sheet").closest("div");
+      fireEvent.click(sheetCombobox!);
+
+      await waitFor(() => {
+        expect(screen.getByRole("option", { name: "Sheet1" })).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByRole("option", { name: "Sheet1" }));
 
       // Wait for preview heading
       await waitFor(() => {
@@ -260,22 +247,10 @@ describe("GoogleSheetsForm", () => {
 
   describe("form submission", () => {
     it("calls onSubmit with correct config when form is submitted", async () => {
-      mockFetch
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve({ data: mockSpreadsheets }),
-          headers: new Headers({ "content-type": "application/json" }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve({ data: mockSheets }),
-          headers: new Headers({ "content-type": "application/json" }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () => Promise.resolve({ data: mockPreviewData }),
-          headers: new Headers({ "content-type": "application/json" }),
-        });
+      mockApiGet
+        .mockResolvedValueOnce({ spreadsheets: mockSpreadsheets })
+        .mockResolvedValueOnce({ sheets: mockSheets })
+        .mockResolvedValueOnce(mockPreviewData);
 
       render(
         <GoogleSheetsForm
@@ -288,30 +263,46 @@ describe("GoogleSheetsForm", () => {
 
       // Wait for form to be ready
       await waitFor(() => {
-        expect(screen.getByLabelText("Spreadsheet")).toBeInTheDocument();
+        expect(screen.getByLabelText("Data Source Name")).toBeInTheDocument();
       });
 
       // Fill in the form
       const nameInput = screen.getByLabelText("Data Source Name");
       fireEvent.change(nameInput, { target: { value: "My Data Source" } });
 
-      fireEvent.change(screen.getByLabelText("Spreadsheet"), { target: { value: "sheet1" } });
+      // Select spreadsheet via combobox
+      const spreadsheetCombobox = screen.getByText("Select a spreadsheet").closest("div");
+      fireEvent.click(spreadsheetCombobox!);
 
-      // Wait for sheets to load
       await waitFor(() => {
-        const sheetSelect = screen.getByLabelText("Sheet / Tab");
-        expect(sheetSelect).not.toBeDisabled();
+        expect(screen.getByRole("option", { name: /Budget 2025/i })).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByRole("option", { name: /Budget 2025/i }));
+
+      // Wait for sheets to load and select sheet
+      await waitFor(() => {
+        expect(screen.getByText("Select a sheet")).toBeInTheDocument();
       });
 
-      fireEvent.change(screen.getByLabelText("Sheet / Tab"), { target: { value: "Sheet1" } });
+      const sheetCombobox = screen.getByText("Select a sheet").closest("div");
+      fireEvent.click(sheetCombobox!);
+
+      await waitFor(() => {
+        expect(screen.getByRole("option", { name: "Sheet1" })).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByRole("option", { name: "Sheet1" }));
 
       // Select sync frequency
       const frequencySelect = screen.getByLabelText("Sync Frequency");
       fireEvent.change(frequencySelect, { target: { value: "24h" } });
 
       // Submit the form
-      const submitButton = screen.getByRole("button", { name: /create/i });
-      fireEvent.click(submitButton);
+      await waitFor(() => {
+        const submitButton = screen.getByRole("button", { name: /create/i });
+        expect(submitButton).not.toBeDisabled();
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: /create/i }));
 
       await waitFor(() => {
         expect(onSubmit).toHaveBeenCalledWith(
@@ -327,11 +318,7 @@ describe("GoogleSheetsForm", () => {
     });
 
     it("disables submit button when required fields are empty", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ data: mockSpreadsheets }),
-        headers: new Headers({ "content-type": "application/json" }),
-      });
+      mockApiGet.mockResolvedValueOnce({ spreadsheets: mockSpreadsheets });
 
       render(
         <GoogleSheetsForm
@@ -343,7 +330,7 @@ describe("GoogleSheetsForm", () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByLabelText(/spreadsheet/i)).toBeInTheDocument();
+        expect(screen.getByText("Spreadsheet")).toBeInTheDocument();
       });
 
       const submitButton = screen.getByRole("button", { name: /create|save|add/i });
@@ -353,11 +340,7 @@ describe("GoogleSheetsForm", () => {
 
   describe("sync frequency selector", () => {
     it("shows sync frequency options", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ data: mockSpreadsheets }),
-        headers: new Headers({ "content-type": "application/json" }),
-      });
+      mockApiGet.mockResolvedValueOnce({ spreadsheets: mockSpreadsheets });
 
       render(
         <GoogleSheetsForm
@@ -377,11 +360,7 @@ describe("GoogleSheetsForm", () => {
     });
 
     it("defaults to manual sync", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ data: mockSpreadsheets }),
-        headers: new Headers({ "content-type": "application/json" }),
-      });
+      mockApiGet.mockResolvedValueOnce({ spreadsheets: mockSpreadsheets });
 
       render(
         <GoogleSheetsForm
@@ -403,11 +382,7 @@ describe("GoogleSheetsForm", () => {
 
   describe("header row selector", () => {
     it("shows header row input with default value of 1", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ data: mockSpreadsheets }),
-        headers: new Headers({ "content-type": "application/json" }),
-      });
+      mockApiGet.mockResolvedValueOnce({ spreadsheets: mockSpreadsheets });
 
       render(
         <GoogleSheetsForm
@@ -429,11 +404,7 @@ describe("GoogleSheetsForm", () => {
 
   describe("cancel functionality", () => {
     it("calls onCancel when cancel button is clicked", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: () => Promise.resolve({ data: mockSpreadsheets }),
-        headers: new Headers({ "content-type": "application/json" }),
-      });
+      mockApiGet.mockResolvedValueOnce({ spreadsheets: mockSpreadsheets });
 
       render(
         <GoogleSheetsForm
@@ -453,12 +424,7 @@ describe("GoogleSheetsForm", () => {
 
   describe("error handling", () => {
     it("shows error message when spreadsheet loading fails", async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        statusText: "Internal Server Error",
-        json: () => Promise.resolve({ error: "Server error" }),
-      });
+      mockApiGet.mockRejectedValueOnce(new Error("Failed to load spreadsheets"));
 
       render(
         <GoogleSheetsForm

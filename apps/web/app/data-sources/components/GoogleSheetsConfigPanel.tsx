@@ -14,6 +14,7 @@
 
 import { useState, useCallback, useMemo } from "react";
 import type { GoogleSheetsConfig, SyncFrequency } from "../types";
+import { api, ApiError } from "@/lib/api-client";
 import styles from "./ConfigPanel.module.css";
 
 interface GoogleSheetsConfigPanelProps {
@@ -158,18 +159,9 @@ export function GoogleSheetsConfigPanel({
         syncFrequency: formState.syncFrequency,
       };
 
-      const response = await fetch(`/api/v1/data-sources/${dataSourceId}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ config: { googleSheets: updatedConfig } }),
+      await api.patch(`/api/v1/data-sources/${dataSourceId}`, {
+        config: { googleSheets: updatedConfig },
       });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "Failed to update configuration");
-      }
 
       // Update display config
       const newConfig: GoogleSheetsConfig = {
@@ -182,7 +174,12 @@ export function GoogleSheetsConfigPanel({
       // Call the callback if provided
       onConfigUpdate?.(newConfig);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred while saving");
+      if (err instanceof ApiError) {
+        const errorData = err.data as { error?: string } | null;
+        setError(errorData?.error || "Failed to update configuration");
+      } else {
+        setError(err instanceof Error ? err.message : "An error occurred while saving");
+      }
     } finally {
       setIsSaving(false);
     }

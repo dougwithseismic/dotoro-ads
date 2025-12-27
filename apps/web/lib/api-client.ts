@@ -104,7 +104,10 @@ export async function apiUpload<T>(
   const response = await fetch(url, {
     method: "POST",
     body: formData,
-    // Don't set Content-Type header - browser will set it with boundary
+    headers: {
+      "x-user-id": DEV_USER_ID,
+      // Don't set Content-Type header - browser will set it with boundary
+    },
   });
 
   if (!response.ok) {

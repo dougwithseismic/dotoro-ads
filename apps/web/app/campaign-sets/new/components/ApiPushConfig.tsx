@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import styles from "./ApiPushConfig.module.css";
+import { api, ApiError } from "@/lib/api-client";
 
 /**
  * API Key configuration stored in data source config.
@@ -87,24 +88,19 @@ export function ApiPushConfig({
     setError(null);
 
     try {
-      const response = await fetch(`/api/v1/data-sources/${dataSourceId}/api-key`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to generate API key");
-      }
-
-      const data = await response.json();
+      const data = await api.post<{ key: string }>(
+        `/api/v1/data-sources/${dataSourceId}/api-key`
+      );
       setGeneratedKey(data.key);
       setShowKeyModal(true);
       onKeyGenerated?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to generate API key");
+      if (err instanceof ApiError && err.data) {
+        const errorData = err.data as { error?: string };
+        setError(errorData.error || "Failed to generate API key");
+      } else {
+        setError(err instanceof Error ? err.message : "Failed to generate API key");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -117,27 +113,19 @@ export function ApiPushConfig({
     setError(null);
 
     try {
-      const response = await fetch(
-        `/api/v1/data-sources/${dataSourceId}/api-key/regenerate`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
+      const data = await api.post<{ key: string }>(
+        `/api/v1/data-sources/${dataSourceId}/api-key/regenerate`
       );
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to regenerate API key");
-      }
-
-      const data = await response.json();
       setGeneratedKey(data.key);
       setShowKeyModal(true);
       onKeyGenerated?.();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to regenerate API key");
+      if (err instanceof ApiError && err.data) {
+        const errorData = err.data as { error?: string };
+        setError(errorData.error || "Failed to regenerate API key");
+      } else {
+        setError(err instanceof Error ? err.message : "Failed to regenerate API key");
+      }
     } finally {
       setIsLoading(false);
     }

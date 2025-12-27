@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import styles from "./CsvPasteForm.module.css";
+import { api, ApiError } from "@/lib/api-client";
 
 /**
  * Props for the CsvPasteForm component
@@ -71,28 +72,23 @@ export function CsvPasteForm({
     setPreviewData(null);
 
     try {
-      const response = await fetch("/api/v1/data-sources/preview-csv", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      const data = await api.post<PreviewData>(
+        "/api/v1/data-sources/preview-csv",
+        {
           content: csvContent,
           rows: 5,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.error || "Failed to preview CSV");
-        return;
-      }
+        }
+      );
 
       setPreviewData(data);
       setHasPreviewedContent(csvContent);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Network error");
+      if (err instanceof ApiError && err.data) {
+        const errorData = err.data as { error?: string };
+        setError(errorData.error || "Failed to preview CSV");
+      } else {
+        setError(err instanceof Error ? err.message : "Network error");
+      }
     } finally {
       setPreviewLoading(false);
     }

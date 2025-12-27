@@ -2,10 +2,25 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { CsvPasteForm } from "../CsvPasteForm";
+import { ApiError } from "@/lib/api-client";
 
-// Mock fetch globally
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
+// Mock the api client module
+const mockApiPost = vi.fn();
+vi.mock("@/lib/api-client", () => ({
+  api: {
+    get: vi.fn(),
+    post: (...args: unknown[]) => mockApiPost(...args),
+    put: vi.fn(),
+    patch: vi.fn(),
+    delete: vi.fn(),
+  },
+  ApiError: class ApiError extends Error {
+    constructor(message: string, public status: number, public data?: unknown) {
+      super(message);
+      this.name = "ApiError";
+    }
+  },
+}));
 
 // Sample CSV content for testing
 const validCsvContent = `name,email,company
@@ -25,7 +40,7 @@ describe("CsvPasteForm", () => {
   let onCancel: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    mockFetch.mockReset();
+    mockApiPost.mockReset();
     onSubmit = vi.fn().mockResolvedValue(undefined);
     onCancel = vi.fn();
   });
@@ -135,15 +150,11 @@ describe("CsvPasteForm", () => {
   describe("Preview Functionality", () => {
     it("calls preview endpoint on Preview button click", async () => {
       const user = userEvent.setup();
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            headers: ["name", "email", "company"],
-            preview: [
-              { name: "John Doe", email: "john@example.com", company: "Acme Inc" },
-            ],
-          }),
+      mockApiPost.mockResolvedValue({
+        headers: ["name", "email", "company"],
+        preview: [
+          { name: "John Doe", email: "john@example.com", company: "Acme Inc" },
+        ],
       });
 
       render(<CsvPasteForm onSubmit={onSubmit} onCancel={onCancel} />);
@@ -155,35 +166,24 @@ describe("CsvPasteForm", () => {
       await user.click(previewButton);
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith(
+        expect(mockApiPost).toHaveBeenCalledWith(
           "/api/v1/data-sources/preview-csv",
-          expect.objectContaining({
-            method: "POST",
-            headers: expect.objectContaining({
-              "Content-Type": "application/json",
-            }),
-          })
+          {
+            content: validCsvContent,
+            rows: 5,
+          }
         );
-        // Verify body contains CSV content (as JSON string with escaped newlines)
-        const callBody = mockFetch.mock.calls[0][1].body;
-        const parsedBody = JSON.parse(callBody);
-        expect(parsedBody.content).toBe(validCsvContent);
-        expect(parsedBody.rows).toBe(5);
       });
     });
 
     it("displays preview table with headers and rows", async () => {
       const user = userEvent.setup();
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            headers: ["name", "email", "company"],
-            preview: [
-              { name: "John Doe", email: "john@example.com", company: "Acme Inc" },
-              { name: "Jane Smith", email: "jane@example.com", company: "Widget Corp" },
-            ],
-          }),
+      mockApiPost.mockResolvedValue({
+        headers: ["name", "email", "company"],
+        preview: [
+          { name: "John Doe", email: "john@example.com", company: "Acme Inc" },
+          { name: "Jane Smith", email: "jane@example.com", company: "Widget Corp" },
+        ],
       });
 
       render(<CsvPasteForm onSubmit={onSubmit} onCancel={onCancel} />);
@@ -211,13 +211,9 @@ describe("CsvPasteForm", () => {
 
     it("shows error for malformed CSV", async () => {
       const user = userEvent.setup();
-      mockFetch.mockResolvedValue({
-        ok: false,
-        json: () =>
-          Promise.resolve({
-            error: "Invalid CSV: inconsistent column count",
-          }),
-      });
+      // ApiError is thrown by the api client when the response is not ok
+      const error = new ApiError("API request failed", 400, { error: "Invalid CSV: inconsistent column count" });
+      mockApiPost.mockRejectedValue(error);
 
       render(<CsvPasteForm onSubmit={onSubmit} onCancel={onCancel} />);
 
@@ -242,18 +238,14 @@ describe("CsvPasteForm", () => {
 
     it("shows loading state during preview", async () => {
       const user = userEvent.setup();
-      mockFetch.mockImplementation(
+      mockApiPost.mockImplementation(
         () =>
           new Promise((resolve) =>
             setTimeout(
               () =>
                 resolve({
-                  ok: true,
-                  json: () =>
-                    Promise.resolve({
-                      headers: ["name"],
-                      preview: [{ name: "Test" }],
-                    }),
+                  headers: ["name"],
+                  preview: [{ name: "Test" }],
                 }),
               100
             )
@@ -465,13 +457,9 @@ describe("CsvPasteForm", () => {
 
     it("has descriptive error messages linked via aria-describedby", async () => {
       const user = userEvent.setup();
-      mockFetch.mockResolvedValue({
-        ok: false,
-        json: () =>
-          Promise.resolve({
-            error: "Invalid CSV format",
-          }),
-      });
+      // ApiError is thrown by the api client when the response is not ok
+      const error = new ApiError("API request failed", 400, { error: "Invalid CSV format" });
+      mockApiPost.mockRejectedValue(error);
 
       render(<CsvPasteForm onSubmit={onSubmit} onCancel={onCancel} />);
 
@@ -496,13 +484,9 @@ describe("CsvPasteForm", () => {
   describe("Edge Cases", () => {
     it("handles empty preview response gracefully", async () => {
       const user = userEvent.setup();
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            headers: [],
-            preview: [],
-          }),
+      mockApiPost.mockResolvedValue({
+        headers: [],
+        preview: [],
       });
 
       render(<CsvPasteForm onSubmit={onSubmit} onCancel={onCancel} />);
@@ -520,7 +504,7 @@ describe("CsvPasteForm", () => {
 
     it("handles network error during preview", async () => {
       const user = userEvent.setup();
-      mockFetch.mockRejectedValue(new Error("Network error"));
+      mockApiPost.mockRejectedValue(new Error("Network error"));
 
       render(<CsvPasteForm onSubmit={onSubmit} onCancel={onCancel} />);
 
@@ -542,15 +526,11 @@ describe("CsvPasteForm", () => {
 "John, Doe","He said ""Hello"" to everyone"
 "Jane's Item","Contains <html> & special chars"`;
 
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            headers: ["name", "description"],
-            preview: [
-              { name: 'John, Doe', description: 'He said "Hello" to everyone' },
-            ],
-          }),
+      mockApiPost.mockResolvedValue({
+        headers: ["name", "description"],
+        preview: [
+          { name: 'John, Doe', description: 'He said "Hello" to everyone' },
+        ],
       });
 
       render(<CsvPasteForm onSubmit={onSubmit} onCancel={onCancel} />);
@@ -568,15 +548,11 @@ describe("CsvPasteForm", () => {
 
     it("clears preview when CSV content changes significantly", async () => {
       const user = userEvent.setup();
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            headers: ["name", "email", "company"],
-            preview: [
-              { name: "John Doe", email: "john@example.com", company: "Acme Inc" },
-            ],
-          }),
+      mockApiPost.mockResolvedValue({
+        headers: ["name", "email", "company"],
+        preview: [
+          { name: "John Doe", email: "john@example.com", company: "Acme Inc" },
+        ],
       });
 
       render(<CsvPasteForm onSubmit={onSubmit} onCancel={onCancel} />);

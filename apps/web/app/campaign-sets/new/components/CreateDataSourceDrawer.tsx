@@ -6,7 +6,7 @@ import { CsvPasteForm } from "./CsvPasteForm";
 import { ApiPushConfig, type ApiKeyConfig } from "./ApiPushConfig";
 import { ApiDataSourceForm, type ApiFetchConfig } from "./ApiDataSourceForm";
 import { GoogleSheetsForm, type GoogleSheetsConfig } from "./GoogleSheetsForm";
-import { api } from "@/lib/api-client";
+import { api, apiUpload, ApiError } from "@/lib/api-client";
 
 interface CreateDataSourceDrawerProps {
   isOpen: boolean;
@@ -143,21 +143,16 @@ export function CreateDataSourceDrawer({
         formData.append("file", file);
         formData.append("name", name.trim());
 
-        const response = await fetch("/api/v1/data-sources/upload", {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.error || "Failed to upload file");
-        }
-
-        const data = await response.json();
+        const data = await apiUpload<{ id: string }>("/api/v1/data-sources/upload", formData);
         onCreated(data.id);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      if (err instanceof ApiError && err.data) {
+        const errorData = err.data as { error?: string };
+        setError(errorData.error || "Failed to upload CSV file");
+      } else {
+        setError(err instanceof Error ? err.message : "An error occurred");
+      }
     } finally {
       setUploading(false);
     }
@@ -178,27 +173,19 @@ export function CreateDataSourceDrawer({
     setError(null);
 
     try {
-      const response = await fetch("/api/v1/data-sources", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: name.trim(),
-          type: "api",
-          config: { source: "api-push" },
-        }),
+      const response = await api.post<{ id: string }>("/api/v1/data-sources", {
+        name: name.trim(),
+        type: "api",
+        config: { source: "api-push" },
       });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to create data source");
-      }
-
-      const { id: dataSourceId } = await response.json();
-      setApiDataSourceId(dataSourceId);
+      setApiDataSourceId(response.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      if (err instanceof ApiError && err.data) {
+        const errorData = err.data as { error?: string };
+        setError(errorData.error || "Failed to create API data source");
+      } else {
+        setError(err instanceof Error ? err.message : "An error occurred");
+      }
     } finally {
       setUploading(false);
     }
@@ -211,19 +198,18 @@ export function CreateDataSourceDrawer({
     if (!apiDataSourceId) return;
 
     try {
-      const response = await fetch(`/api/v1/data-sources/${apiDataSourceId}`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.config?.apiKey) {
-          setApiKeyConfig({
-            keyPrefix: data.config.apiKey.keyPrefix,
-            createdAt: data.config.apiKey.createdAt,
-            lastUsedAt: data.config.apiKey.lastUsedAt,
-          });
-        }
+      const data = await api.get<{ config?: { apiKey?: ApiKeyConfig } }>(`/api/v1/data-sources/${apiDataSourceId}`);
+      if (data.config?.apiKey) {
+        setApiKeyConfig({
+          keyPrefix: data.config.apiKey.keyPrefix,
+          createdAt: data.config.apiKey.createdAt,
+          lastUsedAt: data.config.apiKey.lastUsedAt,
+        });
       }
     } catch (err) {
       console.error('Failed to refresh API key configuration:', err);
+      // Non-blocking warning - key was generated but display may be stale
+      setError('Your API key was generated, but we could not refresh the display. Please refresh the page to see updated key information.');
     }
   }, [apiDataSourceId]);
 
@@ -246,30 +232,22 @@ export function CreateDataSourceDrawer({
       setError(null);
 
       try {
-        const response = await fetch("/api/v1/data-sources", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
+        const response = await api.post<{ id: string }>("/api/v1/data-sources", {
+          name: dataSourceName,
+          type: "api",
+          config: {
+            source: "api-fetch",
+            ...config,
           },
-          body: JSON.stringify({
-            name: dataSourceName,
-            type: "api",
-            config: {
-              source: "api-fetch",
-              ...config,
-            },
-          }),
         });
-
-        if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.error || "Failed to create data source");
-        }
-
-        const { id: dataSourceId } = await response.json();
-        onCreated(dataSourceId);
+        onCreated(response.id);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "An error occurred");
+        if (err instanceof ApiError && err.data) {
+          const errorData = err.data as { error?: string };
+          setError(errorData.error || "Failed to create API fetch data source");
+        } else {
+          setError(err instanceof Error ? err.message : "An error occurred");
+        }
         throw err; // Re-throw so the form knows submission failed
       } finally {
         setUploading(false);
@@ -292,71 +270,42 @@ export function CreateDataSourceDrawer({
       try {
         // Step 1: Parse CSV content via preview endpoint
         // Note: max 50000 rows supported by the API
-        const previewResponse = await fetch("/api/v1/data-sources/preview-csv", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
+        const previewData = await api.post<{ preview: Record<string, unknown>[] }>(
+          "/api/v1/data-sources/preview-csv",
+          {
             content: csvContent,
             rows: 50000, // Get all rows (API max is 50000)
-          }),
-        });
+          }
+        );
 
-        if (!previewResponse.ok) {
-          const data = await previewResponse.json();
-          throw new Error(data.error || "Failed to parse CSV content");
-        }
-
-        const { preview: parsedItems } = await previewResponse.json();
-
+        const parsedItems = previewData.preview;
         if (!parsedItems || parsedItems.length === 0) {
           throw new Error("CSV content is empty or invalid");
         }
 
         // Step 2: Create the data source
-        const createResponse = await fetch("/api/v1/data-sources", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            name: dataSourceName,
-            type: "csv",
-            config: { source: "paste" },
-          }),
+        const createResponse = await api.post<{ id: string }>("/api/v1/data-sources", {
+          name: dataSourceName,
+          type: "csv",
+          config: { source: "paste" },
         });
 
-        if (!createResponse.ok) {
-          const data = await createResponse.json();
-          throw new Error(data.error || "Failed to create data source");
-        }
-
-        const { id: dataSourceId } = await createResponse.json();
+        const dataSourceId = createResponse.id;
 
         // Step 3: Insert parsed rows via items endpoint
-        const itemsResponse = await fetch(
-          `/api/v1/data-sources/${dataSourceId}/items`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              mode: "replace",
-              items: parsedItems,
-            }),
-          }
-        );
-
-        if (!itemsResponse.ok) {
-          const data = await itemsResponse.json();
-          throw new Error(data.error || "Failed to import CSV data");
-        }
+        await api.post(`/api/v1/data-sources/${dataSourceId}/items`, {
+          mode: "replace",
+          items: parsedItems,
+        });
 
         onCreated(dataSourceId);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "An error occurred");
+        if (err instanceof ApiError && err.data) {
+          const errorData = err.data as { error?: string };
+          setError(errorData.error || "Failed to create CSV data source");
+        } else {
+          setError(err instanceof Error ? err.message : "An error occurred");
+        }
         throw err; // Re-throw so the form knows submission failed
       } finally {
         setUploading(false);
@@ -378,7 +327,12 @@ export function CreateDataSourceDrawer({
       );
       setGoogleConnected(response.connected);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to check Google connection");
+      if (err instanceof ApiError && err.data) {
+        const errorData = err.data as { error?: string };
+        setError(errorData.error || "Failed to check Google connection");
+      } else {
+        setError(err instanceof Error ? err.message : "Failed to check Google connection");
+      }
       setGoogleConnected(false);
     } finally {
       setCheckingGoogleConnection(false);
@@ -408,7 +362,12 @@ export function CreateDataSourceDrawer({
       // Redirect to Google OAuth
       window.location.href = response.authorizationUrl;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to initiate Google connection");
+      if (err instanceof ApiError && err.data) {
+        const errorData = err.data as { error?: string };
+        setError(errorData.error || "Failed to initiate Google connection");
+      } else {
+        setError(err instanceof Error ? err.message : "Failed to initiate Google connection");
+      }
       setConnectingGoogle(false);
     }
     // Note: Don't reset connectingGoogle on success since we're redirecting away
@@ -438,7 +397,12 @@ export function CreateDataSourceDrawer({
 
         onCreated(response.id);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "An error occurred");
+        if (err instanceof ApiError && err.data) {
+          const errorData = err.data as { error?: string };
+          setError(errorData.error || "Failed to create Google Sheets data source");
+        } else {
+          setError(err instanceof Error ? err.message : "An error occurred");
+        }
         throw err; // Re-throw so the form knows submission failed
       } finally {
         setUploading(false);

@@ -18,13 +18,17 @@ import { CreateDataSourceDrawer } from "../CreateDataSourceDrawer";
 const mockApiGet = vi.fn();
 const mockApiPost = vi.fn();
 
-vi.mock("@/lib/api-client", () => ({
-  api: {
-    get: (...args: unknown[]) => mockApiGet(...args),
-    post: (...args: unknown[]) => mockApiPost(...args),
-  },
-  API_BASE_URL: "http://localhost:3001",
-}));
+vi.mock("@/lib/api-client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/api-client")>();
+  return {
+    ...actual,
+    api: {
+      get: (...args: unknown[]) => mockApiGet(...args),
+      post: (...args: unknown[]) => mockApiPost(...args),
+    },
+    API_BASE_URL: "http://localhost:3001",
+  };
+});
 
 // Mock fetch globally for direct fetch calls
 const mockFetch = vi.fn();
@@ -210,11 +214,11 @@ describe("CreateDataSourceDrawer", () => {
       // Status check returns connected (via api.get)
       mockApiGet
         .mockResolvedValueOnce({ connected: true })
-        // Load spreadsheets (GoogleSheetsForm uses api.get)
+        // Load spreadsheets (GoogleSheetsForm uses api.get) - returns { spreadsheets: [...] }
         .mockResolvedValueOnce({
-          data: [
-            { id: "sheet1", name: "Budget 2025" },
-            { id: "sheet2", name: "Product Inventory" },
+          spreadsheets: [
+            { id: "sheet1", name: "Budget 2025", modifiedTime: new Date().toISOString() },
+            { id: "sheet2", name: "Product Inventory", modifiedTime: new Date().toISOString() },
           ],
         });
 
@@ -229,8 +233,9 @@ describe("CreateDataSourceDrawer", () => {
       const googleSheetsButton = screen.getByText("Google Sheets").closest("button");
       fireEvent.click(googleSheetsButton!);
 
+      // Wait for the spreadsheet combobox label to appear (custom combobox component)
       await waitFor(() => {
-        expect(screen.getByLabelText("Spreadsheet")).toBeInTheDocument();
+        expect(screen.getByText("Spreadsheet")).toBeInTheDocument();
       });
     });
 
@@ -346,7 +351,7 @@ describe("CreateDataSourceDrawer", () => {
   describe("Google Sheets Data Source Creation", () => {
     it("creates Google Sheets data source with correct config", async () => {
       const mockSpreadsheets = [
-        { id: "spreadsheet-1", name: "Test Spreadsheet" },
+        { id: "spreadsheet-1", name: "Test Spreadsheet", modifiedTime: new Date().toISOString() },
       ];
 
       const mockSheets = [
@@ -354,19 +359,20 @@ describe("CreateDataSourceDrawer", () => {
       ];
 
       const mockPreview = {
-        headers: ["Name", "Email"],
-        rows: [{ Name: "John", Email: "john@example.com" }],
+        data: [{ Name: "John", Email: "john@example.com" }],
+        columns: ["Name", "Email"],
+        rowCount: 1,
       };
 
       // Status check - connected (via api.get)
       mockApiGet
         .mockResolvedValueOnce({ connected: true })
-        // Load spreadsheets (GoogleSheetsForm uses api.get)
-        .mockResolvedValueOnce({ data: mockSpreadsheets })
-        // Load sheets
-        .mockResolvedValueOnce({ data: mockSheets })
-        // Load preview
-        .mockResolvedValueOnce({ data: mockPreview });
+        // Load spreadsheets (GoogleSheetsForm uses api.get) - returns { spreadsheets: [...] }
+        .mockResolvedValueOnce({ spreadsheets: mockSpreadsheets })
+        // Load sheets - returns { sheets: [...] }
+        .mockResolvedValueOnce({ sheets: mockSheets })
+        // Load preview - returns { data: [...], columns: [...], rowCount: ... }
+        .mockResolvedValueOnce(mockPreview);
 
       // Create data source (uses api.post)
       mockApiPost.mockResolvedValueOnce({ id: "ds-123" });
@@ -392,22 +398,34 @@ describe("CreateDataSourceDrawer", () => {
       const nameInput = screen.getByLabelText(/data source name/i);
       fireEvent.change(nameInput, { target: { value: "My Google Sheet" } });
 
-      // Select spreadsheet
+      // Wait for spreadsheet combobox to load and click to open
       await waitFor(() => {
-        expect(screen.getByLabelText("Spreadsheet")).toBeInTheDocument();
-      });
-      fireEvent.change(screen.getByLabelText("Spreadsheet"), {
-        target: { value: "spreadsheet-1" },
+        expect(screen.getByText("Spreadsheet")).toBeInTheDocument();
       });
 
-      // Wait for sheets to load and select sheet
+      // Find and click the spreadsheet combobox trigger
+      const spreadsheetCombobox = screen.getByText("Select a spreadsheet").closest("div");
+      fireEvent.click(spreadsheetCombobox!);
+
+      // Wait for the dropdown to appear and select the spreadsheet
       await waitFor(() => {
-        const sheetSelect = screen.getByLabelText("Sheet / Tab");
-        expect(sheetSelect).not.toBeDisabled();
+        expect(screen.getByRole("option", { name: /Test Spreadsheet/i })).toBeInTheDocument();
       });
-      fireEvent.change(screen.getByLabelText("Sheet / Tab"), {
-        target: { value: "Sheet1" },
+      fireEvent.click(screen.getByRole("option", { name: /Test Spreadsheet/i }));
+
+      // Wait for sheets to load and click to open sheet selector
+      await waitFor(() => {
+        expect(screen.getByText("Select a sheet")).toBeInTheDocument();
       });
+
+      const sheetCombobox = screen.getByText("Select a sheet").closest("div");
+      fireEvent.click(sheetCombobox!);
+
+      // Wait for sheets dropdown and select sheet
+      await waitFor(() => {
+        expect(screen.getByRole("option", { name: "Sheet1" })).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByRole("option", { name: "Sheet1" }));
 
       // Wait for form to be valid and submit
       await waitFor(() => {
@@ -441,22 +459,28 @@ describe("CreateDataSourceDrawer", () => {
 
     it("includes syncFrequency in data source creation", async () => {
       const mockSpreadsheets = [
-        { id: "spreadsheet-1", name: "Test Spreadsheet" },
+        { id: "spreadsheet-1", name: "Test Spreadsheet", modifiedTime: new Date().toISOString() },
       ];
 
       const mockSheets = [
         { sheetId: 0, title: "Sheet1", index: 0 },
       ];
 
+      const mockPreview = {
+        data: [{ A: "1" }],
+        columns: ["A"],
+        rowCount: 1,
+      };
+
       // Status check - connected (via api.get)
       mockApiGet
         .mockResolvedValueOnce({ connected: true })
-        // Load spreadsheets
-        .mockResolvedValueOnce({ data: mockSpreadsheets })
-        // Load sheets
-        .mockResolvedValueOnce({ data: mockSheets })
+        // Load spreadsheets - returns { spreadsheets: [...] }
+        .mockResolvedValueOnce({ spreadsheets: mockSpreadsheets })
+        // Load sheets - returns { sheets: [...] }
+        .mockResolvedValueOnce({ sheets: mockSheets })
         // Load preview
-        .mockResolvedValueOnce({ data: { headers: ["A"], rows: [{ A: "1" }] } });
+        .mockResolvedValueOnce(mockPreview);
 
       // Create data source (uses api.post)
       mockApiPost.mockResolvedValueOnce({ id: "ds-456" });
@@ -483,21 +507,34 @@ describe("CreateDataSourceDrawer", () => {
         target: { value: "My Sheet" },
       });
 
-      // Select spreadsheet
-      fireEvent.change(screen.getByLabelText("Spreadsheet"), {
-        target: { value: "spreadsheet-1" },
-      });
-
-      // Wait for sheets to load
+      // Wait for spreadsheet combobox to load and click to open
       await waitFor(() => {
-        const sheetSelect = screen.getByLabelText("Sheet / Tab");
-        expect(sheetSelect).not.toBeDisabled();
+        expect(screen.getByText("Select a spreadsheet")).toBeInTheDocument();
       });
 
-      // Select sheet
-      fireEvent.change(screen.getByLabelText("Sheet / Tab"), {
-        target: { value: "Sheet1" },
+      // Find and click the spreadsheet combobox trigger
+      const spreadsheetCombobox = screen.getByText("Select a spreadsheet").closest("div");
+      fireEvent.click(spreadsheetCombobox!);
+
+      // Wait for the dropdown to appear and select the spreadsheet
+      await waitFor(() => {
+        expect(screen.getByRole("option", { name: /Test Spreadsheet/i })).toBeInTheDocument();
       });
+      fireEvent.click(screen.getByRole("option", { name: /Test Spreadsheet/i }));
+
+      // Wait for sheets to load and click to open sheet selector
+      await waitFor(() => {
+        expect(screen.getByText("Select a sheet")).toBeInTheDocument();
+      });
+
+      const sheetCombobox = screen.getByText("Select a sheet").closest("div");
+      fireEvent.click(sheetCombobox!);
+
+      // Wait for sheets dropdown and select sheet
+      await waitFor(() => {
+        expect(screen.getByRole("option", { name: "Sheet1" })).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByRole("option", { name: "Sheet1" }));
 
       // Set sync frequency to daily
       await waitFor(() => {
@@ -644,22 +681,28 @@ describe("CreateDataSourceDrawer", () => {
 
     it("shows error when data source creation fails", async () => {
       const mockSpreadsheets = [
-        { id: "spreadsheet-1", name: "Test Spreadsheet" },
+        { id: "spreadsheet-1", name: "Test Spreadsheet", modifiedTime: new Date().toISOString() },
       ];
 
       const mockSheets = [
         { sheetId: 0, title: "Sheet1", index: 0 },
       ];
 
+      const mockPreview = {
+        data: [{ A: "1" }],
+        columns: ["A"],
+        rowCount: 1,
+      };
+
       // Status check - connected (via api.get)
       mockApiGet
         .mockResolvedValueOnce({ connected: true })
-        // Load spreadsheets
-        .mockResolvedValueOnce({ data: mockSpreadsheets })
-        // Load sheets
-        .mockResolvedValueOnce({ data: mockSheets })
+        // Load spreadsheets - returns { spreadsheets: [...] }
+        .mockResolvedValueOnce({ spreadsheets: mockSpreadsheets })
+        // Load sheets - returns { sheets: [...] }
+        .mockResolvedValueOnce({ sheets: mockSheets })
         // Load preview
-        .mockResolvedValueOnce({ data: { headers: ["A"], rows: [{ A: "1" }] } });
+        .mockResolvedValueOnce(mockPreview);
 
       // Create data source - FAILS (uses api.post which throws on error)
       mockApiPost.mockRejectedValueOnce(new Error("Failed to create data source"));
@@ -686,17 +729,34 @@ describe("CreateDataSourceDrawer", () => {
         target: { value: "My Sheet" },
       });
 
-      fireEvent.change(screen.getByLabelText("Spreadsheet"), {
-        target: { value: "spreadsheet-1" },
-      });
-
+      // Wait for spreadsheet combobox to load and click to open
       await waitFor(() => {
-        expect(screen.getByLabelText("Sheet / Tab")).not.toBeDisabled();
+        expect(screen.getByText("Select a spreadsheet")).toBeInTheDocument();
       });
 
-      fireEvent.change(screen.getByLabelText("Sheet / Tab"), {
-        target: { value: "Sheet1" },
+      // Find and click the spreadsheet combobox trigger
+      const spreadsheetCombobox = screen.getByText("Select a spreadsheet").closest("div");
+      fireEvent.click(spreadsheetCombobox!);
+
+      // Wait for the dropdown to appear and select the spreadsheet
+      await waitFor(() => {
+        expect(screen.getByRole("option", { name: /Test Spreadsheet/i })).toBeInTheDocument();
       });
+      fireEvent.click(screen.getByRole("option", { name: /Test Spreadsheet/i }));
+
+      // Wait for sheets to load and click to open sheet selector
+      await waitFor(() => {
+        expect(screen.getByText("Select a sheet")).toBeInTheDocument();
+      });
+
+      const sheetCombobox = screen.getByText("Select a sheet").closest("div");
+      fireEvent.click(sheetCombobox!);
+
+      // Wait for sheets dropdown and select sheet
+      await waitFor(() => {
+        expect(screen.getByRole("option", { name: "Sheet1" })).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByRole("option", { name: "Sheet1" }));
 
       // Submit
       await waitFor(() => {

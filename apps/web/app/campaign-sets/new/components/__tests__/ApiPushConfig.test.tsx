@@ -2,10 +2,25 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { ApiPushConfig } from "../ApiPushConfig";
+import { ApiError } from "@/lib/api-client";
 
-// Mock fetch
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
+// Mock the api client module
+const mockApiPost = vi.fn();
+vi.mock("@/lib/api-client", () => ({
+  api: {
+    get: vi.fn(),
+    post: (...args: unknown[]) => mockApiPost(...args),
+    put: vi.fn(),
+    patch: vi.fn(),
+    delete: vi.fn(),
+  },
+  ApiError: class ApiError extends Error {
+    constructor(message: string, public status: number, public data?: unknown) {
+      super(message);
+      this.name = "ApiError";
+    }
+  },
+}));
 
 describe("ApiPushConfig", () => {
   const mockDataSourceId = "550e8400-e29b-41d4-a716-446655440000";
@@ -238,13 +253,10 @@ describe("ApiPushConfig", () => {
     it("calls generate API on Generate click", async () => {
       const user = userEvent.setup();
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          key: "ds_live_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-          keyPrefix: "ds_live_01234567...",
-          createdAt: new Date().toISOString(),
-        }),
+      mockApiPost.mockResolvedValueOnce({
+        key: "ds_live_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        keyPrefix: "ds_live_01234567...",
+        createdAt: new Date().toISOString(),
       });
 
       render(
@@ -260,11 +272,8 @@ describe("ApiPushConfig", () => {
       await user.click(generateButton);
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith(
-          `/api/v1/data-sources/${mockDataSourceId}/api-key`,
-          expect.objectContaining({
-            method: "POST",
-          })
+        expect(mockApiPost).toHaveBeenCalledWith(
+          `/api/v1/data-sources/${mockDataSourceId}/api-key`
         );
       });
     });
@@ -275,13 +284,10 @@ describe("ApiPushConfig", () => {
       const generatedKey =
         "ds_live_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          key: generatedKey,
-          keyPrefix: "ds_live_01234567...",
-          createdAt: new Date().toISOString(),
-        }),
+      mockApiPost.mockResolvedValueOnce({
+        key: generatedKey,
+        keyPrefix: "ds_live_01234567...",
+        createdAt: new Date().toISOString(),
       });
 
       render(
@@ -306,13 +312,10 @@ describe("ApiPushConfig", () => {
     it("shows warning about one-time display in modal", async () => {
       const user = userEvent.setup();
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          key: "ds_live_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-          keyPrefix: "ds_live_01234567...",
-          createdAt: new Date().toISOString(),
-        }),
+      mockApiPost.mockResolvedValueOnce({
+        key: "ds_live_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        keyPrefix: "ds_live_01234567...",
+        createdAt: new Date().toISOString(),
       });
 
       render(
@@ -340,13 +343,10 @@ describe("ApiPushConfig", () => {
       const generatedKey =
         "ds_live_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          key: generatedKey,
-          keyPrefix: "ds_live_01234567...",
-          createdAt: new Date().toISOString(),
-        }),
+      mockApiPost.mockResolvedValueOnce({
+        key: generatedKey,
+        keyPrefix: "ds_live_01234567...",
+        createdAt: new Date().toISOString(),
       });
 
       render(
@@ -380,13 +380,10 @@ describe("ApiPushConfig", () => {
     it("closes modal on dismiss button click", async () => {
       const user = userEvent.setup();
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          key: "ds_live_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-          keyPrefix: "ds_live_01234567...",
-          createdAt: new Date().toISOString(),
-        }),
+      mockApiPost.mockResolvedValueOnce({
+        key: "ds_live_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        keyPrefix: "ds_live_01234567...",
+        createdAt: new Date().toISOString(),
       });
 
       render(
@@ -419,13 +416,10 @@ describe("ApiPushConfig", () => {
     it("calls onKeyGenerated callback after successful generation", async () => {
       const user = userEvent.setup();
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          key: "ds_live_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-          keyPrefix: "ds_live_01234567...",
-          createdAt: new Date().toISOString(),
-        }),
+      mockApiPost.mockResolvedValueOnce({
+        key: "ds_live_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        keyPrefix: "ds_live_01234567...",
+        createdAt: new Date().toISOString(),
       });
 
       render(
@@ -454,14 +448,11 @@ describe("ApiPushConfig", () => {
     it("calls regenerate API on Regenerate click after confirmation", async () => {
       const user = userEvent.setup();
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          key: "ds_live_newkey12345678901234567890123456789012345678901234567890abcd",
-          keyPrefix: "ds_live_newkey12...",
-          createdAt: new Date().toISOString(),
-          previousKeyRevoked: true,
-        }),
+      mockApiPost.mockResolvedValueOnce({
+        key: "ds_live_newkey12345678901234567890123456789012345678901234567890abcd",
+        keyPrefix: "ds_live_newkey12...",
+        createdAt: new Date().toISOString(),
+        previousKeyRevoked: true,
       });
 
       render(
@@ -490,11 +481,8 @@ describe("ApiPushConfig", () => {
       await user.click(confirmButton);
 
       await waitFor(() => {
-        expect(mockFetch).toHaveBeenCalledWith(
-          `/api/v1/data-sources/${mockDataSourceId}/api-key/regenerate`,
-          expect.objectContaining({
-            method: "POST",
-          })
+        expect(mockApiPost).toHaveBeenCalledWith(
+          `/api/v1/data-sources/${mockDataSourceId}/api-key/regenerate`
         );
       });
     });
@@ -505,14 +493,11 @@ describe("ApiPushConfig", () => {
       const newKey =
         "ds_live_newkey12345678901234567890123456789012345678901234567890abcd";
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          key: newKey,
-          keyPrefix: "ds_live_newkey12...",
-          createdAt: new Date().toISOString(),
-          previousKeyRevoked: true,
-        }),
+      mockApiPost.mockResolvedValueOnce({
+        key: newKey,
+        keyPrefix: "ds_live_newkey12...",
+        createdAt: new Date().toISOString(),
+        previousKeyRevoked: true,
       });
 
       render(
@@ -576,13 +561,9 @@ describe("ApiPushConfig", () => {
     it("shows error message when API key generation fails", async () => {
       const user = userEvent.setup();
 
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        json: async () => ({
-          error: "Internal server error",
-        }),
-      });
+      // ApiError is thrown by the api client when the response is not ok
+      const error = new ApiError("API request failed", 500, { error: "Internal server error" });
+      mockApiPost.mockRejectedValueOnce(error);
 
       render(
         <ApiPushConfig
@@ -604,13 +585,9 @@ describe("ApiPushConfig", () => {
     it("shows error message when API key regeneration fails", async () => {
       const user = userEvent.setup();
 
-      mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        json: async () => ({
-          error: "Internal server error",
-        }),
-      });
+      // ApiError is thrown by the api client when the response is not ok
+      const error = new ApiError("API request failed", 500, { error: "Internal server error" });
+      mockApiPost.mockRejectedValueOnce(error);
 
       render(
         <ApiPushConfig
@@ -647,7 +624,7 @@ describe("ApiPushConfig", () => {
         resolvePromise = resolve;
       });
 
-      mockFetch.mockReturnValueOnce(pendingPromise);
+      mockApiPost.mockReturnValueOnce(pendingPromise);
 
       render(
         <ApiPushConfig
@@ -666,12 +643,9 @@ describe("ApiPushConfig", () => {
 
       // Resolve the promise to clean up
       resolvePromise!({
-        ok: true,
-        json: async () => ({
-          key: "ds_live_test",
-          keyPrefix: "ds_live_test...",
-          createdAt: new Date().toISOString(),
-        }),
+        key: "ds_live_test",
+        keyPrefix: "ds_live_test...",
+        createdAt: new Date().toISOString(),
       });
     });
   });
@@ -781,13 +755,10 @@ describe("ApiPushConfig", () => {
     it("modal has proper role and aria-modal", async () => {
       const user = userEvent.setup();
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          key: "ds_live_test",
-          keyPrefix: "ds_live_test...",
-          createdAt: new Date().toISOString(),
-        }),
+      mockApiPost.mockResolvedValueOnce({
+        key: "ds_live_test",
+        keyPrefix: "ds_live_test...",
+        createdAt: new Date().toISOString(),
       });
 
       render(
@@ -828,13 +799,10 @@ describe("ApiPushConfig", () => {
     it("traps focus within modal when open", async () => {
       const user = userEvent.setup();
 
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          key: "ds_live_test",
-          keyPrefix: "ds_live_test...",
-          createdAt: new Date().toISOString(),
-        }),
+      mockApiPost.mockResolvedValueOnce({
+        key: "ds_live_test",
+        keyPrefix: "ds_live_test...",
+        createdAt: new Date().toISOString(),
       });
 
       render(
@@ -887,17 +855,14 @@ describe("ApiPushConfig", () => {
       const user = userEvent.setup({ delay: null });
 
       let callCount = 0;
-      mockFetch.mockImplementation(() => {
+      mockApiPost.mockImplementation(() => {
         callCount++;
         return new Promise((resolve) => {
           setTimeout(() => {
             resolve({
-              ok: true,
-              json: async () => ({
-                key: `ds_live_key${callCount}`,
-                keyPrefix: "ds_live_key...",
-                createdAt: new Date().toISOString(),
-              }),
+              key: `ds_live_key${callCount}`,
+              keyPrefix: "ds_live_key...",
+              createdAt: new Date().toISOString(),
             });
           }, 10);
         });
@@ -930,7 +895,7 @@ describe("ApiPushConfig", () => {
     it("handles network timeout gracefully", async () => {
       const user = userEvent.setup();
 
-      mockFetch.mockRejectedValueOnce(new Error("Network timeout"));
+      mockApiPost.mockRejectedValueOnce(new Error("Network timeout"));
 
       render(
         <ApiPushConfig

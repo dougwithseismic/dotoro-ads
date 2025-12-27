@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import styles from "./ApiDataSourceForm.module.css";
 import { HeadersEditor } from "./HeadersEditor";
 import type { ApiAuthType, SyncFrequency } from "@/app/data-sources/types";
+import { api, ApiError } from "@/lib/api-client";
 
 /**
  * Authentication configuration for API form (form-specific structure)
@@ -210,25 +211,20 @@ export function ApiDataSourceForm({
         requestBody.dataPath = dataPath.trim();
       }
 
-      const response = await fetch("/api/v1/data-sources/api-fetch/test-connection", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.error || "Failed to test connection");
-        return;
-      }
+      const data = await api.post<PreviewData>(
+        "/api/v1/data-sources/api-fetch/test-connection",
+        requestBody
+      );
 
       setPreviewData(data);
       setTestedUrl(url);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Network error");
+      if (err instanceof ApiError && err.data) {
+        const errorData = err.data as { error?: string };
+        setError(errorData.error || "Failed to test connection");
+      } else {
+        setError(err instanceof Error ? err.message : "Network error");
+      }
     } finally {
       setTestLoading(false);
     }
