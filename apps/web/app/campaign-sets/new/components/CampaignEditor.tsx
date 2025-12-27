@@ -9,7 +9,8 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import { DataSourceSelector } from "./DataSourceSelector";
+import { DataSourceCombobox } from "./DataSourceCombobox";
+import { CreateDataSourceDrawer } from "./CreateDataSourceDrawer";
 import { CampaignConfig as CampaignConfigComponent } from "./CampaignConfig";
 import { HierarchyConfig } from "./HierarchyConfig";
 import { InlineRuleBuilder } from "./InlineRuleBuilder";
@@ -202,6 +203,9 @@ export function CampaignEditor() {
   const [columnsLoading, setColumnsLoading] = useState(false);
   const [columnsError, setColumnsError] = useState<string | null>(null);
 
+  // Data source creation drawer
+  const [showCreateDrawer, setShowCreateDrawer] = useState(false);
+
   // Check for saved session on mount
   useEffect(() => {
     if (!sessionChecked && hasSession) {
@@ -290,6 +294,15 @@ export function CampaignEditor() {
     [setDataSource]
   );
 
+  // Handle data source created from drawer
+  const handleDataSourceCreated = useCallback(
+    (id: string) => {
+      setShowCreateDrawer(false);
+      handleDataSourceSelect(id);
+    },
+    [handleDataSourceSelect]
+  );
+
   // Section handlers
   const handleCampaignConfigChange = useCallback(
     (config: CampaignConfigType) => {
@@ -309,6 +322,17 @@ export function CampaignEditor() {
   const workingCampaignConfig = campaignConfig ?? DEFAULT_CAMPAIGN_CONFIG;
   const workingHierarchyConfig = hierarchyConfig ?? DEFAULT_HIERARCHY_CONFIG;
 
+  // Memoize validation results for use in renderSectionContent
+  const campaignConfigValidation = useMemo(
+    () => (campaignConfig ? validateCampaignConfig(campaignConfig, availableColumns) : undefined),
+    [campaignConfig, availableColumns]
+  );
+
+  const hierarchyConfigValidation = useMemo(
+    () => (hierarchyConfig ? validateHierarchyConfig(hierarchyConfig, availableColumns) : undefined),
+    [hierarchyConfig, availableColumns]
+  );
+
   // Toggle section expansion
   const toggleSection = useCallback((sectionId: SectionId) => {
     setExpandedSections((prev) => {
@@ -322,66 +346,75 @@ export function CampaignEditor() {
     });
   }, []);
 
-  // Get section completion status
+  // Memoize all section statuses at once to avoid repeated validation calls
+  const sectionStatuses = useMemo(() => {
+    const campaignSetNameValid = validateCampaignSetName(state).valid;
+    const campaignConfigValid = campaignConfig
+      ? validateCampaignConfig(campaignConfig, availableColumns).valid
+      : false;
+    const hierarchyConfigValid = hierarchyConfig
+      ? validateHierarchyConfig(hierarchyConfig, availableColumns).valid
+      : false;
+    const platformValid = validatePlatformSelection(state.selectedPlatforms).valid;
+
+    return {
+      "campaign-set-name": campaignSetNameValid ? "complete" : "incomplete",
+      "data-source": dataSourceId ? "complete" : "incomplete",
+      "rules": "complete", // Optional
+      "campaign-config": campaignConfig?.namePattern
+        ? campaignConfigValid
+          ? "complete"
+          : "error"
+        : "incomplete",
+      "hierarchy": !hierarchyConfig
+        ? "incomplete"
+        : hierarchyConfigValid
+          ? "complete"
+          : "error",
+      "platform": platformValid ? "complete" : "incomplete",
+      "preview": "incomplete",
+    } as Record<SectionId, "complete" | "incomplete" | "error">;
+  }, [
+    state,
+    dataSourceId,
+    campaignConfig,
+    hierarchyConfig,
+    availableColumns,
+  ]);
+
+  // Lookup function for section status (now just a map lookup, not validation)
   const getSectionStatus = useCallback(
     (sectionId: SectionId): "complete" | "incomplete" | "error" => {
-      switch (sectionId) {
-        case "campaign-set-name": {
-          const validation = validateCampaignSetName(state);
-          return validation.valid ? "complete" : "incomplete";
-        }
-        case "data-source":
-          return dataSourceId ? "complete" : "incomplete";
-        case "rules":
-          return "complete"; // Optional
-        case "campaign-config": {
-          const validation = validateCampaignConfig(
-            campaignConfig,
-            availableColumns
-          );
-          return campaignConfig?.namePattern
-            ? validation.valid
-              ? "complete"
-              : "error"
-            : "incomplete";
-        }
-        case "hierarchy": {
-          const validation = validateHierarchyConfig(
-            hierarchyConfig,
-            availableColumns
-          );
-          if (!hierarchyConfig) return "incomplete";
-          return validation.valid ? "complete" : "error";
-        }
-        case "platform": {
-          const validation = validatePlatformSelection(state.selectedPlatforms);
-          return validation.valid ? "complete" : "incomplete";
-        }
-        case "preview":
-          return "incomplete";
-        default:
-          return "incomplete";
-      }
+      return sectionStatuses[sectionId] ?? "incomplete";
     },
-    [
-      state,
-      dataSourceId,
-      campaignConfig,
-      hierarchyConfig,
-      availableColumns,
-    ]
+    [sectionStatuses]
   );
 
-  // Check if ready to generate
+  // Check if ready to generate (uses memoized statuses directly)
   const isReadyToGenerate = useMemo(() => {
     return (
-      getSectionStatus("campaign-set-name") === "complete" &&
-      getSectionStatus("data-source") === "complete" &&
-      getSectionStatus("campaign-config") === "complete" &&
-      getSectionStatus("hierarchy") === "complete" &&
-      getSectionStatus("platform") === "complete"
+      sectionStatuses["campaign-set-name"] === "complete" &&
+      sectionStatuses["data-source"] === "complete" &&
+      sectionStatuses["campaign-config"] === "complete" &&
+      sectionStatuses["hierarchy"] === "complete" &&
+      sectionStatuses["platform"] === "complete"
     );
-  }, [getSectionStatus]);
+  }, [sectionStatuses]);
+
+  // Check if a section should be disabled (requires data source first)
+  const isSectionDisabled = useCallback(
+    (sectionId: SectionId): boolean => {
+      // These sections require a data source to be selected
+      const requiresDataSource: SectionId[] = [
+        "rules",
+        "campaign-config",
+        "hierarchy",
+        "preview",
+      ];
+      return requiresDataSource.includes(sectionId) && !dataSourceId;
+    },
+    [dataSourceId]
+  );
 
   // Computed preview data
   const previewData = useMemo(() => {
@@ -427,12 +460,6 @@ export function CampaignEditor() {
     state.ruleIds,
   ]);
 
-  // Handle campaign set name completion
-  const handleCampaignSetNameNext = useCallback(() => {
-    // Auto-expand next section (data-source)
-    setExpandedSections((prev) => new Set([...prev, "data-source"]));
-  }, []);
-
   // Render section content
   const renderSectionContent = (sectionId: SectionId): ReactNode => {
     switch (sectionId) {
@@ -444,7 +471,6 @@ export function CampaignEditor() {
               description={campaignSetDescription}
               onNameChange={setCampaignSetName}
               onDescriptionChange={setCampaignSetDescription}
-              onNext={handleCampaignSetNameNext}
             />
           </div>
         );
@@ -458,9 +484,10 @@ export function CampaignEditor() {
             {columnsError && (
               <ValidationMessage message={columnsError} type="error" />
             )}
-            <DataSourceSelector
+            <DataSourceCombobox
               selectedId={dataSourceId}
               onSelect={handleDataSourceSelect}
+              onCreateNew={() => setShowCreateDrawer(true)}
             />
           </div>
         );
@@ -487,11 +514,7 @@ export function CampaignEditor() {
               availableColumns={availableColumns}
               sampleData={sampleData}
               onChange={handleCampaignConfigChange}
-              validation={
-                campaignConfig
-                  ? validateCampaignConfig(campaignConfig, availableColumns)
-                  : undefined
-              }
+              validation={campaignConfigValidation}
             />
           </div>
         );
@@ -513,11 +536,7 @@ export function CampaignEditor() {
               availableColumns={availableColumns}
               sampleData={sampleData}
               onChange={handleHierarchyConfigChange}
-              validation={
-                hierarchyConfig
-                  ? validateHierarchyConfig(hierarchyConfig, availableColumns)
-                  : undefined
-              }
+              validation={hierarchyConfigValidation}
             />
           </div>
         );
@@ -571,19 +590,21 @@ export function CampaignEditor() {
   const renderSection = (section: Section) => {
     const isExpanded = expandedSections.has(section.id);
     const status = getSectionStatus(section.id);
+    const isDisabled = isSectionDisabled(section.id);
 
     return (
       <div
         key={section.id}
-        className={`${styles.section} ${isExpanded ? styles.sectionExpanded : ""}`}
+        className={`${styles.section} ${isExpanded ? styles.sectionExpanded : ""} ${isDisabled ? styles.sectionDisabled : ""}`}
         data-status={status}
       >
         <button
           type="button"
           className={styles.sectionHeader}
-          onClick={() => toggleSection(section.id)}
+          onClick={() => !isDisabled && toggleSection(section.id)}
           aria-expanded={isExpanded}
           aria-controls={`section-content-${section.id}`}
+          aria-disabled={isDisabled}
         >
           <div className={styles.sectionHeaderLeft}>
             <span className={styles.sectionIcon}>{section.icon}</span>
@@ -677,8 +698,10 @@ export function CampaignEditor() {
       {/* Header */}
       <header className={styles.header}>
         <div className={styles.headerLeft}>
-          <h1 className={styles.title}>Campaign Set Builder</h1>
-          <p className={styles.subtitle}>Create a campaign set from your data</p>
+          <h1 className={styles.title}>Create Campaign Set</h1>
+          <p className={styles.subtitle}>
+            Build a campaign set from your data sources
+          </p>
         </div>
         <div className={styles.headerRight}>
           {dataSourceId && (
@@ -696,13 +719,12 @@ export function CampaignEditor() {
             disabled={!isReadyToGenerate}
             onClick={() => {
               setExpandedSections(new Set(["preview"]));
-              // Scroll to preview section using ref
               setTimeout(() => {
                 previewSectionRef.current?.scrollIntoView({ behavior: "smooth" });
               }, 100);
             }}
           >
-            <span>Create Campaign Set</span>
+            <span>Generate</span>
             <span className={styles.generateButtonArrow}>→</span>
           </button>
         </div>
@@ -816,6 +838,13 @@ export function CampaignEditor() {
           </div>
         </aside>
       </div>
+
+      {/* Create Data Source Drawer */}
+      <CreateDataSourceDrawer
+        isOpen={showCreateDrawer}
+        onClose={() => setShowCreateDrawer(false)}
+        onCreated={handleDataSourceCreated}
+      />
     </div>
   );
 }

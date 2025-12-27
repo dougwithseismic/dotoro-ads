@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { CampaignSetName } from "../CampaignSetName";
@@ -6,12 +6,10 @@ import { CampaignSetName } from "../CampaignSetName";
 describe("CampaignSetName", () => {
   let onNameChange: ReturnType<typeof vi.fn>;
   let onDescriptionChange: ReturnType<typeof vi.fn>;
-  let onNext: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     onNameChange = vi.fn();
     onDescriptionChange = vi.fn();
-    onNext = vi.fn();
   });
 
   // ==========================================================================
@@ -26,7 +24,6 @@ describe("CampaignSetName", () => {
           description=""
           onNameChange={onNameChange}
           onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
         />
       );
 
@@ -40,25 +37,10 @@ describe("CampaignSetName", () => {
           description=""
           onNameChange={onNameChange}
           onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
         />
       );
 
       expect(screen.getByLabelText(/description/i)).toBeInTheDocument();
-    });
-
-    it("renders the Next button", () => {
-      render(
-        <CampaignSetName
-          name=""
-          description=""
-          onNameChange={onNameChange}
-          onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
-        />
-      );
-
-      expect(screen.getByRole("button", { name: /next/i })).toBeInTheDocument();
     });
 
     it("displays the current name value", () => {
@@ -68,7 +50,6 @@ describe("CampaignSetName", () => {
           description=""
           onNameChange={onNameChange}
           onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
         />
       );
 
@@ -83,28 +64,11 @@ describe("CampaignSetName", () => {
           description="This is my campaign set description"
           onNameChange={onNameChange}
           onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
         />
       );
 
       const textarea = screen.getByLabelText(/description/i) as HTMLTextAreaElement;
       expect(textarea.value).toBe("This is my campaign set description");
-    });
-
-    it("shows required indicator on name field", () => {
-      render(
-        <CampaignSetName
-          name=""
-          description=""
-          onNameChange={onNameChange}
-          onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
-        />
-      );
-
-      // Name field should be marked as required
-      const input = screen.getByLabelText(/campaign set name/i);
-      expect(input).toHaveAttribute("required");
     });
 
     it("shows optional indicator on description field", () => {
@@ -114,7 +78,6 @@ describe("CampaignSetName", () => {
           description=""
           onNameChange={onNameChange}
           onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
         />
       );
 
@@ -139,7 +102,6 @@ describe("CampaignSetName", () => {
           description=""
           onNameChange={onNameChange}
           onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
         />
       );
 
@@ -160,7 +122,6 @@ describe("CampaignSetName", () => {
           description=""
           onNameChange={onNameChange}
           onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
         />
       );
 
@@ -170,83 +131,6 @@ describe("CampaignSetName", () => {
       expect(onDescriptionChange).toHaveBeenCalled();
       expect(onDescriptionChange).toHaveBeenCalledTimes(4);
     });
-
-    it("calls onNext when Next button is clicked with valid name", async () => {
-      const user = userEvent.setup();
-
-      render(
-        <CampaignSetName
-          name="Valid Name"
-          description=""
-          onNameChange={onNameChange}
-          onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
-        />
-      );
-
-      const nextButton = screen.getByRole("button", { name: /next/i });
-      await user.click(nextButton);
-
-      expect(onNext).toHaveBeenCalledTimes(1);
-    });
-
-    it("does not call onNext when Next button is clicked with empty name", async () => {
-      const user = userEvent.setup();
-
-      render(
-        <CampaignSetName
-          name=""
-          description=""
-          onNameChange={onNameChange}
-          onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
-        />
-      );
-
-      const nextButton = screen.getByRole("button", { name: /next/i });
-      await user.click(nextButton);
-
-      expect(onNext).not.toHaveBeenCalled();
-    });
-
-    it("does not call onNext when name is too short", async () => {
-      const user = userEvent.setup();
-
-      render(
-        <CampaignSetName
-          name="Ab"
-          description=""
-          onNameChange={onNameChange}
-          onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
-        />
-      );
-
-      const nextButton = screen.getByRole("button", { name: /next/i });
-      await user.click(nextButton);
-
-      expect(onNext).not.toHaveBeenCalled();
-    });
-
-    it("calls onNext with Enter key when name is valid", async () => {
-      const user = userEvent.setup();
-
-      render(
-        <CampaignSetName
-          name="Valid Name"
-          description=""
-          onNameChange={onNameChange}
-          onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
-        />
-      );
-
-      const input = screen.getByLabelText(/campaign set name/i);
-      await user.click(input);
-      await user.keyboard("{Enter}");
-
-      expect(onNext).toHaveBeenCalledTimes(1);
-    });
   });
 
   // ==========================================================================
@@ -254,100 +138,6 @@ describe("CampaignSetName", () => {
   // ==========================================================================
 
   describe("Validation", () => {
-    it("disables Next button when name is empty", () => {
-      render(
-        <CampaignSetName
-          name=""
-          description=""
-          onNameChange={onNameChange}
-          onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
-        />
-      );
-
-      const nextButton = screen.getByRole("button", { name: /next/i });
-      expect(nextButton).toBeDisabled();
-    });
-
-    it("disables Next button when name is too short (less than 3 chars)", () => {
-      render(
-        <CampaignSetName
-          name="Ab"
-          description=""
-          onNameChange={onNameChange}
-          onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
-        />
-      );
-
-      const nextButton = screen.getByRole("button", { name: /next/i });
-      expect(nextButton).toBeDisabled();
-    });
-
-    it("enables Next button when name has 3 or more characters", () => {
-      render(
-        <CampaignSetName
-          name="Abc"
-          description=""
-          onNameChange={onNameChange}
-          onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
-        />
-      );
-
-      const nextButton = screen.getByRole("button", { name: /next/i });
-      expect(nextButton).not.toBeDisabled();
-    });
-
-    it("disables Next button when name is too long (more than 255 chars)", () => {
-      const longName = "a".repeat(256);
-
-      render(
-        <CampaignSetName
-          name={longName}
-          description=""
-          onNameChange={onNameChange}
-          onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
-        />
-      );
-
-      const nextButton = screen.getByRole("button", { name: /next/i });
-      expect(nextButton).toBeDisabled();
-    });
-
-    it("enables Next button when name is exactly 255 characters", () => {
-      const maxLengthName = "a".repeat(255);
-
-      render(
-        <CampaignSetName
-          name={maxLengthName}
-          description=""
-          onNameChange={onNameChange}
-          onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
-        />
-      );
-
-      const nextButton = screen.getByRole("button", { name: /next/i });
-      expect(nextButton).not.toBeDisabled();
-    });
-
-    it("trims whitespace when validating name", () => {
-      render(
-        <CampaignSetName
-          name="   "
-          description=""
-          onNameChange={onNameChange}
-          onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
-        />
-      );
-
-      const nextButton = screen.getByRole("button", { name: /next/i });
-      expect(nextButton).toBeDisabled();
-    });
-
     it("displays error message when name is empty after blur", async () => {
       const user = userEvent.setup();
 
@@ -357,7 +147,6 @@ describe("CampaignSetName", () => {
           description=""
           onNameChange={onNameChange}
           onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
         />
       );
 
@@ -377,7 +166,6 @@ describe("CampaignSetName", () => {
           description=""
           onNameChange={onNameChange}
           onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
         />
       );
 
@@ -397,7 +185,6 @@ describe("CampaignSetName", () => {
           description=""
           onNameChange={onNameChange}
           onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
         />
       );
 
@@ -411,7 +198,6 @@ describe("CampaignSetName", () => {
           description=""
           onNameChange={onNameChange}
           onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
           errors={["Name already exists", "Server validation failed"]}
         />
       );
@@ -429,7 +215,6 @@ describe("CampaignSetName", () => {
           description=""
           onNameChange={onNameChange}
           onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
         />
       );
 
@@ -446,7 +231,6 @@ describe("CampaignSetName", () => {
           description=""
           onNameChange={onNameChange}
           onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
         />
       );
 
@@ -466,7 +250,6 @@ describe("CampaignSetName", () => {
           description=""
           onNameChange={onNameChange}
           onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
         />
       );
 
@@ -480,7 +263,6 @@ describe("CampaignSetName", () => {
           description=""
           onNameChange={onNameChange}
           onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
         />
       );
 
@@ -494,7 +276,6 @@ describe("CampaignSetName", () => {
           description=""
           onNameChange={onNameChange}
           onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
         />
       );
 
@@ -506,7 +287,6 @@ describe("CampaignSetName", () => {
           description=""
           onNameChange={onNameChange}
           onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
         />
       );
 
@@ -526,7 +306,6 @@ describe("CampaignSetName", () => {
           description=""
           onNameChange={onNameChange}
           onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
         />
       );
 
@@ -546,7 +325,6 @@ describe("CampaignSetName", () => {
           description=""
           onNameChange={onNameChange}
           onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
         />
       );
 
@@ -566,7 +344,6 @@ describe("CampaignSetName", () => {
           description=""
           onNameChange={onNameChange}
           onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
         />
       );
 
@@ -577,10 +354,6 @@ describe("CampaignSetName", () => {
       // Tab to description
       await user.tab();
       expect(screen.getByLabelText(/description/i)).toHaveFocus();
-
-      // Tab to Next button
-      await user.tab();
-      expect(screen.getByRole("button", { name: /next/i })).toHaveFocus();
     });
   });
 
@@ -589,21 +362,6 @@ describe("CampaignSetName", () => {
   // ==========================================================================
 
   describe("Edge Cases", () => {
-    it("handles name with only whitespace", () => {
-      render(
-        <CampaignSetName
-          name="     "
-          description=""
-          onNameChange={onNameChange}
-          onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
-        />
-      );
-
-      const nextButton = screen.getByRole("button", { name: /next/i });
-      expect(nextButton).toBeDisabled();
-    });
-
     it("handles very long description", () => {
       const longDescription = "a".repeat(1000);
 
@@ -613,7 +371,6 @@ describe("CampaignSetName", () => {
           description={longDescription}
           onNameChange={onNameChange}
           onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
         />
       );
 
@@ -630,7 +387,6 @@ describe("CampaignSetName", () => {
           description=""
           onNameChange={onNameChange}
           onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
         />
       );
 
@@ -650,7 +406,6 @@ describe("CampaignSetName", () => {
           description=""
           onNameChange={onNameChange}
           onDescriptionChange={onDescriptionChange}
-          onNext={onNext}
         />
       );
 

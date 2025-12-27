@@ -1,0 +1,251 @@
+.tableContainer {
+  --gray-rgb: 0, 0, 0;
+  overflow-x: auto;
+  border: 1px solid rgba(var(--gray-rgb), 0.1);
+  border-radius: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .tableContainer {
+    --gray-rgb: 255, 255, 255;
+  }
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+}
+
+.table th {
+  text-align: left;
+  padding: 12px 16px;
+  font-weight: 600;
+  color: rgba(var(--gray-rgb), 0.7);
+  background: rgba(var(--gray-rgb), 0.03);
+  border-bottom: 1px solid rgba(var(--gray-rgb), 0.1);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(var(--gray-rgb), 0.05);
+  color: var(--foreground);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.row {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.row:hover {
+  background: rgba(var(--gray-rgb), 0.03);
+}
+
+/* Name Cell */
+.nameCell {
+  max-width: 280px;
+}
+
+.nameContent {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.name {
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.description {
+  font-size: 12px;
+  color: rgba(var(--gray-rgb), 0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;
+}
+
+/* Count Cells */
+.countCell {
+  font-family: var(--font-geist-mono);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* Platforms Cell */
+.platformsCell {
+  min-width: 140px;
+}
+
+.platforms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.platformBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.platformBadge[data-platform="google"] {
+  color: #4285f4;
+  background: rgba(66, 133, 244, 0.1);
+}
+
+.platformBadge[data-platform="meta"] {
+  color: #1877f2;
+  background: rgba(24, 119, 242, 0.1);
+}
+
+.platformBadge[data-platform="linkedin"] {
+  color: #0077b5;
+  background: rgba(0, 119, 181, 0.1);
+}
+
+.platformBadge[data-platform="tiktok"] {
+  color: #000000;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.platformBadge[data-platform="reddit"] {
+  color: #ff4500;
+  background: rgba(255, 69, 0, 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+  .platformBadge[data-platform="tiktok"] {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.1);
+  }
+}
+
+.platformMore {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 6px;
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(var(--gray-rgb), 0.5);
+  background: rgba(var(--gray-rgb), 0.05);
+  border-radius: 4px;
+}
+
+/* Date Cell */
+.dateCell {
+  font-family: var(--font-geist-mono);
+  font-size: 13px;
+  color: rgba(var(--gray-rgb), 0.6);
+  white-space: nowrap;
+}
+
+/* Actions */
+.actionsHeader {
+  text-align: right;
+}
+
+.actionsCell {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.viewButton {
+  padding: 6px 12px;
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: #6366f1;
+  background: transparent;
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-decoration: none;
+  margin-right: 8px;
+}
+
+.viewButton:hover {
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.deleteButton {
+  padding: 6px 12px;
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: #dc2626;
+  background: transparent;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.deleteButton:hover {
+  background: rgba(220, 38, 38, 0.05);
+}
+
+/* Empty state */
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  color: rgba(var(--gray-rgb), 0.6);
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  background: rgba(var(--gray-rgb), 0.02);
+  border: 2px dashed rgba(var(--gray-rgb), 0.1);
+  border-radius: 8px;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .viewButton {
+    color: #818cf8;
+    border-color: rgba(129, 140, 248, 0.3);
+  }
+
+  .viewButton:hover {
+    background: rgba(129, 140, 248, 0.1);
+  }
+
+  .deleteButton {
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.3);
+  }
+
+  .deleteButton:hover {
+    background: rgba(239, 68, 68, 0.1);
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .table th,
+  .table td {
+    padding: 10px 12px;
+  }
+
+  .nameCell {
+    max-width: 180px;
+  }
+
+  .description {
+    max-width: 160px;
+  }
+}

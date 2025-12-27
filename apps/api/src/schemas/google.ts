@@ -11,6 +11,17 @@
 import { z } from "zod";
 
 /**
+ * Request body schema for OAuth connect endpoint
+ * Note: userId can also be provided via x-user-id header (checked as fallback if not in body)
+ */
+export const googleOAuthConnectRequestSchema = z.object({
+  redirectUrl: z.string().url().optional(),
+  userId: z.string().min(1).optional(),
+});
+
+export type GoogleOAuthConnectRequest = z.infer<typeof googleOAuthConnectRequestSchema>;
+
+/**
  * Response schema for OAuth connect endpoint
  */
 export const googleOAuthConnectResponseSchema = z.object({
@@ -34,9 +45,10 @@ export type GoogleOAuthCallbackQuery = z.infer<typeof googleOAuthCallbackQuerySc
 
 /**
  * Query parameters for status check
+ * Note: userId can also be provided via x-user-id header (checked as fallback if not in query)
  */
 export const googleOAuthStatusQuerySchema = z.object({
-  userId: z.string().min(1),
+  userId: z.string().min(1).optional(),
 });
 
 export type GoogleOAuthStatusQuery = z.infer<typeof googleOAuthStatusQuerySchema>;
@@ -54,9 +66,10 @@ export type GoogleOAuthStatusResponse = z.infer<typeof googleOAuthStatusResponse
 
 /**
  * Request body for disconnect endpoint
+ * Note: userId can also be provided via x-user-id header (checked as fallback if not in body)
  */
 export const googleOAuthDisconnectRequestSchema = z.object({
-  userId: z.string().min(1),
+  userId: z.string().min(1).optional(),
 });
 
 export type GoogleOAuthDisconnectRequest = z.infer<typeof googleOAuthDisconnectRequestSchema>;

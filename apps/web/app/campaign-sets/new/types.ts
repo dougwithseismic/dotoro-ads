@@ -621,7 +621,7 @@ export function buildCommentTree(comments: CommentDefinition[]): CommentTreeNode
 // Entity types for selectors
 export type Platform = 'reddit' | 'google' | 'facebook';
 
-export type DataSourceType = 'csv' | 'transform' | 'api';
+export type DataSourceType = 'csv' | 'transform' | 'api' | 'google-sheets';
 
 export interface DataSource {
   id: string;

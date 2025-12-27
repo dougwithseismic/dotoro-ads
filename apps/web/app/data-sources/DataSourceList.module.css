@@ -21,11 +21,44 @@
   flex: 1;
 }
 
+.headerTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.createButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  font-weight: 500;
+  color: #fff;
+  background: var(--foreground);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+  white-space: nowrap;
+}
+
+.createButton:hover {
+  opacity: 0.9;
+}
+
+.createButton:active {
+  transform: scale(0.98);
+}
+
 .title {
   font-family: var(--font-geist-sans);
   font-size: 28px;
   font-weight: 700;
-  margin: 0 0 8px;
+  margin: 0;
   color: var(--foreground);
 }
 
@@ -233,6 +266,16 @@
 @media (max-width: 600px) {
   .page {
     padding: 20px;
+  }
+
+  .headerTop {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .createButton {
+    justify-content: center;
   }
 
   .tableHeader {

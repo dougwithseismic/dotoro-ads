@@ -4,11 +4,10 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, buildQueryString } from "@/lib/api-client";
-import { CampaignSetCard } from "./components";
+import { CampaignSetsTable, CreateZone } from "./components";
 import type {
   CampaignSetSummary,
   CampaignSetListResponse,
-  CampaignSetStatus,
   CampaignSetFilters,
 } from "./types";
 import styles from "./CampaignSetsList.module.css";
@@ -16,7 +15,8 @@ import styles from "./CampaignSetsList.module.css";
 /**
  * Campaign Sets Listing Page
  *
- * Displays all campaign sets for the current user with filtering and search.
+ * Displays all campaign sets in a table view with search and pagination.
+ * Design matches the data-sources page layout.
  */
 export default function CampaignSetsPage() {
   const router = useRouter();
@@ -32,6 +32,7 @@ export default function CampaignSetsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [pageSize] = useState(10);
 
   /**
    * Fetch campaign sets from the API
@@ -43,7 +44,7 @@ export default function CampaignSetsPage() {
 
       const params: Record<string, string | undefined> = {
         page: String(currentPage),
-        limit: "12",
+        limit: String(pageSize),
       };
 
       if (filters.status) {
@@ -66,7 +67,7 @@ export default function CampaignSetsPage() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, filters]);
+  }, [currentPage, pageSize, filters]);
 
   useEffect(() => {
     fetchCampaignSets();
@@ -75,12 +76,20 @@ export default function CampaignSetsPage() {
   /**
    * Handle navigation to campaign set detail
    */
-  const handleCardClick = useCallback(
+  const handleRowClick = useCallback(
     (id: string) => {
       router.push(`/campaign-sets/${id}`);
     },
     [router]
   );
+
+  /**
+   * Handle search
+   */
+  const handleSearch = useCallback((value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  }, []);
 
   /**
    * Filter campaign sets by search term
@@ -97,31 +106,17 @@ export default function CampaignSetsPage() {
   }, [campaignSets, searchTerm]);
 
   /**
-   * Calculate status counts for summary
+   * Handle page change
    */
-  const statusCounts = useMemo(() => {
-    return campaignSets.reduce(
-      (acc, set) => {
-        acc[set.status] = (acc[set.status] || 0) + 1;
-        return acc;
-      },
-      {} as Record<CampaignSetStatus, number>
-    );
-  }, [campaignSets]);
-
-  /**
-   * Handle status filter change
-   */
-  const handleStatusFilter = (status: CampaignSetStatus | undefined) => {
-    setFilters((prev) => ({ ...prev, status }));
-    setCurrentPage(1);
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   /**
-   * Clear all filters
+   * Clear search
    */
-  const handleClearFilters = () => {
-    setFilters({});
+  const handleClearSearch = () => {
     setSearchTerm("");
     setCurrentPage(1);
   };
@@ -153,10 +148,8 @@ export default function CampaignSetsPage() {
     );
   }
 
-  const hasActiveFilters =
-    filters.status || filters.syncStatus || searchTerm.trim();
-  const showEmptyState = filteredCampaignSets.length === 0 && !hasActiveFilters;
-  const showNoResults = filteredCampaignSets.length === 0 && hasActiveFilters;
+  const showEmptyState = filteredCampaignSets.length === 0 && !searchTerm.trim();
+  const showNoResults = filteredCampaignSets.length === 0 && searchTerm.trim();
 
   return (
     <div className={styles.page}>
@@ -165,212 +158,122 @@ export default function CampaignSetsPage() {
         <div className={styles.headerContent}>
           <h1 className={styles.title}>Campaign Sets</h1>
           <p className={styles.subtitle}>
-            Manage your generated campaign sets
+            Create and manage your ad campaign sets
           </p>
-        </div>
-        <div className={styles.headerActions}>
-          <Link href="/campaign-sets/new" className={styles.createButton}>
-            + Create Campaign Set
-          </Link>
-          <div className={styles.stats}>
-            <div className={styles.stat}>
-              <span className={styles.statValue}>{total}</span>
-              <span className={styles.statLabel}>Total</span>
-            </div>
-            <div className={styles.stat} data-status="active">
-              <span className={styles.statValue}>
-                {statusCounts.active || 0}
-              </span>
-              <span className={styles.statLabel}>Active</span>
-            </div>
-            <div className={styles.stat} data-status="syncing">
-              <span className={styles.statValue}>
-                {statusCounts.syncing || 0}
-              </span>
-              <span className={styles.statLabel}>Syncing</span>
-            </div>
-            <div className={styles.stat} data-status="error">
-              <span className={styles.statValue}>
-                {statusCounts.error || 0}
-              </span>
-              <span className={styles.statLabel}>Errors</span>
-            </div>
-          </div>
         </div>
       </header>
 
-      {/* Filters */}
-      <div className={styles.filters}>
-        <div className={styles.searchContainer}>
-          <input
-            type="search"
-            placeholder="Search campaign sets..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className={styles.searchInput}
-            aria-label="Search campaign sets"
-          />
-        </div>
+      {/* Create Zone */}
+      <section className={styles.createSection}>
+        <CreateZone />
+      </section>
 
-        <div className={styles.filterButtons}>
-          <button
-            className={`${styles.filterButton} ${
-              !filters.status ? styles.active : ""
-            }`}
-            onClick={() => handleStatusFilter(undefined)}
-          >
-            All
-          </button>
-          <button
-            className={`${styles.filterButton} ${
-              filters.status === "active" ? styles.active : ""
-            }`}
-            onClick={() => handleStatusFilter("active")}
-          >
-            Active
-          </button>
-          <button
-            className={`${styles.filterButton} ${
-              filters.status === "draft" ? styles.active : ""
-            }`}
-            onClick={() => handleStatusFilter("draft")}
-          >
-            Draft
-          </button>
-          <button
-            className={`${styles.filterButton} ${
-              filters.status === "paused" ? styles.active : ""
-            }`}
-            onClick={() => handleStatusFilter("paused")}
-          >
-            Paused
-          </button>
-          <button
-            className={`${styles.filterButton} ${
-              filters.status === "error" ? styles.active : ""
-            }`}
-            onClick={() => handleStatusFilter("error")}
-          >
-            Error
-          </button>
-        </div>
-
-        {hasActiveFilters && (
-          <button
-            className={styles.clearFiltersButton}
-            onClick={handleClearFilters}
-          >
-            Clear filters
-          </button>
-        )}
-      </div>
-
-      {/* Content */}
-      {showEmptyState ? (
-        <div className={styles.emptyState}>
-          <div className={styles.emptyIcon}>
-            <svg
-              width="48"
-              height="48"
-              viewBox="0 0 48 48"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <rect
-                x="8"
-                y="12"
-                width="32"
-                height="28"
-                rx="3"
-                stroke="currentColor"
-                strokeWidth="2"
+      {/* Table Section */}
+      <section className={styles.tableSection}>
+        {!showEmptyState && (
+          <div className={styles.tableHeader}>
+            <div className={styles.searchContainer}>
+              <input
+                type="search"
+                placeholder="Search campaign sets..."
+                value={searchTerm}
+                onChange={(e) => handleSearch(e.target.value)}
+                className={styles.searchInput}
+                aria-label="Search campaign sets"
               />
-              <path
-                d="M8 18H40"
-                stroke="currentColor"
-                strokeWidth="2"
-              />
-              <path
-                d="M16 8V12"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-              <path
-                d="M32 8V12"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-              <path
-                d="M20 28L24 32L28 28"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <path
-                d="M24 24V32"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-            </svg>
-          </div>
-          <h2 className={styles.emptyTitle}>No Campaign Sets Yet</h2>
-          <p className={styles.emptyDescription}>
-            Create your first campaign set to start generating ad campaigns from
-            your data.
-          </p>
-          <Link href="/campaign-sets/new" className={styles.emptyButton}>
-            Create Campaign Set
-          </Link>
-        </div>
-      ) : showNoResults ? (
-        <div className={styles.noResults}>
-          <p>No campaign sets match your filters.</p>
-          <button onClick={handleClearFilters} className={styles.clearButton}>
-            Clear filters
-          </button>
-        </div>
-      ) : (
-        <>
-          <div className={styles.grid}>
-            {filteredCampaignSets.map((set) => (
-              <CampaignSetCard
-                key={set.id}
-                set={set}
-                onClick={() => handleCardClick(set.id)}
-              />
-            ))}
-          </div>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className={styles.pagination}>
-              <button
-                className={styles.pageButton}
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-              >
-                Previous
-              </button>
-              <span className={styles.pageInfo}>
-                Page {currentPage} of {totalPages}
-              </span>
-              <button
-                className={styles.pageButton}
-                onClick={() =>
-                  setCurrentPage((p) => Math.min(totalPages, p + 1))
-                }
-                disabled={currentPage === totalPages}
-              >
-                Next
-              </button>
             </div>
-          )}
-        </>
-      )}
+            {total > 0 && (
+              <span className={styles.totalCount}>
+                {total.toLocaleString()} campaign set{total !== 1 ? "s" : ""}
+              </span>
+            )}
+          </div>
+        )}
+
+        {showEmptyState ? (
+          <div className={styles.emptyState}>
+            <div className={styles.emptyIcon}>
+              <svg
+                width="48"
+                height="48"
+                viewBox="0 0 48 48"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <rect
+                  x="8"
+                  y="12"
+                  width="32"
+                  height="28"
+                  rx="3"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                />
+                <path d="M8 18H40" stroke="currentColor" strokeWidth="2" />
+                <path
+                  d="M16 8V12"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M32 8V12"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </div>
+            <h2 className={styles.emptyTitle}>No Campaign Sets Yet</h2>
+            <p className={styles.emptyDescription}>
+              Create your first campaign set to start generating ad campaigns
+              from your data.
+            </p>
+            <Link href="/campaign-sets/new" className={styles.emptyButton}>
+              Create Campaign Set
+            </Link>
+          </div>
+        ) : showNoResults ? (
+          <div className={styles.noResults}>
+            <p>No campaign sets match your search.</p>
+            <button onClick={handleClearSearch} className={styles.clearButton}>
+              Clear search
+            </button>
+          </div>
+        ) : (
+          <>
+            <CampaignSetsTable
+              campaignSets={filteredCampaignSets}
+              onRowClick={handleRowClick}
+            />
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className={styles.pagination}>
+                <button
+                  className={styles.pageButton}
+                  onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                >
+                  Previous
+                </button>
+                <span className={styles.pageInfo}>
+                  Page {currentPage} of {totalPages}
+                </span>
+                <button
+                  className={styles.pageButton}
+                  onClick={() =>
+                    handlePageChange(Math.min(totalPages, currentPage + 1))
+                  }
+                  disabled={currentPage === totalPages}
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </section>
     </div>
   );
 }

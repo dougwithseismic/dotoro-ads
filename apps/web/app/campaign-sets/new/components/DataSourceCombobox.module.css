@@ -1,0 +1,362 @@
+/* DataSourceCombobox - Searchable dropdown for data source selection */
+
+.container {
+  width: 100%;
+}
+
+.label {
+  display: block;
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(var(--gray-rgb), 0.7);
+  margin-bottom: 8px;
+}
+
+.inputWrapper {
+  position: relative;
+  width: 100%;
+}
+
+/* Combobox Trigger */
+.comboboxTrigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 16px;
+  background: rgba(var(--gray-rgb), 0.02);
+  border: 2px solid rgba(var(--gray-rgb), 0.1);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.comboboxTrigger:hover {
+  border-color: rgba(var(--gray-rgb), 0.2);
+  background: rgba(var(--gray-rgb), 0.03);
+}
+
+.comboboxTriggerOpen {
+  border-color: #0066ff;
+  box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.12);
+}
+
+/* Search Input */
+.searchInput {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  color: var(--foreground);
+  outline: none;
+}
+
+.searchInput::placeholder {
+  color: rgba(var(--gray-rgb), 0.4);
+}
+
+/* Selected Value */
+.selectedValue {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.selectedName {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.selectedMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.selectedRows {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  color: rgba(var(--gray-rgb), 0.5);
+}
+
+/* Placeholder */
+.placeholder {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  color: rgba(var(--gray-rgb), 0.4);
+}
+
+/* Chevron */
+.chevron {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(var(--gray-rgb), 0.4);
+  transition: transform 0.2s ease;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+/* Dropdown */
+.dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--background);
+  border: 1px solid rgba(var(--gray-rgb), 0.12);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  z-index: 100;
+  max-height: 320px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Option */
+.option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: background-color 0.1s ease;
+}
+
+.option:hover,
+.optionHighlighted {
+  background: rgba(0, 102, 255, 0.06);
+}
+
+.optionSelected {
+  background: rgba(0, 102, 255, 0.08);
+}
+
+.optionSelected:hover,
+.optionSelected.optionHighlighted {
+  background: rgba(0, 102, 255, 0.12);
+}
+
+.optionContent {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.optionName {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.optionMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.optionRows {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  color: rgba(var(--gray-rgb), 0.5);
+}
+
+/* Checkmark */
+.checkmark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0066ff;
+  flex-shrink: 0;
+}
+
+/* Badge */
+.badge {
+  display: inline-flex;
+  padding: 2px 6px;
+  font-family: var(--font-geist-sans);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  border-radius: 4px;
+}
+
+.badgeCsv {
+  color: #059669;
+  background: rgba(5, 150, 105, 0.1);
+}
+
+.badgeTransform {
+  color: #7c3aed;
+  background: rgba(124, 58, 237, 0.1);
+}
+
+.badgeApi {
+  color: #0284c7;
+  background: rgba(2, 132, 199, 0.1);
+}
+
+/* Divider */
+.divider {
+  height: 1px;
+  background: rgba(var(--gray-rgb), 0.08);
+  margin: 4px 0;
+}
+
+/* Create New Option */
+.createOption {
+  color: #0066ff;
+  gap: 8px;
+}
+
+.createOption .optionName {
+  color: inherit;
+  font-weight: 500;
+}
+
+.createIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: rgba(0, 102, 255, 0.1);
+  border-radius: 6px;
+  color: #0066ff;
+}
+
+/* No Results */
+.noResults {
+  padding: 24px 16px;
+  text-align: center;
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  color: rgba(var(--gray-rgb), 0.5);
+}
+
+/* Hint */
+.hint {
+  margin: 8px 0 0;
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  color: rgba(var(--gray-rgb), 0.5);
+}
+
+.hintLink {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: #0066ff;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.hintLink:hover {
+  text-decoration: none;
+}
+
+/* Loading Skeleton */
+.skeleton {
+  height: 48px;
+  background: linear-gradient(
+    90deg,
+    rgba(var(--gray-rgb), 0.06) 25%,
+    rgba(var(--gray-rgb), 0.1) 50%,
+    rgba(var(--gray-rgb), 0.06) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 10px;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Error State */
+.error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(220, 38, 38, 0.05);
+  border: 1px solid rgba(220, 38, 38, 0.15);
+  border-radius: 10px;
+}
+
+.error p {
+  margin: 0;
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  color: #dc2626;
+}
+
+.retryButton {
+  padding: 6px 12px;
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: #dc2626;
+  background: transparent;
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.retryButton:hover {
+  background: rgba(220, 38, 38, 0.1);
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .dropdown {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    border-color: rgba(var(--gray-rgb), 0.15);
+  }
+
+  .error {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.2);
+  }
+
+  .error p {
+    color: #ef4444;
+  }
+
+  .retryButton {
+    color: #ef4444;
+    border-color: rgba(239, 68, 68, 0.4);
+  }
+}
+
+/* Touch device improvements */
+@media (pointer: coarse) {
+  .option {
+    min-height: 52px;
+  }
+}

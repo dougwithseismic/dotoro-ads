@@ -1,37 +1,94 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import styles from "./TransformList.module.css";
-import { useTransforms } from "./hooks";
+import { TransformsTable } from "./components";
+import { Pagination } from "../data-sources/components/Pagination";
 import { useUpdateTransform } from "./hooks/useUpdateTransform";
 import { useDeleteTransform } from "./hooks/useDeleteTransform";
 import { useExecuteTransform } from "./hooks/useExecuteTransform";
-import type { Transform } from "./types";
+import type { Transform, TransformListResponse } from "./types";
+import styles from "./TransformList.module.css";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+type SortableColumn = "name" | "updatedAt";
+type SortDirection = "asc" | "desc";
 
 export default function TransformsPage() {
-  const { transforms, loading, error, refetch } = useTransforms();
+  const router = useRouter();
   const { updateTransform } = useUpdateTransform();
   const { deleteTransform } = useDeleteTransform();
-  const { executeTransform, loading: executing } = useExecuteTransform();
+  const { executeTransform } = useExecuteTransform();
 
+  const [transforms, setTransforms] = useState<Transform[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [executingId, setExecutingId] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
+
+  // Sorting state
+  const [sortColumn, setSortColumn] = useState<SortableColumn | undefined>(undefined);
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+
+  const fetchTransforms = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      let url = `${API_BASE}/api/v1/transforms?page=${currentPage}&limit=${pageSize}`;
+      if (searchTerm) {
+        url += `&search=${encodeURIComponent(searchTerm)}`;
+      }
+      if (sortColumn) {
+        url += `&sortBy=${sortColumn}&sortOrder=${sortDirection}`;
+      }
+
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error("Failed to fetch transforms");
+      }
+      const data: TransformListResponse = await response.json();
+      setTransforms(data.data);
+      setTotalPages(data.totalPages);
+      setTotal(data.total);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred");
+    } finally {
+      setLoading(false);
+    }
+  }, [currentPage, pageSize, searchTerm, sortColumn, sortDirection]);
+
+  useEffect(() => {
+    fetchTransforms();
+  }, [fetchTransforms]);
+
+  const handleRowClick = (id: string) => {
+    router.push(`/transforms/builder/${id}`);
+  };
 
   const handleToggleEnabled = useCallback(
     async (transform: Transform) => {
       try {
         setActionError(null);
         await updateTransform(transform.id, { enabled: !transform.enabled });
-        await refetch();
+        await fetchTransforms();
       } catch (err) {
         setActionError(
           err instanceof Error ? err.message : "Failed to update transform"
         );
       }
     },
-    [updateTransform, refetch]
+    [updateTransform, fetchTransforms]
   );
 
   const handleDelete = useCallback(
@@ -40,14 +97,14 @@ export default function TransformsPage() {
         setActionError(null);
         await deleteTransform(id);
         setDeleteConfirm(null);
-        await refetch();
+        await fetchTransforms();
       } catch (err) {
         setActionError(
           err instanceof Error ? err.message : "Failed to delete transform"
         );
       }
     },
-    [deleteTransform, refetch]
+    [deleteTransform, fetchTransforms]
   );
 
   const handleExecute = useCallback(
@@ -56,7 +113,7 @@ export default function TransformsPage() {
         setActionError(null);
         setExecutingId(id);
         await executeTransform(id);
-        await refetch();
+        await fetchTransforms();
       } catch (err) {
         setActionError(
           err instanceof Error ? err.message : "Failed to execute transform"
@@ -65,25 +122,51 @@ export default function TransformsPage() {
         setExecutingId(null);
       }
     },
-    [executeTransform, refetch]
+    [executeTransform, fetchTransforms]
   );
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
+  const handleSearch = useCallback((value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+  }, []);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const getGroupByDisplay = (groupBy: string | string[]): string => {
-    if (Array.isArray(groupBy)) {
-      return groupBy.join(", ");
+  const handlePageSizeChange = (size: number) => {
+    setPageSize(size);
+    setCurrentPage(1);
+  };
+
+  const handleSort = (column: SortableColumn) => {
+    if (sortColumn === column) {
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
     }
-    return groupBy;
+    setCurrentPage(1);
   };
 
-  if (loading) {
+  // Sort transforms locally for immediate feedback
+  const sortedTransforms = useMemo(() => {
+    if (!sortColumn || transforms.length === 0) return transforms;
+
+    return [...transforms].sort((a, b) => {
+      let comparison = 0;
+      if (sortColumn === "name") {
+        comparison = a.name.localeCompare(b.name);
+      } else if (sortColumn === "updatedAt") {
+        comparison =
+          new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
+      }
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+  }, [transforms, sortColumn, sortDirection]);
+
+  if (loading && transforms.length === 0) {
     return (
       <div className={styles.page}>
         <div className={styles.loading} role="status" aria-live="polite">
@@ -94,19 +177,22 @@ export default function TransformsPage() {
     );
   }
 
-  if (error) {
+  if (error && transforms.length === 0) {
     return (
       <div className={styles.page}>
         <div className={styles.error}>
           <h2>Error</h2>
           <p>{error}</p>
-          <button onClick={refetch} className={styles.retryButton}>
+          <button onClick={fetchTransforms} className={styles.retryButton}>
             Try Again
           </button>
         </div>
       </div>
     );
   }
+
+  const showEmptyState = transforms.length === 0 && !searchTerm;
+  const showNoResults = transforms.length === 0 && searchTerm;
 
   return (
     <div className={styles.page}>
@@ -143,153 +229,99 @@ export default function TransformsPage() {
         </div>
       )}
 
-      {transforms.length === 0 ? (
-        <div className={styles.empty}>
-          <div className={styles.emptyIcon}>
-            <svg
-              width="48"
-              height="48"
-              viewBox="0 0 48 48"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M8 12H40M8 24H40M8 36H40"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
+      <section className={styles.tableSection}>
+        {!showEmptyState && (
+          <div className={styles.tableHeader}>
+            <div className={styles.searchContainer}>
+              <input
+                type="search"
+                placeholder="Search transforms..."
+                value={searchTerm}
+                onChange={(e) => handleSearch(e.target.value)}
+                className={styles.searchInput}
+                aria-label="Search transforms"
               />
-              <path
-                d="M24 8V40"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeDasharray="4 4"
-              />
-            </svg>
+            </div>
+            {total > 0 && (
+              <span className={styles.totalCount}>
+                {total.toLocaleString()} transform{total !== 1 ? "s" : ""}
+              </span>
+            )}
           </div>
-          <h2>No transforms yet</h2>
-          <p>
-            Create your first transform to aggregate and group your data
-          </p>
-          <Link href="/transforms/builder" className={styles.emptyButton}>
-            Create Your First Transform
-          </Link>
-        </div>
-      ) : (
-        <div className={styles.grid}>
-          {transforms.map((transform) => (
-            <article key={transform.id} className={styles.card}>
-              <div className={styles.cardHeader}>
-                <div className={styles.enabledToggle}>
-                  <button
-                    className={`${styles.toggleButton} ${transform.enabled ? styles.toggleEnabled : styles.toggleDisabled}`}
-                    onClick={() => handleToggleEnabled(transform)}
-                    title={
-                      transform.enabled
-                        ? "Disable transform"
-                        : "Enable transform"
-                    }
-                  >
-                    <span className={styles.toggleKnob} />
-                  </button>
-                </div>
-                <span className={styles.date}>
-                  {formatDate(transform.updatedAt)}
-                </span>
-              </div>
+        )}
 
-              <h2 className={styles.cardTitle}>{transform.name}</h2>
+        {showEmptyState ? (
+          <div className={styles.empty}>
+            <div className={styles.emptyIcon}>
+              <svg
+                width="48"
+                height="48"
+                viewBox="0 0 48 48"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M8 12H40M8 24H40M8 36H40"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M24 8V40"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeDasharray="4 4"
+                />
+              </svg>
+            </div>
+            <h2>No transforms yet</h2>
+            <p>
+              Create your first transform to aggregate and group your data
+            </p>
+            <Link href="/transforms/builder" className={styles.emptyButton}>
+              Create Your First Transform
+            </Link>
+          </div>
+        ) : showNoResults ? (
+          <div className={styles.noResults}>
+            <p>No transforms match your search.</p>
+            <button
+              onClick={() => handleSearch("")}
+              className={styles.clearSearchButton}
+            >
+              Clear search
+            </button>
+          </div>
+        ) : (
+          <>
+            <TransformsTable
+              transforms={sortedTransforms}
+              onRowClick={handleRowClick}
+              onDelete={handleDelete}
+              onExecute={handleExecute}
+              onToggleEnabled={handleToggleEnabled}
+              executingId={executingId}
+              deleteConfirmId={deleteConfirm}
+              onDeleteConfirm={setDeleteConfirm}
+              sortColumn={sortColumn}
+              sortDirection={sortDirection}
+              onSort={handleSort}
+            />
 
-              {transform.description && (
-                <p className={styles.cardDescription}>{transform.description}</p>
-              )}
-
-              <div className={styles.flowVisualization}>
-                <div className={styles.flowBox}>
-                  <span className={styles.flowLabel}>Source</span>
-                  <span className={styles.flowId}>
-                    {transform.sourceDataSourceId.slice(0, 8)}...
-                  </span>
-                </div>
-                <div className={styles.flowArrow}>
-                  <svg
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      d="M5 12H19M19 12L13 6M19 12L13 18"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </div>
-                <div className={styles.flowBox}>
-                  <span className={styles.flowLabel}>Output</span>
-                  <span className={styles.flowId}>
-                    {transform.outputDataSourceId.slice(0, 8)}...
-                  </span>
-                </div>
-              </div>
-
-              <div className={styles.cardStats}>
-                <span className={styles.stat}>
-                  <span className={styles.statLabel}>Group by:</span>{" "}
-                  {getGroupByDisplay(transform.config.groupBy)}
-                </span>
-                <span className={styles.stat}>
-                  {transform.config.aggregations.length} aggregation
-                  {transform.config.aggregations.length !== 1 ? "s" : ""}
-                </span>
-              </div>
-
-              <div className={styles.cardActions}>
-                <Link
-                  href={`/transforms/builder/${transform.id}`}
-                  className={styles.actionButton}
-                >
-                  Edit
-                </Link>
-                <button
-                  onClick={() => handleExecute(transform.id)}
-                  className={styles.executeButton}
-                  disabled={executing || executingId === transform.id}
-                >
-                  {executingId === transform.id ? "Running..." : "Execute"}
-                </button>
-                {deleteConfirm === transform.id ? (
-                  <div className={styles.deleteConfirm}>
-                    <button
-                      onClick={() => handleDelete(transform.id)}
-                      className={styles.deleteConfirmYes}
-                    >
-                      Confirm
-                    </button>
-                    <button
-                      onClick={() => setDeleteConfirm(null)}
-                      className={styles.deleteConfirmNo}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setDeleteConfirm(transform.id)}
-                    className={styles.deleteButton}
-                  >
-                    Delete
-                  </button>
-                )}
-              </div>
-            </article>
-          ))}
-        </div>
-      )}
+            {total > 0 && (
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={total}
+                pageSize={pageSize}
+                onPageChange={handlePageChange}
+                onPageSizeChange={handlePageSizeChange}
+              />
+            )}
+          </>
+        )}
+      </section>
     </div>
   );
 }

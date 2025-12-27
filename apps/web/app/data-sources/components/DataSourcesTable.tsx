@@ -45,6 +45,7 @@ const SYNC_STATUS_LABELS: Record<SyncStatus, string> = {
   synced: "Synced",
   syncing: "Syncing",
   error: "Error",
+  success: "Success",
 };
 
 const SYNC_FREQUENCY_LABELS: Record<SyncFrequency, string> = {
@@ -52,6 +53,10 @@ const SYNC_FREQUENCY_LABELS: Record<SyncFrequency, string> = {
   hourly: "Hourly",
   daily: "Daily",
   weekly: "Weekly",
+  "1h": "Every 1h",
+  "6h": "Every 6h",
+  "24h": "Every 24h",
+  "7d": "Every 7d",
 };
 
 const TYPE_LABELS: Record<DataSource["type"], string> = {
@@ -115,11 +120,14 @@ function getSyncButtonStatus(
   }
   switch (syncStatus) {
     case "synced":
+    case "success":
       return "idle"; // Synced sources can be synced again
     case "syncing":
       return "syncing";
     case "error":
       return "error";
+    default:
+      return "idle";
   }
 }
 

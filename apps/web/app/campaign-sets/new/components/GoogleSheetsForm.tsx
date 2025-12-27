@@ -2,32 +2,18 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api-client";
+import type { GoogleSheetsConfig, SyncFrequency } from "@/app/data-sources/types";
 import styles from "./GoogleSheetsForm.module.css";
 
-/**
- * Sync frequency options for scheduled data syncing
- */
-type SyncFrequency = "manual" | "1h" | "6h" | "24h" | "7d";
-
-/**
- * Configuration for Google Sheets data sources
- */
-interface GoogleSheetsConfig {
-  spreadsheetId: string;
-  spreadsheetName: string;
-  sheetName: string;
-  syncFrequency: SyncFrequency;
-  lastSyncAt?: string;
-  lastSyncStatus?: "success" | "error" | "syncing";
-  lastSyncError?: string;
-  headerRow?: number;
-}
+// Re-export the canonical type for consumers
+export type { GoogleSheetsConfig } from "@/app/data-sources/types";
 
 interface GoogleSheetsFormProps {
   onSubmit: (name: string, config: GoogleSheetsConfig) => Promise<void>;
   onCancel: () => void;
   isConnected: boolean;
   onConnect: () => void;
+  isConnecting?: boolean;
 }
 
 interface Spreadsheet {
@@ -59,6 +45,7 @@ export function GoogleSheetsForm({
   onCancel,
   isConnected,
   onConnect,
+  isConnecting = false,
 }: GoogleSheetsFormProps) {
   // Form state
   const [name, setName] = useState("");
@@ -189,6 +176,9 @@ export function GoogleSheetsForm({
         headerRow,
       };
       await onSubmit(name, config);
+    } catch {
+      // Error is handled by the parent component (CreateDataSourceDrawer)
+      // which sets the error state and displays it
     } finally {
       setSubmitting(false);
     }
@@ -229,8 +219,9 @@ export function GoogleSheetsForm({
             type="button"
             onClick={onConnect}
             className={styles.connectButton}
+            disabled={isConnecting}
           >
-            Connect Google Account
+            {isConnecting ? "Connecting..." : "Connect Google Account"}
           </button>
         </div>
         <div className={styles.actions}>

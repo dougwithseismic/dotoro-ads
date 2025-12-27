@@ -39,18 +39,9 @@ describe("SyncButton", () => {
       expect(screen.getByRole("button")).toBeInTheDocument();
     });
 
-    it("does not render for csv type data sources", () => {
-      render(
-        <SyncButton
-          dataSourceId="1"
-          status="idle"
-          dataSourceType="csv"
-          onSync={vi.fn()}
-        />
-      );
-
-      expect(screen.queryByRole("button")).not.toBeInTheDocument();
-    });
+    // Note: CSV type was removed from SyncableDataSourceType
+    // The parent component now filters data sources before passing to SyncButton
+    // This ensures type safety at compile time rather than runtime
   });
 
   describe("states", () => {

@@ -520,6 +520,99 @@
   }
 }
 
+/* Sync Status Badge */
+.syncStatusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  letter-spacing: 0.02em;
+}
+
+.syncStatus-idle,
+.syncStatus-synced {
+  color: rgba(var(--gray-rgb), 0.6);
+  background: rgba(var(--gray-rgb), 0.05);
+}
+
+.syncStatus-syncing {
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.syncStatus-success {
+  color: #059669;
+  background: rgba(5, 150, 105, 0.1);
+}
+
+.syncStatus-error {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.1);
+}
+
+.syncStatusSpinner {
+  animation: syncSpin 1s linear infinite;
+}
+
+@keyframes syncSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Toast notification */
+.toast {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  animation: toastSlideIn 0.3s ease-out;
+}
+
+@keyframes toastSlideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.toast-success {
+  color: #059669;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+}
+
+.toast-error {
+  color: #dc2626;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+}
+
+/* Google Sheets badge style */
+.google-sheets {
+  color: #0ea55b;
+  background: rgba(14, 165, 91, 0.1);
+}
+
 /* Dark mode adjustments */
 @media (prefers-color-scheme: dark) {
   .error {
@@ -562,5 +655,40 @@
 
   .confirmDeleteButton:hover:not(:disabled) {
     background: #dc2626;
+  }
+
+  /* Sync status dark mode */
+  .syncStatus-syncing {
+    color: #60a5fa;
+    background: rgba(96, 165, 250, 0.15);
+  }
+
+  .syncStatus-success {
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.15);
+  }
+
+  .syncStatus-error {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.15);
+  }
+
+  /* Toast dark mode */
+  .toast-success {
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.15);
+    border-color: rgba(16, 185, 129, 0.3);
+  }
+
+  .toast-error {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.3);
+  }
+
+  /* Google Sheets dark mode */
+  .google-sheets {
+    color: #34d399;
+    background: rgba(52, 211, 153, 0.15);
   }
 }

@@ -5,6 +5,8 @@ import styles from "./CreateDataSourceDrawer.module.css";
 import { CsvPasteForm } from "./CsvPasteForm";
 import { ApiPushConfig, type ApiKeyConfig } from "./ApiPushConfig";
 import { ApiDataSourceForm, type ApiFetchConfig } from "./ApiDataSourceForm";
+import { GoogleSheetsForm, type GoogleSheetsConfig } from "./GoogleSheetsForm";
+import { api } from "@/lib/api-client";
 
 interface CreateDataSourceDrawerProps {
   isOpen: boolean;
@@ -12,7 +14,7 @@ interface CreateDataSourceDrawerProps {
   onCreated: (dataSourceId: string) => void;
 }
 
-type SourceType = "csv-upload" | "csv-paste" | "api" | "api-fetch";
+type SourceType = "csv-upload" | "csv-paste" | "api" | "api-fetch" | "google-sheets";
 
 export function CreateDataSourceDrawer({
   isOpen,
@@ -28,6 +30,11 @@ export function CreateDataSourceDrawer({
   // API Push specific state
   const [apiDataSourceId, setApiDataSourceId] = useState<string | null>(null);
   const [apiKeyConfig, setApiKeyConfig] = useState<ApiKeyConfig | undefined>(undefined);
+
+  // Google Sheets specific state
+  const [googleConnected, setGoogleConnected] = useState(false);
+  const [checkingGoogleConnection, setCheckingGoogleConnection] = useState(false);
+  const [connectingGoogle, setConnectingGoogle] = useState(false);
 
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -67,6 +74,9 @@ export function CreateDataSourceDrawer({
       setError(null);
       setApiDataSourceId(null);
       setApiKeyConfig(undefined);
+      setGoogleConnected(false);
+      setCheckingGoogleConnection(false);
+      setConnectingGoogle(false);
     }
   }, [isOpen]);
 
@@ -212,8 +222,8 @@ export function CreateDataSourceDrawer({
           });
         }
       }
-    } catch {
-      // Silently fail - the key was generated, just can't refresh the config
+    } catch (err) {
+      console.error('Failed to refresh API key configuration:', err);
     }
   }, [apiDataSourceId]);
 
@@ -345,6 +355,88 @@ export function CreateDataSourceDrawer({
         }
 
         onCreated(dataSourceId);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "An error occurred");
+        throw err; // Re-throw so the form knows submission failed
+      } finally {
+        setUploading(false);
+      }
+    },
+    [onCreated]
+  );
+
+  /**
+   * Check Google connection status when Google Sheets is selected
+   */
+  const checkGoogleConnection = useCallback(async () => {
+    setCheckingGoogleConnection(true);
+    setError(null);
+
+    try {
+      const response = await api.get<{ connected: boolean }>(
+        "/api/v1/auth/google/status"
+      );
+      setGoogleConnected(response.connected);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to check Google connection");
+      setGoogleConnected(false);
+    } finally {
+      setCheckingGoogleConnection(false);
+    }
+  }, []);
+
+  /**
+   * Handle selecting Google Sheets source type
+   */
+  const handleGoogleSheetsSelect = useCallback(() => {
+    setSourceType("google-sheets");
+    checkGoogleConnection();
+  }, [checkGoogleConnection]);
+
+  /**
+   * Initiate Google OAuth flow
+   */
+  const handleGoogleConnect = useCallback(async () => {
+    setConnectingGoogle(true);
+    setError(null);
+
+    try {
+      const response = await api.post<{ authorizationUrl: string }>("/api/v1/auth/google/connect", {
+        // Pass current URL for redirect after OAuth
+        redirectUrl: window.location.href,
+      });
+      // Redirect to Google OAuth
+      window.location.href = response.authorizationUrl;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to initiate Google connection");
+      setConnectingGoogle(false);
+    }
+    // Note: Don't reset connectingGoogle on success since we're redirecting away
+  }, []);
+
+  /**
+   * Handle Google Sheets data source creation
+   */
+  const handleGoogleSheetsSubmit = useCallback(
+    async (dataSourceName: string, config: GoogleSheetsConfig) => {
+      setUploading(true);
+      setError(null);
+
+      try {
+        const response = await api.post<{ id: string }>("/api/v1/data-sources", {
+          name: dataSourceName,
+          type: "google-sheets",
+          config: {
+            source: "google-sheets",
+            spreadsheetId: config.spreadsheetId,
+            spreadsheetName: config.spreadsheetName,
+            sheetName: config.sheetName,
+            syncFrequency: config.syncFrequency,
+            headerRow: config.headerRow,
+          },
+        });
+
+        onCreated(response.id);
       } catch (err) {
         setError(err instanceof Error ? err.message : "An error occurred");
         throw err; // Re-throw so the form knows submission failed
@@ -551,6 +643,36 @@ export function CreateDataSourceDrawer({
                     <span className={styles.sourceTypeName}>API Fetch</span>
                     <span className={styles.sourceTypeDesc}>
                       Pull data from an external API
+                    </span>
+                  </div>
+                </button>
+
+                {/* Google Sheets option */}
+                <button
+                  type="button"
+                  className={styles.sourceTypeCard}
+                  onClick={handleGoogleSheetsSelect}
+                >
+                  <div className={styles.sourceTypeIcon}>
+                    <svg viewBox="0 0 24 24" width="24" height="24">
+                      <path
+                        fill="#0F9D58"
+                        d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z"
+                      />
+                      <path
+                        fill="#87CEAC"
+                        d="M14 2v6h6l-6-6z"
+                      />
+                      <path
+                        fill="#FFF"
+                        d="M7 13h10v1H7zm0 2h10v1H7zm0 2h7v1H7z"
+                      />
+                    </svg>
+                  </div>
+                  <div className={styles.sourceTypeInfo}>
+                    <span className={styles.sourceTypeName}>Google Sheets</span>
+                    <span className={styles.sourceTypeDesc}>
+                      Import data from a Google Spreadsheet
                     </span>
                   </div>
                 </button>
@@ -834,6 +956,49 @@ export function CreateDataSourceDrawer({
                 onCancel={() => setSourceType(null)}
                 isLoading={uploading}
               />
+            </div>
+          )}
+
+          {/* Step 2e: Google Sheets Configuration */}
+          {sourceType === "google-sheets" && (
+            <div className={styles.step}>
+              <button
+                type="button"
+                className={styles.backButton}
+                onClick={() => setSourceType(null)}
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                  <path
+                    d="M10 12L6 8L10 4"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                Back
+              </button>
+
+              {/* Error message from parent */}
+              {error && <p className={styles.error}>{error}</p>}
+
+              {/* Loading state while checking connection */}
+              {checkingGoogleConnection && (
+                <div className={styles.stepDescription}>
+                  Checking Google connection...
+                </div>
+              )}
+
+              {/* Google Sheets form */}
+              {!checkingGoogleConnection && (
+                <GoogleSheetsForm
+                  onSubmit={handleGoogleSheetsSubmit}
+                  onCancel={() => setSourceType(null)}
+                  isConnected={googleConnected}
+                  onConnect={handleGoogleConnect}
+                  isConnecting={connectingGoogle}
+                />
+              )}
             </div>
           )}
         </div>

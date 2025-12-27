@@ -3,9 +3,11 @@
 import styles from "./SyncButton.module.css";
 
 export type SyncButtonStatus = "idle" | "syncing" | "success" | "error";
-export type SyncableDataSourceType = "csv" | "api" | "google-sheets";
+export type SyncableDataSourceType = "api" | "google-sheets";
 
 export interface SyncButtonProps {
+  /** ID of the data source (used for identification, not currently used in component logic) */
+  dataSourceId?: string;
   status: SyncButtonStatus;
   dataSourceType: SyncableDataSourceType;
   onSync: () => Promise<void>;
@@ -136,7 +138,7 @@ function WarningIcon() {
  * SyncButton component for triggering manual syncs on API and Google Sheets data sources.
  *
  * This component is only rendered for syncable data source types (api, google-sheets).
- * CSV data sources do not support syncing.
+ * The type system enforces that only syncable types can be passed to this component.
  *
  * @example
  * ```tsx
@@ -149,13 +151,11 @@ function WarningIcon() {
  */
 export function SyncButton({
   status,
-  dataSourceType,
+  dataSourceType: _dataSourceType,
   onSync,
 }: SyncButtonProps) {
-  // Do not render for CSV type - CSV sources don't support syncing
-  if (dataSourceType === "csv") {
-    return null;
-  }
+  // dataSourceType is kept in props for potential future use (e.g., type-specific labels)
+  // but the type system now enforces only syncable types can be passed
 
   const handleClick = async (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent row click

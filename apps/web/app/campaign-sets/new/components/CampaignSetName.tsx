@@ -8,7 +8,6 @@ interface CampaignSetNameProps {
   description: string;
   onNameChange: (name: string) => void;
   onDescriptionChange: (description: string) => void;
-  onNext: () => void;
   errors?: string[];
 }
 
@@ -24,7 +23,6 @@ export function CampaignSetName({
   description,
   onNameChange,
   onDescriptionChange,
-  onNext,
   errors = [],
 }: CampaignSetNameProps) {
   // Track whether the name input has been touched (blurred) for showing validation
@@ -86,40 +84,10 @@ export function CampaignSetName({
     [onDescriptionChange]
   );
 
-  // Handle form submission
-  const handleSubmit = useCallback(
-    (e: React.FormEvent) => {
-      e.preventDefault();
-      if (nameValidation.valid) {
-        onNext();
-      }
-    },
-    [nameValidation.valid, onNext]
-  );
-
-  // Handle Enter key in name field
-  const handleNameKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key === "Enter" && nameValidation.valid) {
-        e.preventDefault();
-        onNext();
-      }
-    },
-    [nameValidation.valid, onNext]
-  );
-
-  const isNextDisabled = !nameValidation.valid;
   const hasErrors = displayErrors.length > 0;
 
   return (
-    <form className={styles.container} onSubmit={handleSubmit}>
-      <div className={styles.header}>
-        <h2 className={styles.title}>Name Your Campaign Set</h2>
-        <p className={styles.subtitle}>
-          Give your campaign set a descriptive name to help you identify it later.
-        </p>
-      </div>
-
+    <div className={styles.container}>
       {/* Campaign Set Name Field */}
       <div className={styles.fieldGroup}>
         <label htmlFor="campaign-set-name" className={styles.label}>
@@ -133,9 +101,7 @@ export function CampaignSetName({
           value={name}
           onChange={handleNameChange}
           onBlur={handleNameBlur}
-          onKeyDown={handleNameKeyDown}
           placeholder="e.g., Q4 Holiday Campaign Set"
-          required
           aria-describedby="name-hint name-errors"
           aria-invalid={hasErrors}
         />
@@ -179,17 +145,6 @@ export function CampaignSetName({
           Optional notes about this campaign set for your team
         </span>
       </div>
-
-      {/* Next Button */}
-      <div className={styles.actions}>
-        <button
-          type="submit"
-          className={`${styles.button} ${styles.buttonPrimary} ${isNextDisabled ? styles.buttonDisabled : ""}`}
-          disabled={isNextDisabled}
-        >
-          Next
-        </button>
-      </div>
-    </form>
+    </div>
   );
 }

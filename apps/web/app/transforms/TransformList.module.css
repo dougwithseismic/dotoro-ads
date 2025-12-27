@@ -212,254 +212,92 @@
   opacity: 0.9;
 }
 
-/* Card grid */
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: 20px;
+/* Table section */
+.tableSection {
+  margin-top: 24px;
 }
 
-/* Card */
-.card {
-  background: var(--background);
-  border: 1px solid rgba(var(--gray-rgb), 0.1);
-  border-radius: 12px;
-  padding: 20px;
-  transition: box-shadow 0.2s, border-color 0.2s;
-}
-
-.card:hover {
-  border-color: rgba(var(--gray-rgb), 0.2);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-}
-
-.cardHeader {
+.tableHeader {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
+  gap: 16px;
 }
 
-.enabledToggle {
-  flex-shrink: 0;
-}
-
-.toggleButton {
-  position: relative;
-  width: 40px;
-  height: 22px;
-  border-radius: 11px;
-  border: none;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.toggleEnabled {
-  background-color: #22c55e;
-}
-
-.toggleDisabled {
-  background-color: rgba(var(--gray-rgb), 0.2);
-}
-
-.toggleKnob {
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 18px;
-  height: 18px;
-  background: white;
-  border-radius: 50%;
-  transition: transform 0.2s;
-}
-
-.toggleEnabled .toggleKnob {
-  transform: translateX(18px);
-}
-
-.date {
-  font-family: var(--font-geist-mono);
-  font-size: 12px;
-  color: rgba(var(--gray-rgb), 0.5);
-  margin-left: auto;
-}
-
-.cardTitle {
-  font-family: var(--font-geist-sans);
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--foreground);
-  margin: 0 0 8px;
-  line-height: 1.4;
-}
-
-.cardDescription {
-  font-family: var(--font-geist-sans);
-  font-size: 13px;
-  color: rgba(var(--gray-rgb), 0.6);
-  margin: 0 0 12px;
-  line-height: 1.5;
-}
-
-/* Flow visualization */
-.flowVisualization {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-  padding: 12px;
-  background: rgba(var(--gray-rgb), 0.03);
-  border-radius: 8px;
-}
-
-.flowBox {
+.searchContainer {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 8px;
+  max-width: 320px;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 10px 14px;
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  color: var(--foreground);
   background: var(--background);
-  border: 1px solid rgba(var(--gray-rgb), 0.1);
-  border-radius: 6px;
-  min-width: 0;
+  border: 1px solid rgba(var(--gray-rgb), 0.15);
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.flowLabel {
-  font-family: var(--font-geist-sans);
-  font-size: 10px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: rgba(var(--gray-rgb), 0.5);
+.searchInput:focus {
+  border-color: rgba(var(--gray-rgb), 0.3);
+  box-shadow: 0 0 0 3px rgba(var(--gray-rgb), 0.05);
 }
 
-.flowId {
-  font-family: var(--font-geist-mono);
-  font-size: 11px;
-  color: rgba(var(--gray-rgb), 0.7);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.flowArrow {
-  flex-shrink: 0;
-  color: rgba(var(--gray-rgb), 0.3);
-}
-
-.cardStats {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 12px;
-}
-
-.stat {
-  font-family: var(--font-geist-sans);
-  font-size: 12px;
-  color: rgba(var(--gray-rgb), 0.5);
-}
-
-.statLabel {
+.searchInput::placeholder {
   color: rgba(var(--gray-rgb), 0.4);
 }
 
-/* Card actions */
-.cardActions {
+.totalCount {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  color: rgba(var(--gray-rgb), 0.6);
+  white-space: nowrap;
+}
+
+/* No results state */
+.noResults {
   display: flex;
-  gap: 8px;
-  padding-top: 16px;
-  border-top: 1px solid rgba(var(--gray-rgb), 0.1);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  background: rgba(var(--gray-rgb), 0.02);
+  border: 2px dashed rgba(var(--gray-rgb), 0.1);
+  border-radius: 8px;
 }
 
-.actionButton {
-  padding: 8px 14px;
+.noResults p {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  color: rgba(var(--gray-rgb), 0.6);
+  margin: 0 0 16px;
+}
+
+.clearSearchButton {
+  padding: 8px 16px;
   font-family: var(--font-geist-sans);
   font-size: 13px;
   font-weight: 500;
-  color: var(--foreground);
-  background: rgba(var(--gray-rgb), 0.05);
-  border: 1px solid rgba(var(--gray-rgb), 0.1);
-  border-radius: 6px;
-  cursor: pointer;
-  text-decoration: none;
-  transition: background 0.2s;
-}
-
-.actionButton:hover {
-  background: rgba(var(--gray-rgb), 0.1);
-}
-
-.executeButton {
-  padding: 8px 14px;
-  font-family: var(--font-geist-sans);
-  font-size: 13px;
-  font-weight: 500;
-  color: #2563eb;
-  background: rgba(37, 99, 235, 0.05);
-  border: 1px solid rgba(37, 99, 235, 0.2);
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.executeButton:hover:not(:disabled) {
-  background: rgba(37, 99, 235, 0.1);
-}
-
-.executeButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.deleteButton {
-  margin-left: auto;
-  padding: 8px 14px;
-  font-family: var(--font-geist-sans);
-  font-size: 13px;
-  font-weight: 500;
-  color: #dc2626;
-  background: transparent;
-  border: 1px solid rgba(220, 38, 38, 0.2);
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.deleteButton:hover {
-  background: rgba(220, 38, 38, 0.05);
-}
-
-.deleteConfirm {
-  display: flex;
-  gap: 6px;
-  margin-left: auto;
-}
-
-.deleteConfirmYes,
-.deleteConfirmNo {
-  padding: 8px 12px;
-  font-family: var(--font-geist-sans);
-  font-size: 12px;
-  font-weight: 500;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.deleteConfirmYes {
-  color: #fff;
-  background: #dc2626;
-  border: none;
-}
-
-.deleteConfirmNo {
   color: var(--foreground);
   background: transparent;
   border: 1px solid rgba(var(--gray-rgb), 0.2);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.clearSearchButton:hover {
+  background: rgba(var(--gray-rgb), 0.05);
 }
 
 /* Responsive */
-@media (max-width: 600px) {
+@media (max-width: 768px) {
   .page {
     padding: 20px;
   }
@@ -473,28 +311,22 @@
     justify-content: center;
   }
 
-  .grid {
-    grid-template-columns: 1fr;
+  .tableHeader {
+    flex-direction: column;
+    align-items: stretch;
   }
 
-  .cardActions {
-    flex-wrap: wrap;
+  .searchContainer {
+    max-width: none;
   }
 
-  .deleteButton,
-  .deleteConfirm {
-    margin-left: 0;
-    width: 100%;
-    justify-content: center;
+  .totalCount {
+    text-align: center;
   }
 }
 
 /* Dark mode adjustments */
 @media (prefers-color-scheme: dark) {
-  .card:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  }
-
   .error {
     background: rgba(239, 68, 68, 0.1);
     border-color: rgba(239, 68, 68, 0.3);
@@ -516,28 +348,5 @@
   .actionError button {
     background: rgba(239, 68, 68, 0.1);
     color: #ef4444;
-  }
-
-  .deleteButton {
-    color: #ef4444;
-    border-color: rgba(239, 68, 68, 0.3);
-  }
-
-  .deleteButton:hover {
-    background: rgba(239, 68, 68, 0.1);
-  }
-
-  .deleteConfirmYes {
-    background: #ef4444;
-  }
-
-  .executeButton {
-    color: #3b82f6;
-    border-color: rgba(59, 130, 246, 0.3);
-    background: rgba(59, 130, 246, 0.1);
-  }
-
-  .executeButton:hover:not(:disabled) {
-    background: rgba(59, 130, 246, 0.15);
   }
 }

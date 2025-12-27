@@ -9,6 +9,7 @@ import {
   EmptyState,
   type SyncButtonStatus,
 } from "./components";
+import { CreateDataSourceDrawer } from "@/app/campaign-sets/new/components/CreateDataSourceDrawer";
 import type { DataSource, DataSourceListResponse, SortDirection } from "./types";
 import styles from "./DataSourceList.module.css";
 
@@ -67,6 +68,9 @@ export default function DataSourcesPage() {
     type: "success",
     visible: false,
   });
+
+  // Create drawer state
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   // Polling ref to track interval
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -394,6 +398,19 @@ export default function DataSourcesPage() {
     }, 300);
   };
 
+  /**
+   * Handle data source created from drawer
+   */
+  const handleDataSourceCreated = useCallback(
+    (id: string) => {
+      setIsDrawerOpen(false);
+      showToast("Data source created successfully", "success");
+      // Navigate to the new data source
+      router.push(`/data-sources/${id}`);
+    },
+    [router, showToast]
+  );
+
   // Sort data sources locally if we have them
   const sortedDataSources = useMemo(() => {
     if (!sortColumn || dataSources.length === 0) return dataSources;
@@ -486,9 +503,31 @@ export default function DataSourcesPage() {
 
       <header className={styles.header}>
         <div className={styles.headerContent}>
-          <h1 className={styles.title}>Data Sources</h1>
+          <div className={styles.headerTop}>
+            <h1 className={styles.title}>Data Sources</h1>
+            <button
+              className={styles.createButton}
+              onClick={() => setIsDrawerOpen(true)}
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                aria-hidden="true"
+              >
+                <path
+                  d="M8 3v10M3 8h10"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+              Create Data Source
+            </button>
+          </div>
           <p className={styles.subtitle}>
-            Upload and manage your CSV data sources
+            Upload and manage your data sources
           </p>
         </div>
       </header>
@@ -562,6 +601,13 @@ export default function DataSourcesPage() {
           </>
         )}
       </section>
+
+      {/* Create Data Source Drawer */}
+      <CreateDataSourceDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        onCreated={handleDataSourceCreated}
+      />
     </div>
   );
 }

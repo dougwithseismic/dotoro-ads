@@ -234,10 +234,14 @@ Full API documentation available at `/api/v1/docs` when running the API server.
 | `STORAGE_REGION` | No | auto | S3 region |
 | `CDN_URL` | No | - | CDN URL for creative delivery |
 | `CORS_ORIGINS` | No | localhost | Allowed CORS origins |
+| `GOOGLE_CLIENT_ID` | Yes**** | - | Google OAuth client ID |
+| `GOOGLE_CLIENT_SECRET` | Yes**** | - | Google OAuth client secret |
+| `GOOGLE_REDIRECT_URI` | No | localhost callback | Google OAuth redirect URI |
 
 \* Required for production
 \** Required for Reddit integration
 \*** Required when using Reddit OAuth
+\**** Required for Google Sheets/Google Ads integration
 
 ### Generating Encryption Keys
 
@@ -247,6 +251,69 @@ openssl rand -hex 32
 
 # Generate ENCRYPTION_SALT (32 hex chars = 16 bytes)
 openssl rand -hex 16
+```
+
+### Google OAuth Setup (for Google Sheets & Google Ads)
+
+To enable Google Sheets data source import and Google Ads integration:
+
+#### 1. Create Google Cloud Project
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Create a new project or select an existing one
+3. Enable the following APIs:
+   - **Google Sheets API** - for importing spreadsheet data
+   - **Google Drive API** - for listing spreadsheets
+   - **Google Ads API** - for campaign management (optional)
+
+#### 2. Configure OAuth Consent Screen
+
+1. Go to **APIs & Services > OAuth consent screen**
+2. Select **External** user type (or Internal for Workspace)
+3. Fill in required fields:
+   - App name: "Dotoro"
+   - User support email: your email
+   - Developer contact: your email
+4. Add scopes:
+   - `https://www.googleapis.com/auth/spreadsheets.readonly`
+   - `https://www.googleapis.com/auth/drive.readonly`
+   - `https://www.googleapis.com/auth/adwords` (for Google Ads)
+5. Add test users if in testing mode
+
+#### 3. Create OAuth 2.0 Credentials
+
+1. Go to **APIs & Services > Credentials**
+2. Click **Create Credentials > OAuth 2.0 Client ID**
+3. Application type: **Web application**
+4. Name: "Dotoro API"
+5. Authorized redirect URIs:
+   ```
+   http://localhost:3001/api/v1/auth/google/callback
+   ```
+   For production, add your production callback URL.
+6. Click **Create** and save the Client ID and Client Secret
+
+#### 4. Add Environment Variables
+
+Add to `apps/api/.env`:
+
+```bash
+# Google OAuth
+GOOGLE_CLIENT_ID=your_client_id_here.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your_client_secret_here
+GOOGLE_REDIRECT_URI=http://localhost:3001/api/v1/auth/google/callback
+```
+
+#### 5. Verify Setup
+
+Start the API server - you should see:
+```
+✓ Google OAuth configured
+```
+
+If not configured, you'll see:
+```
+⚠ Google OAuth not configured - Google Sheets and Google Ads integration disabled
 ```
 
 ## Testing

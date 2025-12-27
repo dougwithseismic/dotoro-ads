@@ -3,34 +3,39 @@
 import { useState, useCallback, useEffect } from "react";
 import styles from "./ApiDataSourceForm.module.css";
 import { HeadersEditor } from "./HeadersEditor";
+import type { ApiAuthType, SyncFrequency } from "@/app/data-sources/types";
 
 /**
- * Authentication configuration for API requests
+ * Authentication configuration for API form (form-specific structure)
+ * This differs from the canonical ApiFetchConfig to provide a better form UX.
+ * The form uses a combined auth object that gets transformed on submit.
  */
-export interface ApiAuthConfig {
-  type: "none" | "bearer" | "api-key" | "basic";
+export interface ApiAuthFormConfig {
+  type: ApiAuthType;
   value?: string;
 }
 
 /**
- * Flatten configuration for array handling
+ * Flatten configuration for array handling (form-specific)
  */
-export interface ApiFlattenConfig {
+export interface ApiFlattenFormConfig {
   arrayHandling: "join" | "first" | "expand";
 }
 
 /**
- * Full configuration for an API fetch data source
+ * Form-specific configuration for an API fetch data source.
+ * This type is used for form state and differs from the canonical ApiFetchConfig.
+ * The CreateDataSourceDrawer transforms this to the API format on submit.
  */
 export interface ApiFetchConfig {
   url: string;
   method: "GET" | "POST";
   headers?: Record<string, string>;
   body?: string;
-  auth?: ApiAuthConfig;
+  auth?: ApiAuthFormConfig;
   dataPath?: string;
-  flatten?: ApiFlattenConfig;
-  syncFrequency: "manual" | "1h" | "6h" | "24h" | "7d";
+  flatten?: ApiFlattenFormConfig;
+  syncFrequency: SyncFrequency;
 }
 
 /**
@@ -126,11 +131,11 @@ export function ApiDataSourceForm({
   const [method, setMethod] = useState<"GET" | "POST">("GET");
   const [headers, setHeaders] = useState<Record<string, string>>({});
   const [body, setBody] = useState("");
-  const [authType, setAuthType] = useState<"none" | "bearer" | "api-key" | "basic">("none");
+  const [authType, setAuthType] = useState<ApiAuthType>("none");
   const [authValue, setAuthValue] = useState("");
   const [dataPath, setDataPath] = useState("");
   const [arrayHandling, setArrayHandling] = useState<"join" | "first" | "expand">("join");
-  const [syncFrequency, setSyncFrequency] = useState<"manual" | "1h" | "6h" | "24h" | "7d">("manual");
+  const [syncFrequency, setSyncFrequency] = useState<SyncFrequency>("manual");
 
   // UI state
   const [previewData, setPreviewData] = useState<PreviewData | null>(null);
@@ -380,7 +385,7 @@ export function ApiDataSourceForm({
           id="api-auth-type"
           value={authType}
           onChange={(e) => {
-            setAuthType(e.target.value as "none" | "bearer" | "api-key" | "basic");
+            setAuthType(e.target.value as ApiAuthType);
             if (e.target.value === "none") {
               setAuthValue("");
             }
@@ -457,7 +462,7 @@ export function ApiDataSourceForm({
         <select
           id="api-sync-frequency"
           value={syncFrequency}
-          onChange={(e) => setSyncFrequency(e.target.value as "manual" | "1h" | "6h" | "24h" | "7d")}
+          onChange={(e) => setSyncFrequency(e.target.value as SyncFrequency)}
           className={styles.select}
           disabled={isLoading}
         >

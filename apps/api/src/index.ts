@@ -52,6 +52,53 @@ process.on("uncaughtException", (error) => {
   process.exit(1);
 });
 
+/**
+ * Check and log status of optional integrations
+ */
+function logIntegrationStatus(): void {
+  // Google OAuth status
+  const googleConfigured = Boolean(
+    process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+  );
+  if (!googleConfigured) {
+    console.log(
+      "\x1b[33m⚠ Google OAuth not configured - Google Sheets and Google Ads integration disabled\x1b[0m"
+    );
+    console.log(
+      "  Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to enable. See README for setup instructions."
+    );
+  } else {
+    console.log("✓ Google OAuth configured");
+  }
+
+  // Reddit OAuth status
+  const redditConfigured = Boolean(
+    process.env.REDDIT_CLIENT_ID && process.env.REDDIT_CLIENT_SECRET
+  );
+  if (!redditConfigured) {
+    console.log(
+      "\x1b[33m⚠ Reddit OAuth not configured - Reddit Ads integration disabled\x1b[0m"
+    );
+    console.log(
+      "  Set REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET to enable."
+    );
+  } else {
+    console.log("✓ Reddit OAuth configured");
+  }
+
+  // Storage status
+  const storageConfigured = Boolean(
+    process.env.STORAGE_ENDPOINT && process.env.STORAGE_BUCKET
+  );
+  if (!storageConfigured) {
+    console.log(
+      "\x1b[33m⚠ S3 storage not configured - using in-memory mock storage\x1b[0m"
+    );
+  } else {
+    console.log("✓ S3 storage configured");
+  }
+}
+
 console.log(`Starting Dotoro API server...`);
 
 try {
@@ -63,6 +110,8 @@ try {
   console.log(`Server running at http://localhost:${port}`);
   console.log(`API docs: http://localhost:${port}/api/v1/docs`);
   console.log(`OpenAPI spec: http://localhost:${port}/api/v1/openapi.json`);
+  console.log(""); // Empty line before integration status
+  logIntegrationStatus();
 
   // Initialize job queue after server is running
   initJobQueue();

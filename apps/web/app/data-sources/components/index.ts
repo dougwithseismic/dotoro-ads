@@ -8,3 +8,6 @@ export { ValidationStatus } from "./ValidationStatus";
 export { ValidationPanel } from "./ValidationPanel";
 export { Pagination } from "./Pagination";
 export { EmptyState } from "./EmptyState";
+export { SyncButton, type SyncButtonProps, type SyncButtonStatus } from "./SyncButton";
+export { ApiConfigPanel } from "./ApiConfigPanel";
+export { GoogleSheetsConfigPanel } from "./GoogleSheetsConfigPanel";
