@@ -604,4 +604,177 @@ describe("GoogleSheetsConfigPanel", () => {
       expect(screen.getByText("syncing")).toBeInTheDocument();
     });
   });
+
+  describe("Defensive handling of undefined config values", () => {
+    /**
+     * These tests verify that the component handles undefined/missing config values gracefully.
+     * This addresses a TypeError that occurred when config.sheetName was undefined and
+     * .trim() was called on it during form validation (isFormValid).
+     */
+
+    it("does not crash when sheetName is undefined", () => {
+      // Cast to bypass TypeScript - simulates runtime data where sheetName might be missing
+      const configWithUndefinedSheetName = {
+        spreadsheetId: "1abc123xyz",
+        spreadsheetName: "Product Inventory",
+        sheetName: undefined,
+        syncFrequency: "6h",
+        headerRow: 1,
+      } as unknown as GoogleSheetsConfig;
+
+      // Should render without throwing
+      expect(() => {
+        render(<GoogleSheetsConfigPanel config={configWithUndefinedSheetName} dataSourceId="1" />);
+      }).not.toThrow();
+    });
+
+    it("does not crash when syncFrequency is undefined", () => {
+      // Cast to bypass TypeScript - simulates runtime data where syncFrequency might be missing
+      const configWithUndefinedSyncFrequency = {
+        spreadsheetId: "1abc123xyz",
+        spreadsheetName: "Product Inventory",
+        sheetName: "Sheet1",
+        syncFrequency: undefined,
+        headerRow: 1,
+      } as unknown as GoogleSheetsConfig;
+
+      // Should render without throwing
+      expect(() => {
+        render(<GoogleSheetsConfigPanel config={configWithUndefinedSyncFrequency} dataSourceId="1" />);
+      }).not.toThrow();
+    });
+
+    it("does not crash when both sheetName and syncFrequency are undefined", () => {
+      const configWithUndefinedValues = {
+        spreadsheetId: "1abc123xyz",
+        spreadsheetName: "Product Inventory",
+        sheetName: undefined,
+        syncFrequency: undefined,
+        headerRow: undefined,
+      } as unknown as GoogleSheetsConfig;
+
+      expect(() => {
+        render(<GoogleSheetsConfigPanel config={configWithUndefinedValues} dataSourceId="1" />);
+      }).not.toThrow();
+    });
+
+    it("initializes form state with empty string when sheetName is undefined", async () => {
+      const user = userEvent.setup();
+      const configWithUndefinedSheetName = {
+        spreadsheetId: "1abc123xyz",
+        spreadsheetName: "Product Inventory",
+        sheetName: undefined,
+        syncFrequency: "6h",
+        headerRow: 1,
+      } as unknown as GoogleSheetsConfig;
+
+      render(<GoogleSheetsConfigPanel config={configWithUndefinedSheetName} dataSourceId="1" />);
+
+      await user.click(screen.getByRole("button", { name: /edit/i }));
+
+      const sheetInput = screen.getByLabelText(/sheet name/i);
+      // Should have empty string (fallback), not "undefined"
+      expect(sheetInput).toHaveValue("");
+    });
+
+    it("initializes form state with 'manual' when syncFrequency is undefined", async () => {
+      const user = userEvent.setup();
+      const configWithUndefinedSyncFrequency = {
+        spreadsheetId: "1abc123xyz",
+        spreadsheetName: "Product Inventory",
+        sheetName: "Sheet1",
+        syncFrequency: undefined,
+        headerRow: 1,
+      } as unknown as GoogleSheetsConfig;
+
+      render(<GoogleSheetsConfigPanel config={configWithUndefinedSyncFrequency} dataSourceId="1" />);
+
+      await user.click(screen.getByRole("button", { name: /edit/i }));
+
+      const syncSelect = screen.getByLabelText(/sync frequency/i);
+      // Should default to "manual" when undefined
+      expect(syncSelect).toHaveValue("manual");
+    });
+
+    it("initializes form state with 1 when headerRow is undefined", async () => {
+      const user = userEvent.setup();
+      const configWithUndefinedHeaderRow = {
+        spreadsheetId: "1abc123xyz",
+        spreadsheetName: "Product Inventory",
+        sheetName: "Sheet1",
+        syncFrequency: "6h",
+        headerRow: undefined,
+      } as unknown as GoogleSheetsConfig;
+
+      render(<GoogleSheetsConfigPanel config={configWithUndefinedHeaderRow} dataSourceId="1" />);
+
+      await user.click(screen.getByRole("button", { name: /edit/i }));
+
+      const headerRowInput = screen.getByLabelText(/header row/i);
+      // Should default to 1 when undefined
+      expect(headerRowInput).toHaveValue(1);
+    });
+
+    it("correctly validates isFormValid as false when sheetName defaults to empty string", async () => {
+      const user = userEvent.setup();
+      const configWithUndefinedSheetName = {
+        spreadsheetId: "1abc123xyz",
+        spreadsheetName: "Product Inventory",
+        sheetName: undefined,
+        syncFrequency: "6h",
+        headerRow: 1,
+      } as unknown as GoogleSheetsConfig;
+
+      render(<GoogleSheetsConfigPanel config={configWithUndefinedSheetName} dataSourceId="1" />);
+
+      await user.click(screen.getByRole("button", { name: /edit/i }));
+
+      // Save button should be disabled since sheetName is empty after fallback
+      expect(screen.getByRole("button", { name: /save changes/i })).toBeDisabled();
+    });
+
+    it("re-initializes form state correctly on cancel when config has undefined values", async () => {
+      const user = userEvent.setup();
+      const configWithUndefinedValues = {
+        spreadsheetId: "1abc123xyz",
+        spreadsheetName: "Product Inventory",
+        sheetName: undefined,
+        syncFrequency: undefined,
+        headerRow: undefined,
+      } as unknown as GoogleSheetsConfig;
+
+      render(<GoogleSheetsConfigPanel config={configWithUndefinedValues} dataSourceId="1" />);
+
+      // Enter edit mode
+      await user.click(screen.getByRole("button", { name: /edit/i }));
+
+      // Modify some values
+      const sheetInput = screen.getByLabelText(/sheet name/i);
+      await user.type(sheetInput, "NewSheet");
+
+      // Cancel - should reset to fallback values
+      await user.click(screen.getByRole("button", { name: /cancel/i }));
+
+      // Re-enter edit mode
+      await user.click(screen.getByRole("button", { name: /edit/i }));
+
+      // Should still have fallback values (empty string for sheetName)
+      const sheetInputAfterCancel = screen.getByLabelText(/sheet name/i);
+      expect(sheetInputAfterCancel).toHaveValue("");
+    });
+
+    it("handles whitespace-only sheetName as invalid", async () => {
+      const user = userEvent.setup();
+      render(<GoogleSheetsConfigPanel config={createMockSheetsConfig()} dataSourceId="1" />);
+
+      await user.click(screen.getByRole("button", { name: /edit/i }));
+
+      const sheetInput = screen.getByLabelText(/sheet name/i);
+      await user.clear(sheetInput);
+      await user.type(sheetInput, "   "); // Whitespace only
+
+      // Save button should be disabled since whitespace-only is invalid (after .trim())
+      expect(screen.getByRole("button", { name: /save changes/i })).toBeDisabled();
+    });
+  });
 });
