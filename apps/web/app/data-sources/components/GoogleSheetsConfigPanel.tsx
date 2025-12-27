@@ -88,9 +88,9 @@ export function GoogleSheetsConfigPanel({
 
   // Form state for editing
   const [formState, setFormState] = useState<EditFormState>(() => ({
-    sheetName: config.sheetName,
+    sheetName: config.sheetName ?? "",
     headerRow: config.headerRow ?? 1,
-    syncFrequency: config.syncFrequency,
+    syncFrequency: config.syncFrequency ?? "manual",
   }));
 
   /**
@@ -98,9 +98,9 @@ export function GoogleSheetsConfigPanel({
    */
   const initFormState = useCallback(() => {
     setFormState({
-      sheetName: displayConfig.sheetName,
+      sheetName: displayConfig.sheetName ?? "",
       headerRow: displayConfig.headerRow ?? 1,
-      syncFrequency: displayConfig.syncFrequency,
+      syncFrequency: displayConfig.syncFrequency ?? "manual",
     });
     setHeaderRowError(null);
     setError(null);

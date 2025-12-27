@@ -109,14 +109,16 @@ vi.mock("../../repositories/campaign-set-repository.js", () => {
 vi.mock("../../jobs/queue.js", () => {
   const mockSend = vi.fn().mockResolvedValue("job-id-123");
   const mockGetJobById = vi.fn().mockResolvedValue(null);
+  const mockBoss = {
+    send: mockSend,
+    getJobById: mockGetJobById,
+    work: vi.fn(),
+    start: vi.fn().mockResolvedValue(undefined),
+    stop: vi.fn().mockResolvedValue(undefined),
+  };
   return {
-    getJobQueue: vi.fn().mockResolvedValue({
-      send: mockSend,
-      getJobById: mockGetJobById,
-      work: vi.fn(),
-      start: vi.fn().mockResolvedValue(undefined),
-      stop: vi.fn().mockResolvedValue(undefined),
-    }),
+    getJobQueue: vi.fn().mockResolvedValue(mockBoss),
+    getJobQueueReady: vi.fn().mockResolvedValue(mockBoss),
     stopJobQueue: vi.fn().mockResolvedValue(undefined),
     resetJobQueue: vi.fn(),
     __mockSend: mockSend,

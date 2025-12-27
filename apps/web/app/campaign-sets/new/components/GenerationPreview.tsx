@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api-client";
+import { parseApiError, getErrorMessage } from "@/lib/api-error-parser";
 import { HierarchyPreview, type PreviewWarning } from "./HierarchyPreview";
 import {
   interpolatePattern,
@@ -33,6 +34,15 @@ export interface GenerationPreviewProps {
   sampleData: Record<string, unknown>[];
   warnings?: PreviewWarning[];
   onGenerateComplete: (result: GenerateResponse) => void;
+  /**
+   * Mode of operation - 'create' for new campaign sets, 'edit' for existing ones
+   * @default 'create'
+   */
+  mode?: "create" | "edit";
+  /**
+   * ID of the campaign set being edited (required in edit mode)
+   */
+  campaignSetId?: string;
 }
 
 /**
@@ -56,7 +66,11 @@ export function GenerationPreview(props: GenerationPreviewProps) {
     sampleData,
     warnings,
     onGenerateComplete,
+    mode = "create",
+    campaignSetId,
   } = props;
+
+  const isEditMode = mode === "edit";
 
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
@@ -159,7 +173,7 @@ export function GenerationPreview(props: GenerationPreviewProps) {
 
   const hasData = sampleData && sampleData.length > 0;
 
-  // Create campaign set with all configured campaigns, ad groups, and ads
+  // Create or update campaign set with all configured campaigns, ad groups, and ads
   const handleGenerate = useCallback(async () => {
     try {
       setGenerating(true);
@@ -192,9 +206,11 @@ export function GenerationPreview(props: GenerationPreviewProps) {
           : undefined,
         hierarchyConfig: {
           adGroups: hierarchyConfig.adGroups.map(ag => ({
+            id: ag.id, // Preserve IDs for edit mode
             namePattern: ag.namePattern,
             keywords: ag.keywords || [],
             ads: ag.ads.map(ad => ({
+              id: ad.id, // Preserve IDs for edit mode
               headline: ad.headline,
               description: ad.description,
               displayUrl: ad.displayUrl,
@@ -208,70 +224,119 @@ export function GenerationPreview(props: GenerationPreviewProps) {
         campaignCount: stats.campaignCount,
       };
 
-      // Step 1: Create the campaign set
-      const createResponse = await api.post<{
-        id: string;
-        name: string;
-        status: string;
-      }>("/api/v1/campaign-sets", {
-        name: campaignSetName,
-        description: campaignSetDescription || undefined,
-        dataSourceId,
-        config: campaignSetConfig,
-        status: "draft",
-        syncStatus: "pending",
-      });
+      let resultCampaignSetId: string;
 
-      const campaignSetId = createResponse.id;
+      if (isEditMode && campaignSetId) {
+        // Edit mode: Update existing campaign set using PUT
+        await api.put<{
+          id: string;
+          name: string;
+          status: string;
+        }>(`/api/v1/campaign-sets/${campaignSetId}`, {
+          name: campaignSetName,
+          description: campaignSetDescription || undefined,
+          dataSourceId,
+          config: campaignSetConfig,
+        });
 
-      // Step 2: Trigger campaign generation
-      const generateResponse = await api.post<{
-        campaigns: { id: string; name: string }[];
-        created: number;
-        updated: number;
-      }>(`/api/v1/campaign-sets/${campaignSetId}/generate`, {
-        regenerate: false,
-      });
+        resultCampaignSetId = campaignSetId;
 
-      setGenerateResult({
-        campaigns: generateResponse.campaigns,
-        stats: {
-          totalCampaigns: generateResponse.created,
-          totalAdGroups: stats.adGroupCount,
-          totalAds: stats.adCount,
-        },
-        warnings: [],
-        campaignSetId,
-      });
+        // Regenerate campaigns with the updated config
+        const generateResponse = await api.post<{
+          campaigns: { id: string; name: string }[];
+          created: number;
+          updated: number;
+        }>(`/api/v1/campaign-sets/${campaignSetId}/generate`, {
+          regenerate: true, // Force regeneration for updates
+        });
 
-      // Call onGenerateComplete with the campaign set ID for navigation
-      onGenerateComplete({
-        generatedCount: generateResponse.created,
-        campaigns: generateResponse.campaigns.map((c) => ({ id: c.id, name: c.name, status: "draft" })),
-        warnings: [],
-        campaignSetId, // Pass the campaign set ID for navigation
-      });
+        setGenerateResult({
+          campaigns: generateResponse.campaigns,
+          stats: {
+            totalCampaigns: generateResponse.created + generateResponse.updated,
+            totalAdGroups: stats.adGroupCount,
+            totalAds: stats.adCount,
+          },
+          warnings: [],
+          campaignSetId: resultCampaignSetId,
+        });
+
+        // Call onGenerateComplete with the campaign set ID for navigation
+        onGenerateComplete({
+          generatedCount: generateResponse.created + generateResponse.updated,
+          campaigns: generateResponse.campaigns.map((c) => ({ id: c.id, name: c.name, status: "draft" })),
+          warnings: [],
+          campaignSetId: resultCampaignSetId,
+        });
+      } else {
+        // Create mode: Create new campaign set
+        const createResponse = await api.post<{
+          id: string;
+          name: string;
+          status: string;
+        }>("/api/v1/campaign-sets", {
+          name: campaignSetName,
+          description: campaignSetDescription || undefined,
+          dataSourceId,
+          config: campaignSetConfig,
+          status: "draft",
+          syncStatus: "pending",
+        });
+
+        resultCampaignSetId = createResponse.id;
+
+        // Trigger campaign generation
+        const generateResponse = await api.post<{
+          campaigns: { id: string; name: string }[];
+          created: number;
+          updated: number;
+        }>(`/api/v1/campaign-sets/${resultCampaignSetId}/generate`, {
+          regenerate: false,
+        });
+
+        setGenerateResult({
+          campaigns: generateResponse.campaigns,
+          stats: {
+            totalCampaigns: generateResponse.created,
+            totalAdGroups: stats.adGroupCount,
+            totalAds: stats.adCount,
+          },
+          warnings: [],
+          campaignSetId: resultCampaignSetId,
+        });
+
+        // Call onGenerateComplete with the campaign set ID for navigation
+        onGenerateComplete({
+          generatedCount: generateResponse.created,
+          campaigns: generateResponse.campaigns.map((c) => ({ id: c.id, name: c.name, status: "draft" })),
+          warnings: [],
+          campaignSetId: resultCampaignSetId,
+        });
+      }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to create campaign set";
+      const parsed = parseApiError(err);
+      const errorMessage = getErrorMessage(parsed);
       setGenerateError(errorMessage);
-      console.error("[GenerationPreview] Campaign set creation failed:", {
+      console.error(`[GenerationPreview] Campaign set ${isEditMode ? "update" : "creation"} failed:`, {
+        ...parsed,
         dataSourceId,
-        error: err,
+        campaignSetId,
+        mode,
         timestamp: new Date().toISOString(),
       });
     } finally {
       setGenerating(false);
     }
-  }, [campaignSetName, campaignSetDescription, dataSourceId, campaignConfig, hierarchyConfig, selectedPlatforms, platformBudgets, sampleData.length, stats, onGenerateComplete]);
+  }, [campaignSetName, campaignSetDescription, dataSourceId, campaignConfig, hierarchyConfig, selectedPlatforms, platformBudgets, sampleData.length, stats, onGenerateComplete, isEditMode, campaignSetId, mode]);
 
-  // Generate button text based on platform count
+  // Generate button text based on mode
   // NOTE: This useMemo must be defined BEFORE any conditional returns to follow React hooks rules
   const generateButtonText = useMemo(() => {
     if (generating) {
-      return "Creating...";
+      return isEditMode ? "Saving..." : "Creating...";
     }
-    return "Create Campaign Set";
-  }, [generating]);
+    return isEditMode ? "Save Changes" : "Create Campaign Set";
+  }, [generating, isEditMode]);
 
   // Success state after generation
   if (generateResult) {
@@ -279,10 +344,14 @@ export function GenerationPreview(props: GenerationPreviewProps) {
       <div className={styles.successState} data-testid="config-generate-success">
         <div className={styles.successIcon} aria-hidden="true">&#10004;</div>
         <div className={styles.successTitle}>
-          Campaign Set Created with {generateResult.stats.totalCampaigns} Campaign{generateResult.stats.totalCampaigns !== 1 ? "s" : ""}!
+          {isEditMode
+            ? `Campaign Set Updated with ${generateResult.stats.totalCampaigns} Campaign${generateResult.stats.totalCampaigns !== 1 ? "s" : ""}!`
+            : `Campaign Set Created with ${generateResult.stats.totalCampaigns} Campaign${generateResult.stats.totalCampaigns !== 1 ? "s" : ""}!`}
         </div>
         <div className={styles.successMessage}>
-          Your campaign set has been created and is ready for review.
+          {isEditMode
+            ? "Your changes have been saved and campaigns have been regenerated."
+            : "Your campaign set has been created and is ready for review."}
         </div>
         {generateResult.warnings.length > 0 && (
           <div className={styles.warningsBox} style={{ textAlign: "left", marginBottom: "16px" }}>
@@ -365,7 +434,7 @@ export function GenerationPreview(props: GenerationPreviewProps) {
       <div className={styles.generateSection} style={{ marginTop: "24px" }}>
         {generateError && (
           <div className={styles.generateErrorBox} data-testid="config-generate-error">
-            <p>Failed to create campaign set: {generateError}</p>
+            <p>{isEditMode ? "Failed to update campaign set: " : "Failed to create campaign set: "}{generateError}</p>
             <button
               type="button"
               onClick={handleGenerate}

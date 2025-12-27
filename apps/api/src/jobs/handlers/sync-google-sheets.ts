@@ -36,7 +36,7 @@ export interface SyncGoogleSheetsJob {
   userId: string;
 
   /** How the sync was triggered */
-  triggeredBy: "schedule" | "manual";
+  triggeredBy: "schedule" | "manual" | "creation";
 }
 
 /**
@@ -116,8 +116,11 @@ export function createSyncGoogleSheetsHandler(): (
     }
 
     // Validate it has googleSheets configuration
+    // Support both nested (config.googleSheets) and flat (config.spreadsheetId) formats
+    // The flat format is what the frontend sends directly
     const config = dataSource.config as DataSourceConfig | null;
-    const googleSheetsConfig = config?.googleSheets;
+    const googleSheetsConfig = config?.googleSheets ??
+      (config?.spreadsheetId ? config as unknown as GoogleSheetsConfig : null);
 
     if (!googleSheetsConfig) {
       throw new Error(
@@ -168,30 +171,38 @@ export async function registerSyncGoogleSheetsHandler(boss: PgBoss): Promise<voi
   // Create the queue before registering the worker (required in pg-boss v10+)
   await boss.createQueue(SYNC_GOOGLE_SHEETS_JOB);
 
-  boss.work<SyncGoogleSheetsJob, SyncGoogleSheetsResult>(
+  // pg-boss v10+ passes an array of jobs to the handler (batch processing)
+  // We process jobs sequentially and return results for each
+  await boss.work<SyncGoogleSheetsJob, SyncGoogleSheetsResult[]>(
     SYNC_GOOGLE_SHEETS_JOB,
-    async (job) => {
-      const data = job.data;
+    async (jobs) => {
+      const results: SyncGoogleSheetsResult[] = [];
 
-      console.log(
-        `[Job ${job.id}] Starting sync-google-sheets for: ${data.dataSourceId}`
-      );
-
-      try {
-        const result = await handler(data);
+      for (const job of jobs) {
+        const data = job.data;
 
         console.log(
-          `[Job ${job.id}] Sync completed: success=${result.success}, rows=${result.rowCount}, duration=${result.duration}ms`
+          `[Job ${job.id}] Starting sync-google-sheets for: ${data.dataSourceId}`
         );
 
-        return result;
-      } catch (error) {
-        console.error(
-          `[Job ${job.id}] Sync failed:`,
-          error instanceof Error ? error.message : error
-        );
-        throw error;
+        try {
+          const result = await handler(data);
+
+          console.log(
+            `[Job ${job.id}] Sync completed: success=${result.success}, rows=${result.rowCount}, duration=${result.duration}ms`
+          );
+
+          results.push(result);
+        } catch (error) {
+          console.error(
+            `[Job ${job.id}] Sync failed:`,
+            error instanceof Error ? error.message : error
+          );
+          throw error;
+        }
       }
+
+      return results;
     }
   );
 }

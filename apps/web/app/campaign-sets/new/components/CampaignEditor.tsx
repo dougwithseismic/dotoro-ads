@@ -25,6 +25,8 @@ import {
   useWizardRestore,
   clearPersistedState,
 } from "../hooks/useWizardPersistence";
+import { useScrollToError, type FieldError } from "../hooks/useScrollToError";
+import { mapConfigToWizardState } from "../utils/config-mapper";
 import { api } from "@/lib/api-client";
 import {
   validateCampaignConfig,
@@ -35,8 +37,41 @@ import {
   interpolatePattern,
   type CampaignConfig as CampaignConfigType,
   type HierarchyConfig as HierarchyConfigType,
+  type GenerateResponse,
 } from "../types";
+import type { CampaignSet } from "../../types";
 import styles from "./CampaignEditor.module.css";
+
+/**
+ * Props for CampaignEditor component
+ */
+export interface CampaignEditorProps {
+  /**
+   * Mode of operation - 'create' for new campaign sets, 'edit' for existing ones
+   * @default 'create'
+   */
+  mode?: "create" | "edit";
+
+  /**
+   * ID of the campaign set being edited (required in edit mode)
+   */
+  campaignSetId?: string;
+
+  /**
+   * Initial campaign set data to populate the editor (for edit mode)
+   */
+  initialData?: CampaignSet;
+
+  /**
+   * Callback when save/create is complete
+   */
+  onSaveComplete?: (result: { campaignSetId?: string }) => void;
+
+  /**
+   * Callback when user cancels editing
+   */
+  onCancel?: () => void;
+}
 
 // Section definitions for the accordion
 type SectionId =
@@ -56,51 +91,58 @@ interface Section {
   optional?: boolean;
 }
 
-const SECTIONS: Section[] = [
-  {
-    id: "campaign-set-name",
-    title: "Campaign Set",
-    subtitle: "Name your campaign set",
-    icon: "◉",
-  },
-  {
-    id: "data-source",
-    title: "Data Source",
-    subtitle: "Select your campaign data",
-    icon: "◎",
-  },
-  {
-    id: "rules",
-    title: "Data Rules",
-    subtitle: "Filter and transform data",
-    icon: "◇",
-    optional: true,
-  },
-  {
-    id: "campaign-config",
-    title: "Campaign",
-    subtitle: "Configure campaign settings",
-    icon: "◈",
-  },
-  {
-    id: "hierarchy",
-    title: "Ad Structure",
-    subtitle: "Define ad groups and ads",
-    icon: "◆",
-  },
-  {
-    id: "platform",
-    title: "Platforms",
-    subtitle: "Select target platforms",
-    icon: "◐",
-  },
-  {
-    id: "preview",
-    title: "Create",
-    subtitle: "Review and create your campaign set",
-    icon: "◑",
-  },
-];
+/**
+ * Get sections with mode-specific titles
+ */
+function getSections(mode: "create" | "edit"): Section[] {
+  return [
+    {
+      id: "campaign-set-name",
+      title: "Campaign Set",
+      subtitle: mode === "edit" ? "Edit campaign set details" : "Name your campaign set",
+      icon: "◉",
+    },
+    {
+      id: "data-source",
+      title: "Data Source",
+      subtitle: mode === "edit" ? "View or change data source" : "Select your campaign data",
+      icon: "◎",
+    },
+    {
+      id: "rules",
+      title: "Data Rules",
+      subtitle: "Filter and transform data",
+      icon: "◇",
+      optional: true,
+    },
+    {
+      id: "campaign-config",
+      title: "Campaign",
+      subtitle: "Configure campaign settings",
+      icon: "◈",
+    },
+    {
+      id: "hierarchy",
+      title: "Ad Structure",
+      subtitle: "Define ad groups and ads",
+      icon: "◆",
+    },
+    {
+      id: "platform",
+      title: "Platforms",
+      subtitle: "Select target platforms",
+      icon: "◐",
+    },
+    {
+      id: "preview",
+      title: mode === "edit" ? "Save" : "Create",
+      subtitle: mode === "edit"
+        ? "Review and save changes"
+        : "Review and create your campaign set",
+      icon: "◑",
+    },
+  ];
+}
 
 // Default initial campaign config
 const DEFAULT_CAMPAIGN_CONFIG: CampaignConfigType = {
@@ -112,12 +154,30 @@ const DEFAULT_HIERARCHY_CONFIG: HierarchyConfigType = {
   adGroups: [createDefaultAdGroup()],
 };
 
-export function CampaignEditor() {
+export function CampaignEditor({
+  mode = "create",
+  campaignSetId,
+  initialData,
+  onSaveComplete,
+  onCancel,
+}: CampaignEditorProps = {}) {
+  // Get mode-specific sections
+  const sections = useMemo(() => getSections(mode), [mode]);
+
+  // Compute initial state from initialData for edit mode
+  const wizardInitialState = useMemo(() => {
+    if (mode === "edit" && initialData) {
+      return mapConfigToWizardState(initialData);
+    }
+    return undefined;
+  }, [mode, initialData]);
+
   const {
     state,
     setCampaignSetName,
     setCampaignSetDescription,
     setDataSource,
+    setAvailableColumns,
     setCampaignConfig,
     setHierarchyConfig,
     toggleRule,
@@ -129,7 +189,7 @@ export function CampaignEditor() {
     setStep,
     setGenerateResult,
     reset,
-  } = useGenerateWizard();
+  } = useGenerateWizard({ initialState: wizardInitialState });
 
   const {
     campaignSetName,
@@ -143,29 +203,36 @@ export function CampaignEditor() {
   // Router for navigation after generation
   const router = useRouter();
 
-  // Track which sections are expanded (multiple can be open)
+  // In edit mode, start with all sections expanded for easy access
   const [expandedSections, setExpandedSections] = useState<Set<SectionId>>(
-    () => new Set(["campaign-set-name"])
+    () => mode === "edit"
+      ? new Set(sections.map(s => s.id))
+      : new Set(["campaign-set-name"])
   );
 
   // Ref for scrolling to preview section
   const previewSectionRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
 
-  // Handle generation complete - navigate to campaign set page
+  // Handle generation/save complete
   const handleGenerateComplete = useCallback(
-    (result: import("../types").GenerateResponse) => {
+    (result: GenerateResponse) => {
       setGenerateResult(result);
-      // Navigate to the campaign set page if we have an ID
-      if (result.campaignSetId) {
+
+      // Use provided callback or default navigation
+      if (onSaveComplete) {
+        onSaveComplete({ campaignSetId: result.campaignSetId ?? campaignSetId });
+      } else if (result.campaignSetId) {
+        // Default: navigate to the campaign set page
         router.push(`/campaign-sets/${result.campaignSetId}`);
       }
     },
-    [setGenerateResult, router]
+    [setGenerateResult, router, onSaveComplete, campaignSetId]
   );
 
-  // Persistence
-  useWizardPersistence(state, !state.generateResult);
+  // Persistence - only enabled in create mode
+  const isCreateMode = mode === "create";
+  useWizardPersistence(state, isCreateMode && !state.generateResult);
   const restoreState = useMemo(
     () => ({
       setCampaignSetName,
@@ -192,9 +259,9 @@ export function CampaignEditor() {
   );
   const { restore, hasSession, clearSession } = useWizardRestore(restoreState);
 
-  // Restore dialog state
+  // Restore dialog state - only for create mode
   const [showRestoreDialog, setShowRestoreDialog] = useState(false);
-  const [sessionChecked, setSessionChecked] = useState(false);
+  const [sessionChecked, setSessionChecked] = useState(mode === "edit");
 
   // Sample data for preview
   const [sampleData, setSampleData] = useState<Record<string, unknown>[]>([]);
@@ -218,7 +285,7 @@ export function CampaignEditor() {
     restore();
     setShowRestoreDialog(false);
     // Expand all sections that have data
-    setExpandedSections(new Set(SECTIONS.map((s) => s.id)));
+    setExpandedSections(new Set(sections.map((s) => s.id)));
   }, [restore]);
 
   const handleStartFresh = useCallback(() => {
@@ -264,6 +331,45 @@ export function CampaignEditor() {
       setSampleDataError(null);
     }
   }, [dataSourceId]);
+
+  // Track if we've already fetched columns for edit mode to prevent infinite loops
+  const [editModeColumnsFetched, setEditModeColumnsFetched] = useState(false);
+
+  // In edit mode, fetch fresh columns from the data source API
+  // The stored config may have incomplete column data (missing sampleValues) or no columns at all
+  useEffect(() => {
+    if (mode === "edit" && dataSourceId && !editModeColumnsFetched) {
+      // Fetch columns if we have none, OR if existing columns are missing sampleValues (stale data)
+      const shouldFetchColumns = availableColumns.length === 0 ||
+        !availableColumns.some(col => col.sampleValues && col.sampleValues.length > 0);
+
+      if (shouldFetchColumns) {
+        setColumnsLoading(true);
+        setColumnsError(null);
+        setEditModeColumnsFetched(true); // Mark as fetched to prevent infinite loops
+        interface ColumnResponse {
+          name: string;
+          type: "string" | "number" | "boolean" | "date" | "unknown";
+          sampleValues?: string[];
+        }
+        api
+          .get<{ data: ColumnResponse[] }>(`/api/v1/data-sources/${dataSourceId}/columns`)
+          .then((response) => {
+            const columns = response.data || [];
+            // Update only the columns, preserving campaignConfig and hierarchyConfig
+            setAvailableColumns(columns);
+          })
+          .catch((err) => {
+            console.error("[CampaignEditor] Failed to refresh columns in edit mode:", err);
+            const errorMessage = err instanceof Error ? err.message : "Failed to load columns";
+            setColumnsError(errorMessage);
+          })
+          .finally(() => {
+            setColumnsLoading(false);
+          });
+      }
+    }
+  }, [mode, dataSourceId, availableColumns, setAvailableColumns, editModeColumnsFetched]);
 
   // Handle data source selection
   const handleDataSourceSelect = useCallback(
@@ -400,6 +506,114 @@ export function CampaignEditor() {
       sectionStatuses["platform"] === "complete"
     );
   }, [sectionStatuses]);
+
+  // Build field errors for scroll-to-error functionality
+  const validationErrors = useMemo((): FieldError[] => {
+    const errors: FieldError[] = [];
+
+    // Campaign set name validation
+    const nameValidation = validateCampaignSetName(state);
+    if (!nameValidation.valid) {
+      errors.push({
+        fieldId: "campaign-set-name",
+        message: nameValidation.errors[0] ?? "Campaign set name is invalid",
+        sectionId: "campaign-set-name",
+      });
+    }
+
+    // Data source validation
+    if (!dataSourceId) {
+      errors.push({
+        fieldId: "data-source-combobox",
+        message: "Please select a data source",
+        sectionId: "data-source",
+      });
+    }
+
+    // Campaign config validation
+    if (campaignConfig) {
+      const configValidation = validateCampaignConfig(campaignConfig, availableColumns);
+      if (!configValidation.valid) {
+        errors.push({
+          fieldId: "campaign-name-pattern",
+          message: configValidation.errors[0] ?? "Campaign name pattern is invalid",
+          sectionId: "campaign-config",
+        });
+      }
+    } else {
+      errors.push({
+        fieldId: "campaign-name-pattern",
+        message: "Campaign name pattern is required",
+        sectionId: "campaign-config",
+      });
+    }
+
+    // Hierarchy config validation
+    if (hierarchyConfig) {
+      const hierarchyValidation = validateHierarchyConfig(hierarchyConfig, availableColumns);
+      if (!hierarchyValidation.valid) {
+        errors.push({
+          fieldId: "hierarchy-config",
+          message: hierarchyValidation.errors[0] ?? "Ad structure configuration is invalid",
+          sectionId: "hierarchy",
+        });
+      }
+    } else {
+      errors.push({
+        fieldId: "hierarchy-config",
+        message: "Ad structure is required",
+        sectionId: "hierarchy",
+      });
+    }
+
+    // Platform selection validation
+    const platformValidation = validatePlatformSelection(state.selectedPlatforms);
+    if (!platformValidation.valid) {
+      errors.push({
+        fieldId: "platform-selector",
+        message: platformValidation.errors[0] ?? "At least one platform must be selected",
+        sectionId: "platform",
+      });
+    }
+
+    return errors;
+  }, [state, dataSourceId, campaignConfig, hierarchyConfig, availableColumns]);
+
+  // Expand a section by ID
+  const expandSection = useCallback((sectionId: string) => {
+    setExpandedSections((prev) => new Set([...prev, sectionId as SectionId]));
+  }, []);
+
+  // Hook up scroll-to-error functionality
+  const { scrollToFirstError, hasErrors } = useScrollToError({
+    errors: validationErrors,
+    expandedSections,
+    onExpandSection: expandSection,
+    scrollBehavior: "smooth",
+    block: "center",
+    focusAfterScroll: true,
+    onErrorNotFound: (fieldId) => {
+      // Log when an error element cannot be found for debugging
+      console.warn(`[CampaignEditor] Could not scroll to error field: ${fieldId}`);
+      // Fallback: expand all sections so the user can find the error manually
+      setExpandedSections(new Set(sections.map((s) => s.id)));
+    },
+  });
+
+  // Handle Generate/Save button click with validation
+  const handleGenerateClick = useCallback(() => {
+    if (!isReadyToGenerate) {
+      // Scroll to first validation error
+      scrollToFirstError();
+      return;
+    }
+
+    // Ready to generate - expand preview section and scroll to it
+    setExpandedSections(new Set(["preview"]));
+    setTimeout(() => {
+      previewSectionRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+  }, [isReadyToGenerate, scrollToFirstError]);
 
   // Check if a section should be disabled (requires data source first)
   const isSectionDisabled = useCallback(
@@ -572,6 +786,8 @@ export function CampaignEditor() {
                 platformBudgets={state.platformBudgets}
                 sampleData={sampleData}
                 onGenerateComplete={handleGenerateComplete}
+                mode={mode}
+                campaignSetId={campaignSetId}
               />
             ) : (
               <div className={styles.incompleteMessage}>
@@ -698,13 +914,28 @@ export function CampaignEditor() {
       {/* Header */}
       <header className={styles.header}>
         <div className={styles.headerLeft}>
-          <h1 className={styles.title}>Create Campaign Set</h1>
+          <h1 className={styles.title}>
+            {mode === "edit" ? "Edit Campaign Set" : "Create Campaign Set"}
+          </h1>
           <p className={styles.subtitle}>
-            Build a campaign set from your data sources
+            {mode === "edit"
+              ? "Modify your campaign set configuration"
+              : "Build a campaign set from your data sources"}
           </p>
         </div>
         <div className={styles.headerRight}>
-          {dataSourceId && (
+          {/* Cancel button for edit mode */}
+          {mode === "edit" && onCancel && (
+            <button
+              type="button"
+              className={styles.cancelButton}
+              onClick={onCancel}
+            >
+              Cancel
+            </button>
+          )}
+          {/* Start Over button for create mode */}
+          {mode === "create" && dataSourceId && (
             <button
               type="button"
               className={styles.startOverButton}
@@ -715,16 +946,11 @@ export function CampaignEditor() {
           )}
           <button
             type="button"
-            className={`${styles.generateButton} ${!isReadyToGenerate ? styles.generateButtonDisabled : ""}`}
-            disabled={!isReadyToGenerate}
-            onClick={() => {
-              setExpandedSections(new Set(["preview"]));
-              setTimeout(() => {
-                previewSectionRef.current?.scrollIntoView({ behavior: "smooth" });
-              }, 100);
-            }}
+            className={`${styles.generateButton} ${hasErrors ? styles.generateButtonDisabled : ""}`}
+            aria-disabled={hasErrors}
+            onClick={handleGenerateClick}
           >
-            <span>Generate</span>
+            <span>{mode === "edit" ? "Save Changes" : "Generate"}</span>
             <span className={styles.generateButtonArrow}>→</span>
           </button>
         </div>
@@ -734,7 +960,7 @@ export function CampaignEditor() {
       <div className={styles.main}>
         {/* Left: Accordion Sections */}
         <div className={styles.accordionPanel}>
-          {SECTIONS.map(renderSection)}
+          {sections.map(renderSection)}
         </div>
 
         {/* Right: Preview Panel */}
@@ -818,7 +1044,7 @@ export function CampaignEditor() {
             <div className={styles.previewSection}>
               <h4 className={styles.previewSectionTitle}>Progress</h4>
               <div className={styles.progressList}>
-                {SECTIONS.filter((s) => s.id !== "preview").map((section) => {
+                {sections.filter((s) => s.id !== "preview").map((section) => {
                   const status = getSectionStatus(section.id);
                   return (
                     <div key={section.id} className={styles.progressItem}>

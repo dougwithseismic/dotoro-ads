@@ -55,8 +55,9 @@ import {
   clearAllStoredData,
 } from "../services/data-ingestion.js";
 import { testApiConnection } from "../services/api-fetch-service.js";
-import { getJobQueue } from "../jobs/queue.js";
+import { getJobQueueReady } from "../jobs/queue.js";
 import { SYNC_API_DATA_SOURCE_JOB, type SyncApiDataSourceJob } from "../jobs/handlers/sync-api-data-source.js";
+import { SYNC_GOOGLE_SHEETS_JOB, type SyncGoogleSheetsJob } from "../jobs/handlers/sync-google-sheets.js";
 import type { ValidationRule } from "@repo/core";
 import { db, dataSources, dataRows, transforms, columnMappings } from "../services/db.js";
 import type { DataSourceStatus } from "../schemas/data-sources.js";
@@ -755,7 +756,10 @@ const triggerSyncRoute = createRoute({
   tags: ["Data Sources"],
   summary: "Trigger manual sync",
   description:
-    "Triggers a manual sync for an API data source. Enqueues a sync job that will fetch the latest data from the configured API endpoint.",
+    "Triggers a manual sync for a data source. Supports 'api' and 'google-sheets' types. " +
+    "For API sources, fetches data from the configured API endpoint. " +
+    "For Google Sheets sources, fetches data from the connected spreadsheet (requires x-user-id header). " +
+    "CSV and manual types cannot be synced - use upload or items endpoints instead.",
   request: {
     params: idParamSchema,
   },
@@ -836,7 +840,44 @@ dataSourcesApp.openapi(createDataSourceRoute, async (c) => {
     throw new ApiException(500, ErrorCode.INTERNAL_ERROR, "Failed to create data source");
   }
 
-  // New data source has 0 rows
+  // Queue initial sync for syncable data source types with proper configuration
+  const config = newDataSource.config as DataSourceConfig | null;
+
+  // Check for Google Sheets config (can be stored directly or nested under googleSheets)
+  const hasGoogleSheetsConfig = config?.spreadsheetId || config?.googleSheets?.spreadsheetId;
+  if (newDataSource.type === "google-sheets" && hasGoogleSheetsConfig) {
+    // For Google Sheets, we need a user ID to fetch OAuth credentials
+    const userId = c.req.header("x-user-id") ?? newDataSource.userId;
+    if (userId) {
+      try {
+        const boss = await getJobQueueReady();
+        const jobData: SyncGoogleSheetsJob = {
+          dataSourceId: newDataSource.id,
+          userId,
+          triggeredBy: "creation",
+        };
+        await boss.send(SYNC_GOOGLE_SHEETS_JOB, jobData);
+      } catch (error) {
+        // Log but don't fail creation - sync can be triggered manually later
+        console.error(`[createDataSource] Failed to queue initial sync for google-sheets:`, error);
+      }
+    }
+  } else if (newDataSource.type === "api" && config?.apiFetch) {
+    // For API sources, queue a sync job to fetch initial data
+    try {
+      const boss = await getJobQueueReady();
+      const jobData: SyncApiDataSourceJob = {
+        dataSourceId: newDataSource.id,
+        triggeredBy: "creation",
+      };
+      await boss.send(SYNC_API_DATA_SOURCE_JOB, jobData);
+    } catch (error) {
+      // Log but don't fail creation - sync can be triggered manually later
+      console.error(`[createDataSource] Failed to queue initial sync for api:`, error);
+    }
+  }
+
+  // New data source has 0 rows (until sync completes)
   const rowCount = 0;
   const status = deriveStatus(rowCount, newDataSource.config);
 
@@ -1928,30 +1969,78 @@ dataSourcesApp.openapi(triggerSyncRoute, async (c) => {
     throw createNotFoundError("Data source", id);
   }
 
-  // Validate it's an API type
-  if (dataSource.type !== "api") {
-    throw createValidationError("Invalid data source type", {
-      message: "Only API type data sources can be synced",
-      type: dataSource.type,
-    });
-  }
-
-  // Validate it has apiFetch configuration
   const config = dataSource.config as DataSourceConfig | null;
-  if (!config?.apiFetch) {
-    throw createValidationError("Missing API configuration", {
-      message: "Data source has no API fetch configuration",
-    });
+  const boss = await getJobQueueReady();
+  let jobId: string | null = null;
+
+  // Handle sync based on data source type
+  switch (dataSource.type) {
+    case "api": {
+      // Validate it has apiFetch configuration
+      if (!config?.apiFetch) {
+        throw createValidationError("Missing API configuration", {
+          message: "Data source has no API fetch configuration",
+        });
+      }
+
+      const jobData: SyncApiDataSourceJob = {
+        dataSourceId: id,
+        triggeredBy: "manual",
+      };
+
+      jobId = await boss.send(SYNC_API_DATA_SOURCE_JOB, jobData);
+      break;
+    }
+
+    case "google-sheets": {
+      // Validate it has Google Sheets configuration (spreadsheetId is the key field)
+      // Config can be stored as { spreadsheetId, sheetName, ... } directly or nested under googleSheets
+      const hasGoogleSheetsConfig = config?.spreadsheetId || config?.googleSheets?.spreadsheetId;
+      if (!hasGoogleSheetsConfig) {
+        throw createValidationError("Missing Google Sheets configuration", {
+          message: "Data source has no Google Sheets configuration (missing spreadsheetId)",
+        });
+      }
+
+      // Get userId from header or data source
+      const userId = c.req.header("x-user-id") ?? dataSource.userId;
+      if (!userId) {
+        throw createValidationError("Missing user ID", {
+          message: "User ID is required to sync Google Sheets. Provide via x-user-id header.",
+        });
+      }
+
+      const jobData: SyncGoogleSheetsJob = {
+        dataSourceId: id,
+        userId,
+        triggeredBy: "manual",
+      };
+
+      jobId = await boss.send(SYNC_GOOGLE_SHEETS_JOB, jobData);
+      break;
+    }
+
+    case "csv": {
+      throw createValidationError("Invalid data source type", {
+        message: "CSV data sources cannot be synced. Use the upload endpoint to update data.",
+        type: dataSource.type,
+      });
+    }
+
+    case "manual": {
+      throw createValidationError("Invalid data source type", {
+        message: "Manual data sources cannot be synced. Use the items endpoint to update data.",
+        type: dataSource.type,
+      });
+    }
+
+    default: {
+      throw createValidationError("Invalid data source type", {
+        message: `Data source type '${dataSource.type}' does not support sync`,
+        type: dataSource.type,
+      });
+    }
   }
-
-  // Get the job queue and enqueue the sync job
-  const boss = await getJobQueue();
-  const jobData: SyncApiDataSourceJob = {
-    dataSourceId: id,
-    triggeredBy: "manual",
-  };
-
-  const jobId = await boss.send(SYNC_API_DATA_SOURCE_JOB, jobData);
 
   if (!jobId) {
     throw new ApiException(500, ErrorCode.INTERNAL_ERROR, "Failed to queue sync job");

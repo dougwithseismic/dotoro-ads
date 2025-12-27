@@ -206,7 +206,7 @@ export function DataSourceCombobox({
   }
 
   return (
-    <div ref={containerRef} className={styles.container}>
+    <div ref={containerRef} className={styles.container} id="data-source-combobox" data-field-id="data-source-combobox" data-section-id="data-source">
       <label htmlFor={inputId} className={styles.label}>
         Data Source
       </label>

@@ -93,3 +93,85 @@ export const googleOAuthErrorSchema = z.object({
 });
 
 export type GoogleOAuthError = z.infer<typeof googleOAuthErrorSchema>;
+
+// ============================================================================
+// Google Sheets API Schemas
+// ============================================================================
+
+/**
+ * Schema for a single spreadsheet from Google Drive
+ */
+export const googleSpreadsheetSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+});
+
+export type GoogleSpreadsheet = z.infer<typeof googleSpreadsheetSchema>;
+
+/**
+ * Response schema for listing spreadsheets
+ */
+export const googleSpreadsheetsResponseSchema = z.object({
+  spreadsheets: z.array(googleSpreadsheetSchema),
+});
+
+export type GoogleSpreadsheetsResponse = z.infer<typeof googleSpreadsheetsResponseSchema>;
+
+/**
+ * Schema for a single sheet within a spreadsheet
+ */
+export const googleSheetSchema = z.object({
+  sheetId: z.number(),
+  title: z.string(),
+  index: z.number(),
+});
+
+export type GoogleSheet = z.infer<typeof googleSheetSchema>;
+
+/**
+ * Response schema for listing sheets in a spreadsheet
+ */
+export const googleSheetsResponseSchema = z.object({
+  sheets: z.array(googleSheetSchema),
+});
+
+export type GoogleSheetsResponse = z.infer<typeof googleSheetsResponseSchema>;
+
+/**
+ * Query parameters for fetching sheet data
+ */
+export const googleSheetDataQuerySchema = z.object({
+  headerRow: z.coerce.number().min(1).default(1).optional(),
+});
+
+export type GoogleSheetDataQuery = z.infer<typeof googleSheetDataQuerySchema>;
+
+/**
+ * Response schema for fetching sheet data
+ */
+export const googleSheetDataResponseSchema = z.object({
+  data: z.array(z.record(z.unknown())),
+  columns: z.array(z.string()),
+  rowCount: z.number(),
+});
+
+export type GoogleSheetDataResponse = z.infer<typeof googleSheetDataResponseSchema>;
+
+/**
+ * Path parameters for sheets endpoints
+ */
+export const googleSpreadsheetParamsSchema = z.object({
+  spreadsheetId: z.string().min(1),
+});
+
+export type GoogleSpreadsheetParams = z.infer<typeof googleSpreadsheetParamsSchema>;
+
+/**
+ * Path parameters for sheet data endpoint
+ */
+export const googleSheetDataParamsSchema = z.object({
+  spreadsheetId: z.string().min(1),
+  sheetName: z.string().min(1),
+});
+
+export type GoogleSheetDataParams = z.infer<typeof googleSheetDataParamsSchema>;

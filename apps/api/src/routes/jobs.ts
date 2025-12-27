@@ -38,7 +38,6 @@ const jobStatusSchema = z.object({
   name: z.string(),
   state: z.enum(["created", "active", "completed", "failed", "cancelled"]),
   data: z.unknown(),
-  progress: z.number().optional(),
   output: z.unknown().optional(),
   error: z.string().optional(),
   startedAt: z.string().optional(),
@@ -109,21 +108,22 @@ jobsApp.openapi(getJobStatusRoute, async (c) => {
   }
 
   // Map pg-boss job to our JobStatus format
+  // Note: pg-boss JobWithMetadata doesn't have a progress field, so we omit it
+  // The date fields (startedOn, completedOn, createdOn) are already Date objects
   const status: JobStatus = {
     id: job.id,
     name: job.name,
     state: job.state as JobState,
     data: job.data,
-    progress: job.progress ?? undefined,
     output: job.output ?? undefined,
     error: job.state === "failed" && job.output
       ? (typeof job.output === "object" && job.output !== null && "message" in job.output
           ? String((job.output as { message?: string }).message)
           : "Job failed")
       : undefined,
-    startedAt: job.startedOn ? new Date(job.startedOn).toISOString() : undefined,
-    completedAt: job.completedOn ? new Date(job.completedOn).toISOString() : undefined,
-    createdAt: new Date(job.createdOn).toISOString(),
+    startedAt: job.startedOn ? job.startedOn : undefined,
+    completedAt: job.completedOn ? job.completedOn : undefined,
+    createdAt: job.createdOn,
   };
 
   return c.json({
@@ -131,12 +131,11 @@ jobsApp.openapi(getJobStatusRoute, async (c) => {
     name: status.name,
     state: status.state,
     data: status.data,
-    progress: status.progress,
     output: status.output,
     error: status.error,
-    startedAt: status.startedAt,
-    completedAt: status.completedAt,
-    createdAt: status.createdAt,
+    startedAt: status.startedAt?.toISOString(),
+    completedAt: status.completedAt?.toISOString(),
+    createdAt: status.createdAt.toISOString(),
   }, 200);
 });
 

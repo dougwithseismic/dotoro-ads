@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import type {
   WizardStep,
   WizardState,
@@ -48,6 +48,64 @@ export function WizardSidePanel({
   campaignConfig,
   hierarchyConfig,
 }: WizardSidePanelProps) {
+  // State for hierarchy drawer
+  const [isHierarchyDrawerOpen, setIsHierarchyDrawerOpen] = useState(false);
+  const [collapsedCampaigns, setCollapsedCampaigns] = useState<Set<string>>(new Set());
+  const [collapsedAdGroups, setCollapsedAdGroups] = useState<Set<string>>(new Set());
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Focus close button when drawer opens
+  useEffect(() => {
+    if (isHierarchyDrawerOpen) {
+      closeButtonRef.current?.focus();
+    }
+  }, [isHierarchyDrawerOpen]);
+
+  // Handle escape key and body scroll lock for drawer
+  useEffect(() => {
+    if (!isHierarchyDrawerOpen) return;
+
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsHierarchyDrawerOpen(false);
+      }
+    };
+
+    document.addEventListener("keydown", handleEscape);
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+      document.body.style.overflow = "";
+    };
+  }, [isHierarchyDrawerOpen]);
+
+  // Toggle campaign collapse in drawer
+  const toggleCampaign = useCallback((name: string) => {
+    setCollapsedCampaigns((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) {
+        next.delete(name);
+      } else {
+        next.add(name);
+      }
+      return next;
+    });
+  }, []);
+
+  // Toggle ad group collapse in drawer
+  const toggleAdGroup = useCallback((key: string) => {
+    setCollapsedAdGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }, []);
+
   // Compute preview data with REAL deduplicated hierarchy (same logic as HierarchyPreview)
   // Using direct props (campaignConfig, hierarchyConfig) ensures React detects changes properly
   const previewData = useMemo(() => {
@@ -221,7 +279,28 @@ export function WizardSidePanel({
 
   const renderHierarchyPreview = () => (
     <div className={styles.previewSection}>
-      <h4 className={styles.sectionTitle}>Campaign Structure</h4>
+      <div className={styles.sectionHeader}>
+        <h4 className={styles.sectionTitle}>Campaign Structure</h4>
+        {previewData && previewData.campaigns.length > 0 && (
+          <button
+            type="button"
+            className={styles.expandButton}
+            onClick={() => setIsHierarchyDrawerOpen(true)}
+            aria-label="Expand hierarchy view"
+            title="View full hierarchy"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path
+                d="M8.5 1.5H12.5V5.5M12.5 1.5L7.5 6.5M5.5 12.5H1.5V8.5M1.5 12.5L6.5 7.5"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        )}
+      </div>
       {previewData && previewData.campaigns.length > 0 ? (
         <>
           <div className={styles.statsGrid}>
@@ -410,12 +489,152 @@ export function WizardSidePanel({
   };
 
   return (
-    <aside className={styles.sidePanel} aria-label="Wizard preview">
-      <div className={styles.sidePanelHeader}>
-        <h3 className={styles.sidePanelTitle}>Preview</h3>
-        <span className={styles.sidePanelBadge}>Live</span>
-      </div>
-      <div className={styles.sidePanelContent}>{renderContent()}</div>
-    </aside>
+    <>
+      <aside className={styles.sidePanel} aria-label="Wizard preview">
+        <div className={styles.sidePanelHeader}>
+          <h3 className={styles.sidePanelTitle}>Preview</h3>
+          <span className={styles.sidePanelBadge}>Live</span>
+        </div>
+        <div className={styles.sidePanelContent}>{renderContent()}</div>
+      </aside>
+
+      {/* Hierarchy Drawer */}
+      {isHierarchyDrawerOpen && previewData && (
+        <div
+          className={styles.drawerOverlay}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setIsHierarchyDrawerOpen(false);
+            }
+          }}
+        >
+          <aside
+            className={styles.hierarchyDrawer}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="hierarchy-drawer-title"
+          >
+            <header className={styles.drawerHeader}>
+              <h2 id="hierarchy-drawer-title" className={styles.drawerTitle}>
+                Campaign Hierarchy
+              </h2>
+              <button
+                ref={closeButtonRef}
+                type="button"
+                className={styles.drawerCloseButton}
+                onClick={() => setIsHierarchyDrawerOpen(false)}
+                aria-label="Close"
+              >
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                  <path
+                    d="M5 5L15 15M15 5L5 15"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            </header>
+
+            <div className={styles.drawerStats}>
+              <div className={styles.drawerStatItem}>
+                <span className={styles.drawerStatValue}>{previewData.totalCampaigns}</span>
+                <span className={styles.drawerStatLabel}>Campaigns</span>
+              </div>
+              <div className={styles.drawerStatItem}>
+                <span className={styles.drawerStatValue}>{previewData.totalAdGroups}</span>
+                <span className={styles.drawerStatLabel}>Ad Groups</span>
+              </div>
+              <div className={styles.drawerStatItem}>
+                <span className={styles.drawerStatValue}>{previewData.totalAds}</span>
+                <span className={styles.drawerStatLabel}>Ads</span>
+              </div>
+            </div>
+
+            <div className={styles.drawerContent}>
+              {previewData.campaigns.map((campaign, idx) => {
+                const isCampaignCollapsed = collapsedCampaigns.has(campaign.name);
+
+                return (
+                  <div key={idx} className={styles.drawerCampaignNode}>
+                    <div className={styles.drawerCampaignHeader}>
+                      <button
+                        type="button"
+                        className={`${styles.drawerToggleButton} ${!isCampaignCollapsed ? styles.drawerToggleExpanded : ""}`}
+                        onClick={() => toggleCampaign(campaign.name)}
+                        aria-expanded={!isCampaignCollapsed}
+                      >
+                        <span className={styles.drawerToggleIcon}>&#9656;</span>
+                      </button>
+                      <span className={styles.drawerNodeIconCampaign}>C</span>
+                      <span className={styles.drawerCampaignName} title={campaign.name}>
+                        {campaign.name || "(empty)"}
+                      </span>
+                      <span className={styles.drawerNodeCount}>
+                        {campaign.adGroups.length} ad group{campaign.adGroups.length !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+
+                    {!isCampaignCollapsed && (
+                      <div className={styles.drawerAdGroupNodes}>
+                        {campaign.adGroups.map((ag, agIdx) => {
+                          const agKey = `${campaign.name}-${ag.name}`;
+                          const isAdGroupCollapsed = collapsedAdGroups.has(agKey);
+
+                          return (
+                            <div key={agIdx} className={styles.drawerAdGroupNode}>
+                              <div className={styles.drawerAdGroupHeader}>
+                                <button
+                                  type="button"
+                                  className={`${styles.drawerToggleButton} ${!isAdGroupCollapsed ? styles.drawerToggleExpanded : ""}`}
+                                  onClick={() => toggleAdGroup(agKey)}
+                                  aria-expanded={!isAdGroupCollapsed}
+                                >
+                                  <span className={styles.drawerToggleIcon}>&#9656;</span>
+                                </button>
+                                <span className={styles.drawerNodeIconAdGroup}>AG</span>
+                                <span className={styles.drawerAdGroupName} title={ag.name}>
+                                  {ag.name || "(empty)"}
+                                </span>
+                                <span className={styles.drawerNodeCount}>
+                                  {ag.ads.length} ad{ag.ads.length !== 1 ? "s" : ""}
+                                </span>
+                              </div>
+
+                              {!isAdGroupCollapsed && (
+                                <div className={styles.drawerAdsContainer}>
+                                  {ag.ads.slice(0, 10).map((ad, adIdx) => (
+                                    <div key={adIdx} className={styles.drawerAdNode}>
+                                      <span className={styles.drawerNodeIconAd}>Ad</span>
+                                      <div className={styles.drawerAdContent}>
+                                        <span className={styles.drawerAdHeadline}>
+                                          {ad.headline || "(no headline)"}
+                                        </span>
+                                        <span className={styles.drawerAdDescription}>
+                                          {ad.description || "(no description)"}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                  {ag.ads.length > 10 && (
+                                    <div className={styles.drawerMoreAds}>
+                                      ...and {ag.ads.length - 10} more ad{ag.ads.length - 10 !== 1 ? "s" : ""}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </aside>
+        </div>
+      )}
+    </>
   );
 }

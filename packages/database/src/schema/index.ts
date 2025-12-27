@@ -166,3 +166,10 @@ export {
   keywordStatusEnum,
 } from "./keywords.js";
 export type { Keyword, NewKeyword } from "./keywords.js";
+
+// User OAuth Tokens (for data source integrations)
+export { userOAuthTokens } from "./user-oauth-tokens.js";
+export type {
+  UserOAuthToken,
+  NewUserOAuthToken,
+} from "./user-oauth-tokens.js";

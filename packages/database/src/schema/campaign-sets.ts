@@ -94,16 +94,170 @@ export const campaignSetsRelations = relations(campaignSets, ({ one, many }) => 
   campaigns: many(generatedCampaigns),
 }));
 
+// ============================================================================
+// Supporting Types for CampaignSetConfig
+// ============================================================================
+
+/** Budget configuration for a platform */
+export interface BudgetConfig {
+  type: "daily" | "lifetime" | "shared";
+  amountPattern: string;
+  currency: string;
+  pacing?: "standard" | "accelerated";
+}
+
+/** Fallback strategy for text that exceeds character limits */
+export type FallbackStrategy = "truncate" | "truncate_word" | "error";
+
+/** Ad definition with optional ID and fallback strategies */
+export interface AdDefinition {
+  id?: string;
+  headline?: string;
+  headlineFallback?: FallbackStrategy;
+  description?: string;
+  descriptionFallback?: FallbackStrategy;
+  displayUrl?: string;
+  finalUrl?: string;
+  callToAction?: string;
+}
+
+/** Ad group definition with optional ID */
+export interface AdGroupDefinition {
+  id?: string;
+  namePattern: string;
+  keywords?: string[];
+  ads: AdDefinition[];
+}
+
+/** Hierarchy configuration with enhanced ad groups and ads */
+export interface HierarchyConfig {
+  adGroups: AdGroupDefinition[];
+}
+
+/** Inline condition for rule evaluation */
+export interface InlineCondition {
+  id: string;
+  field: string;
+  operator: string;
+  value: string;
+}
+
+/** Inline action to execute when rule conditions are met */
+export interface InlineAction {
+  id: string;
+  type: "skip" | "set_field" | "modify_field" | "add_tag";
+  field?: string;
+  value?: string;
+  operation?: "append" | "prepend" | "replace";
+  tag?: string;
+}
+
+/** Enhanced inline rule with conditions and actions */
+export interface EnhancedInlineRule {
+  id: string;
+  name: string;
+  enabled: boolean;
+  logic: "AND" | "OR";
+  conditions: InlineCondition[];
+  actions: InlineAction[];
+}
+
+/** Legacy inline rule (for backwards compatibility) */
+export interface LegacyInlineRule {
+  field: string;
+  operator: string;
+  value: unknown;
+  enabled: boolean;
+}
+
+/** Inline rule (union of enhanced and legacy formats) */
+export type InlineRule = EnhancedInlineRule | LegacyInlineRule;
+
+/** Persona role for Reddit threads */
+export type PersonaRole =
+  | "op"
+  | "community_member"
+  | "skeptic"
+  | "enthusiast"
+  | "expert"
+  | "curious"
+  | "moderator";
+
+/** Persona tone for Reddit threads */
+export type PersonaTone =
+  | "friendly"
+  | "skeptical"
+  | "enthusiastic"
+  | "neutral"
+  | "curious";
+
+/** Reddit post type */
+export type RedditPostType = "text" | "link" | "image" | "video";
+
+/** Author persona for thread generation */
+export interface AuthorPersona {
+  id: string;
+  name: string;
+  description: string;
+  role: PersonaRole;
+  tone?: PersonaTone;
+}
+
+/** Reddit post configuration */
+export interface RedditPostConfig {
+  title: string;
+  body?: string;
+  url?: string;
+  type: RedditPostType;
+  subreddit: string;
+  flair?: string;
+  nsfw?: boolean;
+  spoiler?: boolean;
+  sendReplies?: boolean;
+}
+
+/** Comment definition for thread */
+export interface CommentDefinition {
+  id: string;
+  parentId?: string | null;
+  persona: string;
+  body: string;
+  depth: number;
+  sortOrder: number;
+}
+
+/** Thread configuration for Reddit organic content */
+export interface ThreadConfig {
+  post: RedditPostConfig;
+  comments: CommentDefinition[];
+  personas: AuthorPersona[];
+}
+
+/** Data source column with type information */
+export interface DataSourceColumn {
+  name: string;
+  type: "string" | "number" | "boolean" | "date" | "unknown";
+  sampleValues?: string[];
+}
+
+/** Available columns (legacy string array or enhanced with type info) */
+export type AvailableColumns = string[] | DataSourceColumn[];
+
+// ============================================================================
+// Campaign Set Config Interface
+// ============================================================================
+
 /**
  * CampaignSetConfig - Wizard state snapshot
  * Stores the complete configuration from the campaign wizard
- * Aligned with core types for capturing complete wizard state
+ * Enhanced to support all fields needed for round-trip editing
  */
 export interface CampaignSetConfig {
+  // Core required fields
   /** ID of the data source used for generation */
   dataSourceId: string;
-  /** Available columns from the data source */
-  availableColumns: string[];
+  /** Available columns from the data source (string[] or DataSourceColumn[]) */
+  availableColumns: AvailableColumns;
   /** Selected advertising platforms */
   selectedPlatforms: string[];
   /** Selected ad types per platform */
@@ -112,45 +266,39 @@ export interface CampaignSetConfig {
   campaignConfig: {
     /** Pattern for campaign names, e.g., "{brand}-performance" */
     namePattern: string;
+    /** Campaign objective (optional) */
+    objective?: string;
   };
-  /** Budget configuration */
-  budgetConfig?: {
-    type: "daily" | "lifetime" | "shared";
-    amountPattern: string;
-    currency: string;
-    pacing?: "standard" | "accelerated";
-  };
-  /** Per-platform bidding configuration */
-  biddingConfig?: Record<string, unknown>;
-  /** Hierarchy configuration snapshot from wizard */
-  hierarchyConfig: {
-    adGroups: Array<{
-      namePattern: string;
-      keywords?: string[];
-      ads: Array<{
-        headline?: string;
-        description?: string;
-        displayUrl?: string;
-        finalUrl?: string;
-        callToAction?: string;
-      }>;
-    }>;
-  };
-  /** Targeting configuration */
-  targetingConfig?: Record<string, unknown>;
-  /** Inline rules for data transformation */
-  inlineRules?: Array<{
-    field: string;
-    operator: string;
-    value: unknown;
-    enabled: boolean;
-  }>;
+  /** Hierarchy configuration snapshot from wizard (enhanced with IDs and fallbacks) */
+  hierarchyConfig: HierarchyConfig;
   /** Timestamp when campaigns were generated (ISO date string) */
   generatedAt: string;
   /** Number of data rows processed */
   rowCount: number;
   /** Number of campaigns generated */
   campaignCount: number;
+
+  // Budget configuration (legacy and per-platform)
+  /** Legacy single budget configuration */
+  budgetConfig?: BudgetConfig;
+  /** Per-platform budget configuration */
+  platformBudgets?: Record<string, BudgetConfig | null>;
+
+  // Bidding and targeting
+  /** Per-platform bidding configuration */
+  biddingConfig?: Record<string, unknown>;
+  /** Targeting configuration */
+  targetingConfig?: Record<string, unknown>;
+
+  // Rules (legacy and enhanced)
+  /** Rule template IDs */
+  ruleIds?: string[];
+  /** Inline rules for data transformation (enhanced or legacy format) */
+  inlineRules?: InlineRule[];
+
+  // Thread config (for Reddit)
+  /** Thread configuration for Reddit organic content */
+  threadConfig?: ThreadConfig;
 }
 
 // Type exports

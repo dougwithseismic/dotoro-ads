@@ -115,7 +115,7 @@ export function PlatformSelector({
   }, [platformBudgets, onBudgetChange]);
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} id="platform-selector" data-field-id="platform-selector" data-section-id="platform">
       <div className={styles.header}>
         <h3 className={styles.title}>Select Platforms</h3>
         <p className={styles.description}>

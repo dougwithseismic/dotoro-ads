@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo, useId } from "react";
 import { api } from "@/lib/api-client";
 import type { GoogleSheetsConfig, SyncFrequency } from "@/app/data-sources/types";
 import styles from "./GoogleSheetsForm.module.css";
@@ -19,6 +19,32 @@ interface GoogleSheetsFormProps {
 interface Spreadsheet {
   id: string;
   name: string;
+  modifiedTime: string; // ISO 8601 timestamp
+}
+
+type SortOption = "recent" | "name";
+
+/**
+ * Format a date as relative time (e.g., "2 days ago", "3 weeks ago")
+ */
+function formatRelativeTime(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSeconds = Math.floor(diffMs / 1000);
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  const diffHours = Math.floor(diffMinutes / 60);
+  const diffDays = Math.floor(diffHours / 24);
+  const diffWeeks = Math.floor(diffDays / 7);
+  const diffMonths = Math.floor(diffDays / 30);
+
+  if (diffMinutes < 1) return "Just now";
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffWeeks < 4) return `${diffWeeks}w ago`;
+  if (diffMonths < 12) return `${diffMonths}mo ago`;
+  return date.toLocaleDateString();
 }
 
 interface Sheet {
@@ -67,6 +93,26 @@ export function GoogleSheetsForm({
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // Combobox state for spreadsheet selector
+  const [spreadsheetOpen, setSpreadsheetOpen] = useState(false);
+  const [spreadsheetSearch, setSpreadsheetSearch] = useState("");
+  const [spreadsheetHighlight, setSpreadsheetHighlight] = useState(-1);
+  const [spreadsheetSort, setSpreadsheetSort] = useState<SortOption>("recent");
+  const spreadsheetInputRef = useRef<HTMLInputElement>(null);
+  const spreadsheetContainerRef = useRef<HTMLDivElement>(null);
+
+  // Combobox state for sheet selector
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetSearch, setSheetSearch] = useState("");
+  const [sheetHighlight, setSheetHighlight] = useState(-1);
+  const sheetInputRef = useRef<HTMLInputElement>(null);
+  const sheetContainerRef = useRef<HTMLDivElement>(null);
+
+  // Generate stable IDs for accessibility
+  const baseId = useId();
+  const spreadsheetListboxId = `spreadsheet-listbox${baseId}`;
+  const sheetListboxId = `sheet-listbox${baseId}`;
+
   // Load spreadsheets when connected
   const fetchSpreadsheets = useCallback(async () => {
     if (!isConnected) return;
@@ -74,8 +120,8 @@ export function GoogleSheetsForm({
     try {
       setLoadingSpreadsheets(true);
       setError(null);
-      const response = await api.get<{ data: Spreadsheet[] }>("/api/v1/google/spreadsheets");
-      setSpreadsheets(response.data);
+      const response = await api.get<{ spreadsheets: Spreadsheet[] }>("/api/v1/google/spreadsheets");
+      setSpreadsheets(response.spreadsheets ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load spreadsheets");
     } finally {
@@ -94,10 +140,10 @@ export function GoogleSheetsForm({
     try {
       setLoadingSheets(true);
       setError(null);
-      const response = await api.get<{ data: Sheet[] }>(
+      const response = await api.get<{ sheets: Sheet[] }>(
         `/api/v1/google/spreadsheets/${spreadsheetId}/sheets`
       );
-      setSheets(response.data);
+      setSheets(response.sheets ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load sheets");
     } finally {
@@ -113,10 +159,17 @@ export function GoogleSheetsForm({
       try {
         setLoadingPreview(true);
         setError(null);
-        const response = await api.get<{ data: PreviewData }>(
-          `/api/v1/google/spreadsheets/${spreadsheetId}/sheets/${encodeURIComponent(sheetName)}/preview?headerRow=${headerRowNum}`
+        const response = await api.get<{
+          data: Record<string, unknown>[];
+          columns: string[];
+          rowCount: number;
+        }>(
+          `/api/v1/google/spreadsheets/${spreadsheetId}/sheets/${encodeURIComponent(sheetName)}/data?headerRow=${headerRowNum}`
         );
-        setPreview(response.data);
+        setPreview({
+          headers: response.columns ?? [],
+          rows: response.data ?? [],
+        });
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load preview");
       } finally {
@@ -126,29 +179,177 @@ export function GoogleSheetsForm({
     []
   );
 
-  // Handle spreadsheet selection
-  const handleSpreadsheetChange = (spreadsheetId: string) => {
-    setSelectedSpreadsheetId(spreadsheetId);
-    const spreadsheet = spreadsheets.find((s) => s.id === spreadsheetId);
-    setSelectedSpreadsheetName(spreadsheet?.name || "");
-    setSelectedSheetName("");
-    setSheets([]);
-    setPreview(null);
+  // Filter and sort spreadsheets
+  const filteredSpreadsheets = useMemo(() => {
+    let result = spreadsheets;
 
-    if (spreadsheetId) {
-      fetchSheets(spreadsheetId);
+    // Filter by search query
+    if (spreadsheetSearch.trim()) {
+      const query = spreadsheetSearch.toLowerCase();
+      result = result.filter((s) => s.name.toLowerCase().includes(query));
     }
-  };
+
+    // Sort
+    if (spreadsheetSort === "name") {
+      result = [...result].sort((a, b) => a.name.localeCompare(b.name));
+    }
+    // "recent" sort is already applied by the API (modifiedTime desc)
+
+    return result;
+  }, [spreadsheets, spreadsheetSearch, spreadsheetSort]);
+
+  // Filter sheets based on search
+  const filteredSheets = useMemo(() => {
+    if (!sheetSearch.trim()) return sheets;
+    const query = sheetSearch.toLowerCase();
+    return sheets.filter((s) => s.title.toLowerCase().includes(query));
+  }, [sheets, sheetSearch]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (!spreadsheetOpen && !sheetOpen) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        spreadsheetOpen &&
+        spreadsheetContainerRef.current &&
+        !spreadsheetContainerRef.current.contains(e.target as Node)
+      ) {
+        setSpreadsheetOpen(false);
+        setSpreadsheetSearch("");
+        setSpreadsheetHighlight(-1);
+      }
+      if (
+        sheetOpen &&
+        sheetContainerRef.current &&
+        !sheetContainerRef.current.contains(e.target as Node)
+      ) {
+        setSheetOpen(false);
+        setSheetSearch("");
+        setSheetHighlight(-1);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [spreadsheetOpen, sheetOpen]);
+
+  // Handle spreadsheet selection
+  const handleSpreadsheetSelect = useCallback(
+    (spreadsheet: Spreadsheet) => {
+      setSelectedSpreadsheetId(spreadsheet.id);
+      setSelectedSpreadsheetName(spreadsheet.name);
+      setSelectedSheetName("");
+      setSheets([]);
+      setPreview(null);
+      setSpreadsheetOpen(false);
+      setSpreadsheetSearch("");
+      setSpreadsheetHighlight(-1);
+      fetchSheets(spreadsheet.id);
+    },
+    [fetchSheets]
+  );
 
   // Handle sheet selection
-  const handleSheetChange = (sheetName: string) => {
-    setSelectedSheetName(sheetName);
-    setPreview(null);
+  const handleSheetSelect = useCallback(
+    (sheet: Sheet) => {
+      setSelectedSheetName(sheet.title);
+      setSheetOpen(false);
+      setSheetSearch("");
+      setSheetHighlight(-1);
+      setPreview(null);
+      if (selectedSpreadsheetId) {
+        fetchPreview(selectedSpreadsheetId, sheet.title, headerRow);
+      }
+    },
+    [selectedSpreadsheetId, headerRow, fetchPreview]
+  );
 
-    if (sheetName && selectedSpreadsheetId) {
-      fetchPreview(selectedSpreadsheetId, sheetName, headerRow);
-    }
-  };
+  // Keyboard navigation for spreadsheet combobox
+  const handleSpreadsheetKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (!spreadsheetOpen) {
+        if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          setSpreadsheetOpen(true);
+          return;
+        }
+        return;
+      }
+
+      switch (e.key) {
+        case "ArrowDown":
+          e.preventDefault();
+          setSpreadsheetHighlight((prev) =>
+            Math.min(prev + 1, filteredSpreadsheets.length - 1)
+          );
+          break;
+        case "ArrowUp":
+          e.preventDefault();
+          setSpreadsheetHighlight((prev) => Math.max(prev - 1, 0));
+          break;
+        case "Enter":
+          e.preventDefault();
+          if (spreadsheetHighlight >= 0 && filteredSpreadsheets[spreadsheetHighlight]) {
+            handleSpreadsheetSelect(filteredSpreadsheets[spreadsheetHighlight]);
+          }
+          break;
+        case "Escape":
+          e.preventDefault();
+          setSpreadsheetOpen(false);
+          setSpreadsheetSearch("");
+          setSpreadsheetHighlight(-1);
+          break;
+        case "Tab":
+          setSpreadsheetOpen(false);
+          setSpreadsheetSearch("");
+          break;
+      }
+    },
+    [spreadsheetOpen, filteredSpreadsheets, spreadsheetHighlight, handleSpreadsheetSelect]
+  );
+
+  // Keyboard navigation for sheet combobox
+  const handleSheetKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (!sheetOpen) {
+        if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          setSheetOpen(true);
+          return;
+        }
+        return;
+      }
+
+      switch (e.key) {
+        case "ArrowDown":
+          e.preventDefault();
+          setSheetHighlight((prev) => Math.min(prev + 1, filteredSheets.length - 1));
+          break;
+        case "ArrowUp":
+          e.preventDefault();
+          setSheetHighlight((prev) => Math.max(prev - 1, 0));
+          break;
+        case "Enter":
+          e.preventDefault();
+          if (sheetHighlight >= 0 && filteredSheets[sheetHighlight]) {
+            handleSheetSelect(filteredSheets[sheetHighlight]);
+          }
+          break;
+        case "Escape":
+          e.preventDefault();
+          setSheetOpen(false);
+          setSheetSearch("");
+          setSheetHighlight(-1);
+          break;
+        case "Tab":
+          setSheetOpen(false);
+          setSheetSearch("");
+          break;
+      }
+    },
+    [sheetOpen, filteredSheets, sheetHighlight, handleSheetSelect]
+  );
 
   // Handle header row change
   const handleHeaderRowChange = (row: number) => {
@@ -177,8 +378,7 @@ export function GoogleSheetsForm({
       };
       await onSubmit(name, config);
     } catch {
-      // Error is handled by the parent component (CreateDataSourceDrawer)
-      // which sets the error state and displays it
+      // Error is handled by the parent component
     } finally {
       setSubmitting(false);
     }
@@ -260,52 +460,223 @@ export function GoogleSheetsForm({
         />
       </div>
 
+      {/* Spreadsheet Combobox */}
       <div className={styles.formGroup}>
-        <label htmlFor="spreadsheet" className={styles.label}>
-          Spreadsheet
-        </label>
-        <select
-          id="spreadsheet"
-          value={selectedSpreadsheetId}
-          onChange={(e) => handleSpreadsheetChange(e.target.value)}
-          className={styles.select}
-          disabled={loadingSpreadsheets}
-        >
-          <option value="">
-            {loadingSpreadsheets ? "Loading spreadsheets..." : "Select a spreadsheet"}
-          </option>
-          {spreadsheets.map((spreadsheet) => (
-            <option key={spreadsheet.id} value={spreadsheet.id}>
-              {spreadsheet.name}
-            </option>
-          ))}
-        </select>
+        <label className={styles.label}>Spreadsheet</label>
+        <div ref={spreadsheetContainerRef} className={styles.comboboxWrapper}>
+          <div
+            className={`${styles.comboboxTrigger} ${spreadsheetOpen ? styles.comboboxTriggerOpen : ""} ${loadingSpreadsheets ? styles.comboboxTriggerDisabled : ""}`}
+            onClick={() => {
+              if (!loadingSpreadsheets) {
+                setSpreadsheetOpen(true);
+                spreadsheetInputRef.current?.focus();
+              }
+            }}
+          >
+            {spreadsheetOpen ? (
+              <input
+                ref={spreadsheetInputRef}
+                type="text"
+                className={styles.searchInput}
+                value={spreadsheetSearch}
+                onChange={(e) => {
+                  setSpreadsheetSearch(e.target.value);
+                  setSpreadsheetHighlight(-1);
+                }}
+                onKeyDown={handleSpreadsheetKeyDown}
+                placeholder="Search spreadsheets..."
+                autoFocus
+                role="combobox"
+                aria-expanded={spreadsheetOpen}
+                aria-controls={spreadsheetListboxId}
+                aria-autocomplete="list"
+              />
+            ) : selectedSpreadsheetName ? (
+              <span className={styles.selectedValue}>{selectedSpreadsheetName}</span>
+            ) : (
+              <span className={styles.placeholder}>
+                {loadingSpreadsheets ? "Loading spreadsheets..." : "Select a spreadsheet"}
+              </span>
+            )}
+            <span className={`${styles.chevron} ${spreadsheetOpen ? styles.chevronOpen : ""}`}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M4 6L8 10L12 6"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </span>
+          </div>
+
+          {spreadsheetOpen && (
+            <div id={spreadsheetListboxId} className={styles.dropdown} role="listbox">
+              {/* Sort toggle */}
+              <div className={styles.sortToggle}>
+                <button
+                  type="button"
+                  className={`${styles.sortButton} ${spreadsheetSort === "recent" ? styles.sortButtonActive : ""}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSpreadsheetSort("recent");
+                  }}
+                >
+                  Recent
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.sortButton} ${spreadsheetSort === "name" ? styles.sortButtonActive : ""}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSpreadsheetSort("name");
+                  }}
+                >
+                  A-Z
+                </button>
+              </div>
+
+              {filteredSpreadsheets.length === 0 ? (
+                <div className={styles.noResults}>
+                  {spreadsheetSearch ? `No spreadsheets match "${spreadsheetSearch}"` : "No spreadsheets found"}
+                </div>
+              ) : (
+                filteredSpreadsheets.map((spreadsheet, index) => {
+                  const isSelected = spreadsheet.id === selectedSpreadsheetId;
+                  const isHighlighted = index === spreadsheetHighlight;
+                  return (
+                    <button
+                      key={spreadsheet.id}
+                      type="button"
+                      role="option"
+                      className={`${styles.option} ${isSelected ? styles.optionSelected : ""} ${isHighlighted ? styles.optionHighlighted : ""}`}
+                      onClick={() => handleSpreadsheetSelect(spreadsheet)}
+                      aria-selected={isSelected}
+                    >
+                      <div className={styles.optionContent}>
+                        <span className={styles.optionName}>{spreadsheet.name}</span>
+                        <span className={styles.optionMeta}>
+                          {formatRelativeTime(spreadsheet.modifiedTime)}
+                        </span>
+                      </div>
+                      {isSelected && (
+                        <span className={styles.checkmark}>
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            <path
+                              d="M3 8L6.5 11.5L13 4.5"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </span>
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
+      {/* Sheet Combobox */}
       <div className={styles.formGroup}>
-        <label htmlFor="sheet" className={styles.label}>
-          Sheet / Tab
-        </label>
-        <select
-          id="sheet"
-          value={selectedSheetName}
-          onChange={(e) => handleSheetChange(e.target.value)}
-          className={styles.select}
-          disabled={!selectedSpreadsheetId || loadingSheets}
-        >
-          <option value="">
-            {loadingSheets
-              ? "Loading sheets..."
-              : !selectedSpreadsheetId
-              ? "Select a spreadsheet first"
-              : "Select a sheet"}
-          </option>
-          {sheets.map((sheet) => (
-            <option key={sheet.sheetId} value={sheet.title}>
-              {sheet.title}
-            </option>
-          ))}
-        </select>
+        <label className={styles.label}>Sheet / Tab</label>
+        <div ref={sheetContainerRef} className={styles.comboboxWrapper}>
+          <div
+            className={`${styles.comboboxTrigger} ${sheetOpen ? styles.comboboxTriggerOpen : ""} ${!selectedSpreadsheetId || loadingSheets ? styles.comboboxTriggerDisabled : ""}`}
+            onClick={() => {
+              if (selectedSpreadsheetId && !loadingSheets) {
+                setSheetOpen(true);
+                sheetInputRef.current?.focus();
+              }
+            }}
+          >
+            {sheetOpen ? (
+              <input
+                ref={sheetInputRef}
+                type="text"
+                className={styles.searchInput}
+                value={sheetSearch}
+                onChange={(e) => {
+                  setSheetSearch(e.target.value);
+                  setSheetHighlight(-1);
+                }}
+                onKeyDown={handleSheetKeyDown}
+                placeholder="Search sheets..."
+                autoFocus
+                role="combobox"
+                aria-expanded={sheetOpen}
+                aria-controls={sheetListboxId}
+                aria-autocomplete="list"
+              />
+            ) : selectedSheetName ? (
+              <span className={styles.selectedValue}>{selectedSheetName}</span>
+            ) : (
+              <span className={styles.placeholder}>
+                {loadingSheets
+                  ? "Loading sheets..."
+                  : !selectedSpreadsheetId
+                  ? "Select a spreadsheet first"
+                  : "Select a sheet"}
+              </span>
+            )}
+            <span className={`${styles.chevron} ${sheetOpen ? styles.chevronOpen : ""}`}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M4 6L8 10L12 6"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </span>
+          </div>
+
+          {sheetOpen && (
+            <div id={sheetListboxId} className={styles.dropdown} role="listbox">
+              {filteredSheets.length === 0 ? (
+                <div className={styles.noResults}>
+                  {sheetSearch ? `No sheets match "${sheetSearch}"` : "No sheets found"}
+                </div>
+              ) : (
+                filteredSheets.map((sheet, index) => {
+                  const isSelected = sheet.title === selectedSheetName;
+                  const isHighlighted = index === sheetHighlight;
+                  return (
+                    <button
+                      key={sheet.sheetId}
+                      type="button"
+                      role="option"
+                      className={`${styles.option} ${isSelected ? styles.optionSelected : ""} ${isHighlighted ? styles.optionHighlighted : ""}`}
+                      onClick={() => handleSheetSelect(sheet)}
+                      aria-selected={isSelected}
+                    >
+                      <span>{sheet.title}</span>
+                      {isSelected && (
+                        <span className={styles.checkmark}>
+                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            <path
+                              d="M3 8L6.5 11.5L13 4.5"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </span>
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className={styles.formRow}>

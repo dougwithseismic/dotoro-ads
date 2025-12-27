@@ -8,3 +8,5 @@ export { useThreadBuilder } from './useThreadBuilder';
 export type { UseThreadBuilderOptions, UseThreadBuilderResult, CommentTreeNode, PreviewData } from './useThreadBuilder';
 export { useAssetUpload } from './useAssetUpload';
 export type { UseAssetUploadOptions, UseAssetUploadResult, AssetUploadStatus, LocalPreview, UploadedAsset } from './useAssetUpload';
+export { useScrollToError } from './useScrollToError';
+export type { ScrollToErrorOptions, ScrollToErrorResult, FieldError } from './useScrollToError';

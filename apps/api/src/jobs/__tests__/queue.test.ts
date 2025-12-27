@@ -8,6 +8,7 @@ vi.mock("pg-boss", () => {
     work: vi.fn(),
     send: vi.fn().mockResolvedValue("job-id-123"),
     getJobById: vi.fn(),
+    on: vi.fn(), // Event handler registration
   };
   return {
     PgBoss: vi.fn(() => mockBoss),
@@ -15,7 +16,14 @@ vi.mock("pg-boss", () => {
 });
 
 // Import after mocking
-import { getJobQueue, stopJobQueue, resetJobQueue } from "../queue.js";
+import {
+  getJobQueue,
+  getJobQueueReady,
+  stopJobQueue,
+  resetJobQueue,
+  setHandlersRegistrationPromise,
+  areHandlersRegistered,
+} from "../queue.js";
 import { PgBoss } from "pg-boss";
 
 describe("Job Queue Module", () => {
@@ -160,6 +168,107 @@ describe("Job Queue Module", () => {
       // Getting queue again should create new instance
       await getJobQueue();
       expect(PgBoss).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe("getJobQueueReady", () => {
+    it("should return queue immediately if handlers are registered", async () => {
+      // First, set up a registration promise that resolves immediately
+      setHandlersRegistrationPromise(Promise.resolve());
+
+      // Wait a tick for the promise to settle
+      await new Promise((resolve) => setImmediate(resolve));
+
+      const queue = await getJobQueueReady();
+      expect(queue).toBeDefined();
+      expect(areHandlersRegistered()).toBe(true);
+    });
+
+    it("should wait for handlers registration before returning", async () => {
+      let resolveRegistration: () => void;
+      const registrationPromise = new Promise<void>((resolve) => {
+        resolveRegistration = resolve;
+      });
+
+      setHandlersRegistrationPromise(registrationPromise);
+
+      // Start getting the queue (it will wait for registration)
+      let queueReceived = false;
+      const queuePromise = getJobQueueReady().then((q) => {
+        queueReceived = true;
+        return q;
+      });
+
+      // At this point, registration hasn't completed
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(queueReceived).toBe(false);
+      expect(areHandlersRegistered()).toBe(false);
+
+      // Now complete registration
+      resolveRegistration!();
+      await new Promise((resolve) => setImmediate(resolve));
+
+      const queue = await queuePromise;
+      expect(queue).toBeDefined();
+      expect(queueReceived).toBe(true);
+      expect(areHandlersRegistered()).toBe(true);
+    });
+
+    it("should warn but continue if no registration promise exists", async () => {
+      const consoleSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      // Call getJobQueueReady without setting registration promise
+      const queue = await getJobQueueReady();
+
+      expect(queue).toBeDefined();
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining("getJobQueueReady called before")
+      );
+
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe("areHandlersRegistered", () => {
+    it("should return false initially", () => {
+      expect(areHandlersRegistered()).toBe(false);
+    });
+
+    it("should return true after handlers are registered", async () => {
+      setHandlersRegistrationPromise(Promise.resolve());
+
+      // Wait for the promise to settle
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(areHandlersRegistered()).toBe(true);
+    });
+  });
+
+  describe("setHandlersRegistrationPromise", () => {
+    it("should track registration state", async () => {
+      expect(areHandlersRegistered()).toBe(false);
+
+      setHandlersRegistrationPromise(Promise.resolve());
+
+      // Wait for promise to settle
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(areHandlersRegistered()).toBe(true);
+    });
+
+    it("should log when registration completes", async () => {
+      const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+      setHandlersRegistrationPromise(Promise.resolve());
+
+      // Wait for promise to settle
+      await new Promise((resolve) => setImmediate(resolve));
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining("All job handlers registered")
+      );
+
+      consoleSpy.mockRestore();
     });
   });
 });

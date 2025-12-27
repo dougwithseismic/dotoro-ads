@@ -881,10 +881,11 @@ export function validateVariablesInPattern(
   const errors: string[] = [];
   const warnings: string[] = [];
   const variables = extractVariables(pattern);
-  const columnNames = availableColumns.map(c => c.name);
+  // Use case-insensitive comparison to match autocomplete behavior
+  const columnNamesLower = availableColumns.map(c => c.name.toLowerCase());
 
   for (const variable of variables) {
-    if (!columnNames.includes(variable)) {
+    if (!columnNamesLower.includes(variable.toLowerCase())) {
       errors.push(`Variable "{${variable}}" not found in data source columns`);
     }
   }

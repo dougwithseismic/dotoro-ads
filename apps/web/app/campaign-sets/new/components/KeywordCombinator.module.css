@@ -152,6 +152,29 @@
   border-radius: 4px;
 }
 
+.excludedCount {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  color: rgba(var(--gray-rgb), 0.5);
+}
+
+.restoreButton {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: #0070f3;
+  background: transparent;
+  border: none;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.restoreButton:hover {
+  background: rgba(0, 112, 243, 0.1);
+}
+
 /* Preview Section */
 .preview {
   border: 1px solid rgba(var(--gray-rgb), 0.1);

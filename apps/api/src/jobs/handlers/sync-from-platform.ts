@@ -198,30 +198,38 @@ export async function registerSyncFromPlatformHandler(boss: PgBoss): Promise<voi
   // Create the queue before registering the worker (required in pg-boss v10+)
   await boss.createQueue(SYNC_FROM_PLATFORM_JOB);
 
-  boss.work<SyncFromPlatformJob, SyncFromPlatformResult>(
+  // pg-boss v10+ passes an array of jobs to the handler (batch processing)
+  // We process jobs sequentially and return results for each
+  await boss.work<SyncFromPlatformJob, SyncFromPlatformResult[]>(
     SYNC_FROM_PLATFORM_JOB,
-    async (job) => {
-      const data = job.data;
+    async (jobs) => {
+      const results: SyncFromPlatformResult[] = [];
 
-      console.log(
-        `[Job ${job.id}] Starting sync-from-platform for account: ${data.adAccountId}`
-      );
-
-      try {
-        const result = await handler(data);
+      for (const job of jobs) {
+        const data = job.data;
 
         console.log(
-          `[Job ${job.id}] Sync-from-platform completed: updated=${result.updated}, conflicts=${result.conflicts}, unchanged=${result.unchanged}, deleted=${result.deleted}`
+          `[Job ${job.id}] Starting sync-from-platform for account: ${data.adAccountId}`
         );
 
-        return result;
-      } catch (error) {
-        console.error(
-          `[Job ${job.id}] Sync-from-platform failed:`,
-          error instanceof Error ? error.message : error
-        );
-        throw error;
+        try {
+          const result = await handler(data);
+
+          console.log(
+            `[Job ${job.id}] Sync-from-platform completed: updated=${result.updated}, conflicts=${result.conflicts}, unchanged=${result.unchanged}, deleted=${result.deleted}`
+          );
+
+          results.push(result);
+        } catch (error) {
+          console.error(
+            `[Job ${job.id}] Sync-from-platform failed:`,
+            error instanceof Error ? error.message : error
+          );
+          throw error;
+        }
       }
+
+      return results;
     }
   );
 }

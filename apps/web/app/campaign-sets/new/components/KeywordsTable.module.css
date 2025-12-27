@@ -1,0 +1,166 @@
+/* Keywords Table Container */
+.container {
+  --gray-rgb: 0, 0, 0;
+  border: 1px solid rgba(var(--gray-rgb), 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+@media (prefers-color-scheme: dark) {
+  .container {
+    --gray-rgb: 255, 255, 255;
+  }
+}
+
+/* Table Header */
+.tableHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: rgba(var(--gray-rgb), 0.03);
+  border-bottom: 1px solid rgba(var(--gray-rgb), 0.1);
+}
+
+.headerTitle {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.headerCount {
+  font-family: var(--font-geist-mono);
+  font-size: 11px;
+  color: rgba(var(--gray-rgb), 0.5);
+}
+
+/* Table Container for scroll */
+.tableContainer {
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+/* Table */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+}
+
+.table th {
+  text-align: left;
+  padding: 10px 12px;
+  font-weight: 600;
+  font-size: 11px;
+  color: rgba(var(--gray-rgb), 0.5);
+  background: rgba(var(--gray-rgb), 0.02);
+  border-bottom: 1px solid rgba(var(--gray-rgb), 0.08);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(var(--gray-rgb), 0.05);
+  color: var(--foreground);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Column widths */
+.indexCol {
+  width: 48px;
+}
+
+.keywordCol {
+  width: auto;
+}
+
+.actionsCol {
+  width: 60px;
+  text-align: center !important;
+}
+
+/* Cell styles */
+.indexCell {
+  font-family: var(--font-geist-mono);
+  font-size: 11px;
+  color: rgba(var(--gray-rgb), 0.4);
+}
+
+.keywordCell {
+  font-family: var(--font-geist-mono);
+  font-size: 13px;
+  word-break: break-word;
+}
+
+.actionsCell {
+  text-align: center;
+}
+
+/* Row hover */
+.row {
+  transition: background 0.15s;
+}
+
+.row:hover {
+  background: rgba(var(--gray-rgb), 0.02);
+}
+
+/* Delete button */
+.deleteButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: rgba(var(--gray-rgb), 0.4);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+
+.deleteButton:hover {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.08);
+}
+
+.deleteButton:focus-visible {
+  outline: 2px solid #0070f3;
+  outline-offset: 2px;
+}
+
+/* More indicator */
+.moreIndicator {
+  padding: 10px 14px;
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  color: rgba(var(--gray-rgb), 0.5);
+  background: rgba(var(--gray-rgb), 0.02);
+  border-top: 1px dashed rgba(var(--gray-rgb), 0.1);
+  text-align: center;
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .deleteButton:hover {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.15);
+  }
+
+  .table th {
+    background: rgba(var(--gray-rgb), 0.03);
+  }
+}

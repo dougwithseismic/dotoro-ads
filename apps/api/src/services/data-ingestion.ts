@@ -6,9 +6,22 @@ import {
   validateRows,
   type CsvParseResult,
   type ColumnAnalysis,
-  type ValidationResult,
   type ValidationRule,
+  type RowError,
 } from "@repo/core";
+
+/**
+ * Result from data validation operations.
+ * This matches the structure returned by validateRows from @repo/core.
+ */
+export interface DataValidationResult {
+  valid: boolean;
+  totalRows: number;
+  validRows: number;
+  invalidRows: number;
+  errors: RowError[];
+  errorsByField: Record<string, RowError[]>;
+}
 
 import { dataStore, type StoredDataSource } from "../stores/data-store.js";
 
@@ -18,7 +31,7 @@ export interface DataIngestionResult {
   columns: ColumnAnalysis[];
   rowCount: number;
   preview: Record<string, unknown>[];
-  validation?: ValidationResult;
+  validation?: DataValidationResult;
 }
 
 export interface PreviewResult {
@@ -146,7 +159,7 @@ export function analyzeAndNormalize(
 export function validateData(
   rows: Record<string, unknown>[],
   rules: ValidationRule[]
-): ValidationResult {
+): DataValidationResult {
   return validateRows(rows, rules);
 }
 

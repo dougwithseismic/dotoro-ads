@@ -425,6 +425,8 @@ export function CampaignConfig({
           <input
             ref={inputRef}
             id="campaign-name-pattern"
+            data-field-id="campaign-name-pattern"
+            data-section-id="campaign-config"
             type="text"
             className={`${styles.input} ${hasNamePatternError ? styles.inputInvalid : ""}`}
             value={localNamePattern}

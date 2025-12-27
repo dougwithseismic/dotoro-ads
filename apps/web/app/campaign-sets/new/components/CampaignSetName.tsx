@@ -96,6 +96,8 @@ export function CampaignSetName({
         </label>
         <input
           id="campaign-set-name"
+          data-field-id="campaign-set-name"
+          data-section-id="campaign-set-name"
           type="text"
           className={`${styles.input} ${hasErrors ? styles.inputInvalid : ""}`}
           value={name}

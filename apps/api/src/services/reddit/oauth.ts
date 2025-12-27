@@ -1,5 +1,5 @@
 import { RedditOAuth, type RedditOAuthConfig, type OAuthTokens } from "@repo/reddit-ads";
-import { encrypt, decrypt, type EncryptedData } from "../../lib/encryption.js";
+import { encrypt, decrypt } from "../../lib/encryption.js";
 import { db, adAccounts, oauthTokens } from "../../services/db.js";
 import { eq } from "drizzle-orm";
 
@@ -125,21 +125,19 @@ export class RedditOAuthService {
       return null;
     }
 
-    // Decrypt tokens - catch both JSON.parse and decrypt errors
+    // Decrypt tokens - catch decrypt errors
     let accessToken: string;
     let refreshToken: string;
     try {
-      const encryptedAccessToken = JSON.parse(storedToken.accessToken) as EncryptedData;
-      accessToken = decrypt(encryptedAccessToken);
+      accessToken = decrypt(storedToken.accessToken);
 
       if (storedToken.refreshToken) {
-        const encryptedRefreshToken = JSON.parse(storedToken.refreshToken) as EncryptedData;
-        refreshToken = decrypt(encryptedRefreshToken);
+        refreshToken = decrypt(storedToken.refreshToken);
       } else {
         refreshToken = "";
       }
     } catch (error) {
-      // Parse or decryption failed - tokens are corrupted, malformed, or key changed
+      // Decryption failed - tokens are corrupted, malformed, or key changed
       console.error(
         `[Reddit OAuth] Token parse/decrypt failed for account ${adAccountId}:`,
         error instanceof Error ? error.message : String(error)
@@ -214,19 +212,17 @@ export class RedditOAuthService {
 
     if (storedToken) {
       try {
-        // Decrypt tokens for revocation - catch both JSON.parse and decrypt errors
-        const encryptedAccessToken = JSON.parse(storedToken.accessToken) as EncryptedData;
-        const accessToken = decrypt(encryptedAccessToken);
+        // Decrypt tokens for revocation - catch decrypt errors
+        const accessToken = decrypt(storedToken.accessToken);
 
         if (storedToken.refreshToken) {
-          const encryptedRefreshToken = JSON.parse(storedToken.refreshToken) as EncryptedData;
-          const refreshToken = decrypt(encryptedRefreshToken);
+          const refreshToken = decrypt(storedToken.refreshToken);
           await this.oauth.revokeToken(refreshToken, "refresh_token");
         }
 
         await this.oauth.revokeToken(accessToken, "access_token");
       } catch (error) {
-        // Parse or decryption failed - log but continue with cleanup
+        // Decryption failed - log but continue with cleanup
         console.error(
           `[Reddit OAuth] Token parse/decrypt failed during revocation for account ${adAccountId}:`,
           error instanceof Error ? error.message : String(error)
@@ -287,16 +283,16 @@ export class RedditOAuthService {
       .insert(oauthTokens)
       .values({
         adAccountId,
-        accessToken: JSON.stringify(encryptedAccessToken),
-        refreshToken: JSON.stringify(encryptedRefreshToken),
+        accessToken: encryptedAccessToken,
+        refreshToken: encryptedRefreshToken,
         expiresAt: tokens.expiresAt,
         scopes: tokens.scope.join(","),
       })
       .onConflictDoUpdate({
         target: oauthTokens.adAccountId,
         set: {
-          accessToken: JSON.stringify(encryptedAccessToken),
-          refreshToken: JSON.stringify(encryptedRefreshToken),
+          accessToken: encryptedAccessToken,
+          refreshToken: encryptedRefreshToken,
           expiresAt: tokens.expiresAt,
           scopes: tokens.scope.join(","),
         },

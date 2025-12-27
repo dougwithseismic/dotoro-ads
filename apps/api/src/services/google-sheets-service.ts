@@ -34,8 +34,8 @@ const GOOGLE_TOKEN_API = "https://oauth2.googleapis.com/token";
  */
 export interface GoogleSheetsCredentials {
   accessToken: string;
-  refreshToken: string;
-  expiresAt: number;
+  refreshToken: string;  // Empty string = no refresh token
+  expiresAt: number | null;  // null = no expiry (non-expiring token)
 }
 
 /**
@@ -44,6 +44,7 @@ export interface GoogleSheetsCredentials {
 export interface Spreadsheet {
   id: string;
   name: string;
+  modifiedTime: string; // ISO 8601 timestamp
 }
 
 /**
@@ -128,6 +129,13 @@ function handleApiError(response: Response, context: string): never {
 export async function refreshTokenIfNeeded(
   credentials: GoogleSheetsCredentials
 ): Promise<GoogleSheetsCredentials> {
+  // Check if token needs refresh (within 5 minutes of expiry)
+  // If expiresAt is null, don't refresh (assume non-expiring or handle elsewhere)
+  if (credentials.expiresAt === null) {
+    console.log("[Google Sheets] Token has no expiry, assuming valid");
+    return credentials;
+  }
+
   const now = Date.now();
   const expiresIn = credentials.expiresAt - now;
 
@@ -205,7 +213,7 @@ export async function listSpreadsheets(
 
   const params = new URLSearchParams({
     q: "mimeType='application/vnd.google-apps.spreadsheet'",
-    fields: "files(id,name)",
+    fields: "files(id,name,modifiedTime)",
     orderBy: "modifiedTime desc",
     pageSize: "100",
   });
@@ -224,12 +232,13 @@ export async function listSpreadsheets(
   }
 
   const data = await response.json() as {
-    files: Array<{ id: string; name: string; mimeType: string }>;
+    files: Array<{ id: string; name: string; modifiedTime: string }>;
   };
 
   return (data.files || []).map((file) => ({
     id: file.id,
     name: file.name,
+    modifiedTime: file.modifiedTime,
   }));
 }
 
@@ -443,7 +452,7 @@ export async function fetchAndIngestGoogleSheets(
       config.headerRow
     );
 
-    const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
+    const columns = rows.length > 0 && rows[0] ? Object.keys(rows[0]) : [];
 
     // Clear existing items and insert new ones within a transaction
     await db.transaction(async (tx) => {

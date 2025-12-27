@@ -220,30 +220,38 @@ export async function registerSyncCampaignSetHandler(boss: PgBoss): Promise<void
   // Create the queue before registering the worker (required in pg-boss v10+)
   await boss.createQueue(SYNC_CAMPAIGN_SET_JOB);
 
-  boss.work<SyncCampaignSetJob, SyncResult>(
+  // pg-boss v10+ passes an array of jobs to the handler (batch processing)
+  // We process jobs sequentially and return results for each
+  await boss.work<SyncCampaignSetJob, SyncResult[]>(
     SYNC_CAMPAIGN_SET_JOB,
-    async (job) => {
-      const data = job.data;
+    async (jobs) => {
+      const results: SyncResult[] = [];
 
-      console.log(
-        `[Job ${job.id}] Starting sync for campaign set: ${data.campaignSetId}`
-      );
-
-      try {
-        const result = await handler(data, job.id);
+      for (const job of jobs) {
+        const data = job.data;
 
         console.log(
-          `[Job ${job.id}] Sync completed: synced=${result.synced}, failed=${result.failed}, skipped=${result.skipped}`
+          `[Job ${job.id}] Starting sync for campaign set: ${data.campaignSetId}`
         );
 
-        return result;
-      } catch (error) {
-        console.error(
-          `[Job ${job.id}] Sync failed:`,
-          error instanceof Error ? error.message : error
-        );
-        throw error;
+        try {
+          const result = await handler(data, job.id);
+
+          console.log(
+            `[Job ${job.id}] Sync completed: synced=${result.synced}, failed=${result.failed}, skipped=${result.skipped}`
+          );
+
+          results.push(result);
+        } catch (error) {
+          console.error(
+            `[Job ${job.id}] Sync failed:`,
+            error instanceof Error ? error.message : error
+          );
+          throw error;
+        }
       }
+
+      return results;
     }
   );
 }

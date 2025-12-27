@@ -13,6 +13,9 @@ import type { Platform } from "../ad-types/types.js";
 import type { BudgetConfig, BiddingConfig } from "../budget/types.js";
 import type { TargetingConfig } from "../targeting/types.js";
 
+// Re-export Platform for consumers of this module
+export type { Platform };
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Status Types
 // ─────────────────────────────────────────────────────────────────────────────

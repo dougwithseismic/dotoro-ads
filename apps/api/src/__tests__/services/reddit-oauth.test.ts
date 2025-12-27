@@ -64,16 +64,18 @@ vi.mock("../../services/db.js", () => {
   };
 });
 
-// Mock encryption module
+// Mock encryption module - uses new string-based API
 vi.mock("../../lib/encryption.js", () => ({
-  encrypt: vi.fn((value: string) => ({
-    encrypted: `encrypted_${value}`,
-    iv: "mock_iv",
-    authTag: "mock_auth_tag",
-  })),
-  decrypt: vi.fn((data: { encrypted: string }) => {
-    const match = data.encrypted.match(/^encrypted_(.+)$/);
-    return match ? match[1] : data.encrypted;
+  encrypt: vi.fn((value: string) => `mock_iv:mock_auth_tag:encrypted_${value}`),
+  decrypt: vi.fn((ciphertext: string) => {
+    // Format: iv:authTag:ciphertext
+    const parts = ciphertext.split(":");
+    if (parts.length === 3) {
+      const encrypted = parts[2];
+      const match = encrypted.match(/^encrypted_(.+)$/);
+      return match ? match[1] : encrypted;
+    }
+    return ciphertext;
   }),
 }));
 
@@ -167,21 +169,13 @@ describe("RedditOAuthService Database Storage", () => {
     it("should return decrypted tokens when they exist and are valid", async () => {
       const futureDate = new Date(Date.now() + 3600000);
 
-      // Mock account lookup
+      // Mock account lookup - tokens are stored as encrypted strings (iv:authTag:ciphertext format)
       mockDb.limit.mockResolvedValueOnce([
         {
           id: "token-uuid",
           adAccountId: "ad-account-uuid",
-          accessToken: JSON.stringify({
-            encrypted: "encrypted_test_access",
-            iv: "iv",
-            authTag: "tag",
-          }),
-          refreshToken: JSON.stringify({
-            encrypted: "encrypted_test_refresh",
-            iv: "iv",
-            authTag: "tag",
-          }),
+          accessToken: "mock_iv:mock_auth_tag:encrypted_test_access",
+          refreshToken: "mock_iv:mock_auth_tag:encrypted_test_refresh",
           expiresAt: futureDate,
           scopes: "adsread,history",
         },
@@ -240,21 +234,13 @@ describe("RedditOAuthService Database Storage", () => {
 
   describe("revokeTokens", () => {
     it("should delete tokens from database", async () => {
-      // Mock existing token
+      // Mock existing token - stored as encrypted strings (iv:authTag:ciphertext format)
       mockDb.limit.mockResolvedValueOnce([
         {
           id: "token-uuid",
           adAccountId: "ad-account-uuid",
-          accessToken: JSON.stringify({
-            encrypted: "encrypted_test_access",
-            iv: "iv",
-            authTag: "tag",
-          }),
-          refreshToken: JSON.stringify({
-            encrypted: "encrypted_test_refresh",
-            iv: "iv",
-            authTag: "tag",
-          }),
+          accessToken: "mock_iv:mock_auth_tag:encrypted_test_access",
+          refreshToken: "mock_iv:mock_auth_tag:encrypted_test_refresh",
         },
       ]);
 

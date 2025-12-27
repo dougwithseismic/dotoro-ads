@@ -40,17 +40,21 @@ vi.mock("../../services/db.js", () => ({
 }));
 
 // Mock the job queue
-vi.mock("../../jobs/queue.js", () => ({
-  getJobQueue: vi.fn().mockResolvedValue({
+vi.mock("../../jobs/queue.js", () => {
+  const mockBoss = {
     send: vi.fn().mockResolvedValue("job-id-123"),
     getJobById: mockGetJobById,
     work: vi.fn(),
     start: vi.fn().mockResolvedValue(undefined),
     stop: vi.fn().mockResolvedValue(undefined),
-  }),
-  stopJobQueue: vi.fn().mockResolvedValue(undefined),
-  resetJobQueue: vi.fn(),
-}));
+  };
+  return {
+    getJobQueue: vi.fn().mockResolvedValue(mockBoss),
+    getJobQueueReady: vi.fn().mockResolvedValue(mockBoss),
+    stopJobQueue: vi.fn().mockResolvedValue(undefined),
+    resetJobQueue: vi.fn(),
+  };
+});
 
 // Mock the sync handler
 vi.mock("../../jobs/handlers/sync-campaign-set.js", () => ({

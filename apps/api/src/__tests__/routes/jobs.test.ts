@@ -10,6 +10,7 @@ vi.mock("pg-boss", () => {
       getJobById: mockGetJobById,
       send: vi.fn().mockResolvedValue("job-id-123"),
       work: vi.fn(),
+      on: vi.fn(), // Event handler registration
     })),
     __mockGetJobById: mockGetJobById,
   };
@@ -143,13 +144,12 @@ describe("Jobs API", () => {
       expect(body.data).toEqual({ campaignSetId: "campaign-123", userId: TEST_USER_ID });
     });
 
-    it("should return job status for active job with progress", async () => {
+    it("should return job status for active job", async () => {
       const mockJob = {
         id: "123e4567-e89b-12d3-a456-426614174000",
         name: "sync-campaign-set",
         state: "active",
         data: { campaignSetId: "campaign-123", userId: TEST_USER_ID },
-        progress: 50,
         startedOn: new Date("2025-01-15T10:01:00Z"),
         createdOn: new Date("2025-01-15T10:00:00Z"),
       };
@@ -163,7 +163,7 @@ describe("Jobs API", () => {
       expect(response.status).toBe(200);
       const body = await response.json();
       expect(body.state).toBe("active");
-      expect(body.progress).toBe(50);
+      // Note: pg-boss JobWithMetadata doesn't have a progress field
       expect(body.startedAt).toBeDefined();
     });
 

@@ -16,6 +16,7 @@ export { HierarchyConfig } from "./HierarchyConfig";
 // Kept for potential future use when more sophisticated keyword generation is needed.
 export { KeywordConfig } from "./KeywordConfig";
 export { KeywordCombinator } from "./KeywordCombinator";
+export { KeywordsTable } from "./KeywordsTable";
 export { HierarchyPreview } from "./HierarchyPreview";
 export { VariableAutocomplete } from "./VariableAutocomplete";
 export { WizardSidePanel } from "./WizardSidePanel";

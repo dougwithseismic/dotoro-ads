@@ -236,30 +236,38 @@ export async function registerRetryFailedSyncsHandler(boss: PgBoss): Promise<voi
   // Create the queue before registering the worker (required in pg-boss v10+)
   await boss.createQueue(RETRY_FAILED_SYNCS_JOB);
 
-  boss.work<RetryFailedSyncsJob, RetryResult>(
+  // pg-boss v10+ passes an array of jobs to the handler (batch processing)
+  // We process jobs sequentially and return results for each
+  await boss.work<RetryFailedSyncsJob, RetryResult[]>(
     RETRY_FAILED_SYNCS_JOB,
-    async (job) => {
-      const data = job.data;
+    async (jobs) => {
+      const results: RetryResult[] = [];
 
-      console.log(
-        `[Job ${job.id}] Starting retry failed syncs for user: ${data.userId}`
-      );
-
-      try {
-        const result = await handler(data);
+      for (const job of jobs) {
+        const data = job.data;
 
         console.log(
-          `[Job ${job.id}] Retry completed: ${JSON.stringify(result)}`
+          `[Job ${job.id}] Starting retry failed syncs for user: ${data.userId}`
         );
 
-        return result;
-      } catch (error) {
-        console.error(
-          `[Job ${job.id}] Retry job failed:`,
-          error instanceof Error ? error.message : error
-        );
-        throw error;
+        try {
+          const result = await handler(data);
+
+          console.log(
+            `[Job ${job.id}] Retry completed: ${JSON.stringify(result)}`
+          );
+
+          results.push(result);
+        } catch (error) {
+          console.error(
+            `[Job ${job.id}] Retry job failed:`,
+            error instanceof Error ? error.message : error
+          );
+          throw error;
+        }
       }
+
+      return results;
     }
   );
 }

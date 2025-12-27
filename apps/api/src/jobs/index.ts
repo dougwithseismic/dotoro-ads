@@ -5,7 +5,14 @@
  */
 
 // Queue management
-export { getJobQueue, stopJobQueue, resetJobQueue } from "./queue.js";
+export {
+  getJobQueue,
+  getJobQueueReady,
+  stopJobQueue,
+  resetJobQueue,
+  setHandlersRegistrationPromise,
+  areHandlersRegistered,
+} from "./queue.js";
 
 // Events
 export {
@@ -64,3 +71,12 @@ export {
   registerScheduleApiSyncsHandler,
   type ScheduleApiSyncsResult,
 } from "./handlers/schedule-api-syncs.js";
+
+// Sync Google Sheets job handler
+export {
+  SYNC_GOOGLE_SHEETS_JOB,
+  createSyncGoogleSheetsHandler,
+  registerSyncGoogleSheetsHandler,
+  type SyncGoogleSheetsJob,
+  type SyncGoogleSheetsResult,
+} from "./handlers/sync-google-sheets.js";

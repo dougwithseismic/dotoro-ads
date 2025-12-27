@@ -376,6 +376,19 @@ describe("GoogleSheetsService", () => {
   });
 
   describe("refreshTokenIfNeeded", () => {
+    it("returns original credentials if expiresAt is null (no expiry)", async () => {
+      const credentials: GoogleSheetsCredentials = {
+        accessToken: "valid-access-token",
+        refreshToken: "valid-refresh-token",
+        expiresAt: null,  // No expiry
+      };
+
+      const result = await refreshTokenIfNeeded(credentials);
+
+      expect(result).toEqual(credentials);
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
     it("returns original credentials if token is not expired", async () => {
       const credentials = createCredentials({
         expiresAt: Date.now() + 3600000, // 1 hour from now

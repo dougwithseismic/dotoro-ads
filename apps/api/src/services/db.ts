@@ -52,6 +52,9 @@ export {
 
   // Keywords
   keywords,
+
+  // User OAuth Tokens (for data source integrations)
+  userOAuthTokens,
 } from "@repo/database";
 
 // Export types
@@ -131,4 +134,8 @@ export type {
   // Keywords
   Keyword,
   NewKeyword,
+
+  // User OAuth Tokens
+  UserOAuthToken,
+  NewUserOAuthToken,
 } from "@repo/database";

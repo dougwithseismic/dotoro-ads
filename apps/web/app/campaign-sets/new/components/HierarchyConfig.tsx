@@ -979,7 +979,7 @@ export function HierarchyConfig({
   };
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} id="hierarchy-config" data-field-id="hierarchy-config" data-section-id="hierarchy">
       {/* Ad Groups Section */}
       <div className={styles.section}>
         <h3 className={styles.sectionTitle}>Ad Groups</h3>

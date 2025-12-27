@@ -189,15 +189,25 @@ export interface Campaign {
 }
 
 /**
+ * Data Source Column
+ */
+export interface DataSourceColumnType {
+  name: string;
+  type: "string" | "number" | "boolean" | "date" | "unknown";
+  sampleValues?: string[];
+}
+
+/**
  * Campaign Set Config
  */
 export interface CampaignSetConfig {
   dataSourceId: string;
-  availableColumns: string[];
+  availableColumns: string[] | DataSourceColumnType[];
   selectedPlatforms: string[];
   selectedAdTypes: Record<string, string[]>;
   campaignConfig: {
     namePattern: string;
+    objective?: string;
   };
   budgetConfig?: {
     type: "daily" | "lifetime" | "shared";
@@ -205,27 +215,83 @@ export interface CampaignSetConfig {
     currency: string;
     pacing?: "standard" | "accelerated";
   };
+  platformBudgets?: Record<string, {
+    type: "daily" | "lifetime" | "shared";
+    amountPattern: string;
+    currency: string;
+    pacing?: "standard" | "accelerated";
+  } | null>;
   biddingConfig?: Record<string, unknown>;
   hierarchyConfig: {
     adGroups: Array<{
+      id?: string;
       namePattern: string;
       keywords?: string[];
       ads: Array<{
+        id?: string;
         headline?: string;
+        headlineFallback?: "truncate" | "truncate_word" | "error";
         description?: string;
+        descriptionFallback?: "truncate" | "truncate_word" | "error";
         displayUrl?: string;
         finalUrl?: string;
         callToAction?: string;
       }>;
     }>;
   };
-  targetingConfig?: Record<string, unknown>;
+  targetingConfig?: {
+    locations?: string[];
+    devices?: string[];
+    audiences?: string[];
+    languages?: string[];
+    [key: string]: unknown;
+  };
+  ruleIds?: string[];
   inlineRules?: Array<{
-    field: string;
-    operator: string;
+    id?: string;
+    name?: string;
+    field?: string;
+    operator?: string;
     value?: unknown;
-    enabled: boolean;
+    enabled?: boolean;
+    logic?: "AND" | "OR";
+    conditions?: Array<{
+      id: string;
+      field: string;
+      operator: string;
+      value: string;
+    }>;
+    actions?: Array<{
+      id: string;
+      type: string;
+    }>;
   }>;
+  threadConfig?: {
+    post: {
+      title: string;
+      body: string;
+      url?: string;
+      type: "text" | "link" | "image" | "video";
+      subreddit: string;
+      flair?: string;
+      nsfw?: boolean;
+      spoiler?: boolean;
+      sendReplies?: boolean;
+    };
+    comments?: Array<{
+      id: string;
+      body: string;
+      parentId?: string;
+      authorPersonaId?: string;
+      depth?: number;
+    }>;
+    personas?: Array<{
+      id: string;
+      name: string;
+      username?: string;
+      avatar?: string;
+    }>;
+  };
   generatedAt: string;
   rowCount: number;
   campaignCount: number;

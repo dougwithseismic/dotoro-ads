@@ -178,27 +178,34 @@ export async function registerScheduleApiSyncsHandler(boss: PgBoss): Promise<voi
   // Create the queue before registering the worker (required in pg-boss v10+)
   await boss.createQueue(SCHEDULE_API_SYNCS_JOB);
 
-  // Register the worker
-  boss.work<Record<string, never>, ScheduleApiSyncsResult>(
+  // pg-boss v10+ passes an array of jobs to the handler (batch processing)
+  // We process jobs sequentially and return results for each
+  await boss.work<Record<string, never>, ScheduleApiSyncsResult[]>(
     SCHEDULE_API_SYNCS_JOB,
-    async (job) => {
-      console.log(`[Job ${job.id}] Running schedule-api-syncs`);
+    async (jobs) => {
+      const results: ScheduleApiSyncsResult[] = [];
 
-      try {
-        const result = await handler();
+      for (const job of jobs) {
+        console.log(`[Job ${job.id}] Running schedule-api-syncs`);
 
-        console.log(
-          `[Job ${job.id}] Schedule-api-syncs completed: enqueued=${result.enqueued}, skipped=${result.skipped}`
-        );
+        try {
+          const result = await handler();
 
-        return result;
-      } catch (error) {
-        console.error(
-          `[Job ${job.id}] Schedule-api-syncs failed:`,
-          error instanceof Error ? error.message : error
-        );
-        throw error;
+          console.log(
+            `[Job ${job.id}] Schedule-api-syncs completed: enqueued=${result.enqueued}, skipped=${result.skipped}`
+          );
+
+          results.push(result);
+        } catch (error) {
+          console.error(
+            `[Job ${job.id}] Schedule-api-syncs failed:`,
+            error instanceof Error ? error.message : error
+          );
+          throw error;
+        }
       }
+
+      return results;
     }
   );
 

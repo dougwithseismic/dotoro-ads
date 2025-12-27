@@ -85,10 +85,10 @@ describe("Campaign Sets New Page (/campaign-sets/new)", () => {
   it("renders the campaign set builder wizard", async () => {
     render(<NewCampaignSetPage />);
 
-    // The page should render the CampaignEditor component with the "Campaign Set Builder" heading
+    // The page should render the CampaignEditor component with the "Create Campaign Set" heading
     await waitFor(() => {
       expect(
-        screen.getByRole("heading", { name: /campaign set builder/i })
+        screen.getByRole("heading", { name: /create campaign set/i })
       ).toBeInTheDocument();
     });
   });
@@ -98,8 +98,9 @@ describe("Campaign Sets New Page (/campaign-sets/new)", () => {
 
     await waitFor(() => {
       // The first section should be expanded and show the name input
+      // The subtitle is rendered as a span, not a heading
       expect(
-        screen.getByRole("heading", { name: /name your campaign set/i })
+        screen.getByText(/name your campaign set/i)
       ).toBeInTheDocument();
       expect(
         screen.getByPlaceholderText(/e.g., Q4 Holiday Campaign Set/i)
@@ -132,16 +133,16 @@ describe("Campaign Sets New Page (/campaign-sets/new)", () => {
     });
   });
 
-  it("shows the Create Campaign Set button in header", async () => {
+  it("shows the Generate button in header", async () => {
     render(<NewCampaignSetPage />);
 
     await waitFor(() => {
-      // The create button should be present but disabled initially
-      const createButton = screen.getByRole("button", {
-        name: /create campaign set/i,
+      // The generate button should be present but disabled initially
+      const generateButton = screen.getByRole("button", {
+        name: /generate/i,
       });
-      expect(createButton).toBeInTheDocument();
-      expect(createButton).toBeDisabled();
+      expect(generateButton).toBeInTheDocument();
+      expect(generateButton).toBeDisabled();
     });
   });
 

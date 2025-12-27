@@ -47,6 +47,42 @@ const validBudgetConfig: BudgetConfig = {
 };
 
 describe('wizardReducer', () => {
+  describe('INITIALIZE action', () => {
+    it('initializes state with provided payload merged over defaults', () => {
+      const result = wizardReducer(initialState, {
+        type: 'INITIALIZE',
+        payload: {
+          campaignSetName: 'Test Campaign',
+          dataSourceId: 'ds-123',
+        },
+      });
+      expect(result.campaignSetName).toBe('Test Campaign');
+      expect(result.dataSourceId).toBe('ds-123');
+      // Other fields should be default values
+      expect(result.currentStep).toBe('campaign-set-name');
+      expect(result.ruleIds).toEqual([]);
+    });
+
+    it('overwrites existing state with defaults then payload', () => {
+      const existingState = {
+        ...initialState,
+        campaignSetName: 'Old Name',
+        dataSourceId: 'old-ds',
+        ruleIds: ['r1', 'r2'],
+      };
+      const result = wizardReducer(existingState, {
+        type: 'INITIALIZE',
+        payload: {
+          campaignSetName: 'New Name',
+        },
+      });
+      expect(result.campaignSetName).toBe('New Name');
+      // dataSourceId should be reset to default (null), not kept from existing state
+      expect(result.dataSourceId).toBeNull();
+      expect(result.ruleIds).toEqual([]);
+    });
+  });
+
   describe('SET_DATA_SOURCE action', () => {
     it('sets data source id and columns', () => {
       const result = wizardReducer(initialState, {
@@ -683,6 +719,113 @@ describe('useGenerateWizard hook', () => {
       expect(result.current.state.ruleIds).toEqual(['r1']);
       expect(result.current.state.selectedPlatforms).toEqual(['google']);
       expect(result.current.state.selectedAdTypes.google).toEqual(['responsive-search']);
+    });
+  });
+
+  describe('initialState prop changes', () => {
+    it('re-initializes state when initialState prop changes', () => {
+      const initialOptions = {
+        initialState: {
+          campaignSetName: 'Initial Name',
+          dataSourceId: 'ds-1',
+        },
+      };
+
+      const { result, rerender } = renderHook(
+        (props: { initialState?: Partial<typeof initialState> }) =>
+          useGenerateWizard({ initialState: props.initialState }),
+        { initialProps: initialOptions }
+      );
+
+      // Initial state should be set
+      expect(result.current.state.campaignSetName).toBe('Initial Name');
+      expect(result.current.state.dataSourceId).toBe('ds-1');
+
+      // User modifies state
+      act(() => {
+        result.current.setCampaignSetName('User Modified Name');
+        result.current.toggleRule('r1');
+      });
+      expect(result.current.state.campaignSetName).toBe('User Modified Name');
+      expect(result.current.state.ruleIds).toContain('r1');
+
+      // Rerender with new initialState (simulating edit mode switching to different campaign set)
+      const newOptions = {
+        initialState: {
+          campaignSetName: 'Different Campaign',
+          dataSourceId: 'ds-2',
+          selectedPlatforms: ['google'] as const,
+        },
+      };
+
+      rerender(newOptions);
+
+      // State should be re-initialized with new values
+      expect(result.current.state.campaignSetName).toBe('Different Campaign');
+      expect(result.current.state.dataSourceId).toBe('ds-2');
+      expect(result.current.state.selectedPlatforms).toEqual(['google']);
+      // User modifications should be gone (reset to defaults then overwritten by new initialState)
+      expect(result.current.state.ruleIds).toEqual([]);
+    });
+
+    it('does not re-initialize when initialState is not provided', () => {
+      const { result, rerender } = renderHook(() => useGenerateWizard());
+
+      // Modify state
+      act(() => {
+        result.current.setCampaignSetName('User Name');
+        result.current.setDataSource('ds-1');
+      });
+      expect(result.current.state.campaignSetName).toBe('User Name');
+      expect(result.current.state.dataSourceId).toBe('ds-1');
+
+      // Rerender without initialState
+      rerender();
+
+      // State should remain unchanged
+      expect(result.current.state.campaignSetName).toBe('User Name');
+      expect(result.current.state.dataSourceId).toBe('ds-1');
+    });
+
+    it('only initializes once even when parent re-renders with same object reference', () => {
+      // This tests the fix for the infinite re-initialization loop bug
+      // When parent re-renders and creates a new object reference for initialState,
+      // we should NOT re-initialize if the content is the same (hasInitialized ref guard)
+      const initialStateValue = {
+        campaignSetName: 'Initial Name',
+        dataSourceId: 'ds-1',
+      };
+
+      const { result, rerender } = renderHook(
+        (props: { initialState?: Partial<typeof initialState> }) =>
+          useGenerateWizard({ initialState: props.initialState }),
+        { initialProps: { initialState: initialStateValue } }
+      );
+
+      // Initial state should be set
+      expect(result.current.state.campaignSetName).toBe('Initial Name');
+      expect(result.current.state.dataSourceId).toBe('ds-1');
+
+      // User modifies state
+      act(() => {
+        result.current.setCampaignSetName('User Modified Name');
+        result.current.toggleRule('r1');
+      });
+      expect(result.current.state.campaignSetName).toBe('User Modified Name');
+      expect(result.current.state.ruleIds).toContain('r1');
+
+      // Rerender with a NEW object reference but SAME content
+      // This simulates parent component re-rendering and creating new object
+      const sameContentNewReference = {
+        campaignSetName: 'Initial Name',
+        dataSourceId: 'ds-1',
+      };
+      rerender({ initialState: sameContentNewReference });
+
+      // User modifications should be PRESERVED (not wiped out by re-initialization)
+      // because hasInitialized ref prevents re-initialization after first time
+      expect(result.current.state.campaignSetName).toBe('User Modified Name');
+      expect(result.current.state.ruleIds).toContain('r1');
     });
   });
 });

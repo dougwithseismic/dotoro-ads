@@ -1,19 +1,51 @@
 import "dotenv/config";
 import { serve } from "@hono/node-server";
 import app from "./app.js";
-import { getJobQueue, stopJobQueue } from "./jobs/queue.js";
+import { getJobQueue, stopJobQueue, setHandlersRegistrationPromise } from "./jobs/queue.js";
 import { registerSyncCampaignSetHandler } from "./jobs/handlers/sync-campaign-set.js";
+import { registerSyncApiDataSourceHandler } from "./jobs/handlers/sync-api-data-source.js";
+import { registerSyncGoogleSheetsHandler } from "./jobs/handlers/sync-google-sheets.js";
+import { registerRetryFailedSyncsHandler } from "./jobs/handlers/retry-failed-syncs.js";
+import { registerScheduleApiSyncsHandler } from "./jobs/handlers/schedule-api-syncs.js";
+import { registerSyncFromPlatformHandler } from "./jobs/handlers/sync-from-platform.js";
 
 const port = Number(process.env.PORT) || 3001;
 
 /**
+ * Register all job handlers with pg-boss.
+ * Creates queues and registers workers.
+ *
+ * @param boss - The pg-boss instance
+ */
+async function registerHandlers(boss: Awaited<ReturnType<typeof getJobQueue>>): Promise<void> {
+  await Promise.all([
+    registerSyncCampaignSetHandler(boss),
+    registerSyncApiDataSourceHandler(boss),
+    registerSyncGoogleSheetsHandler(boss),
+    registerRetryFailedSyncsHandler(boss),
+    registerScheduleApiSyncsHandler(boss),
+    registerSyncFromPlatformHandler(boss),
+  ]);
+}
+
+/**
  * Initialize the job queue and register all job handlers.
  * Called at application startup.
+ *
+ * This function sets up the handlers registration promise so that
+ * routes using getJobQueueReady() will wait for queues to be created.
  */
 async function initJobQueue(): Promise<void> {
   try {
     const boss = await getJobQueue();
-    await registerSyncCampaignSetHandler(boss);
+
+    // Create the registration promise and track it
+    // Routes using getJobQueueReady() will wait for this to complete
+    const registrationPromise = registerHandlers(boss);
+    setHandlersRegistrationPromise(registrationPromise);
+
+    // Also await locally to log success/failure
+    await registrationPromise;
     console.log("Job queue initialized and handlers registered");
   } catch (error) {
     // Log error but don't crash the server - jobs can be processed later

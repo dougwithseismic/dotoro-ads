@@ -1,4 +1,4 @@
-import { useReducer, useCallback } from 'react';
+import { useReducer, useCallback, useEffect, useRef } from 'react';
 import type {
   WizardStep,
   WizardState,
@@ -20,6 +20,7 @@ type SelectedAdTypesRecord = Record<Platform, string[]>;
 
 // Action types
 type WizardAction =
+  | { type: 'INITIALIZE'; payload: Partial<WizardState> }
   | { type: 'SET_CAMPAIGN_SET_NAME'; payload: string }
   | { type: 'SET_CAMPAIGN_SET_DESCRIPTION'; payload: string }
   | { type: 'SET_DATA_SOURCE'; payload: { id: string; columns: DataSourceColumn[] } }
@@ -43,8 +44,19 @@ type WizardAction =
   | { type: 'SET_AVAILABLE_COLUMNS'; payload: DataSourceColumn[] }
   | { type: 'RESET' };
 
-// Initial state - use the factory function from types.ts
-const initialState: WizardState = createInitialWizardState();
+// Default initial state - use the factory function from types.ts
+const defaultInitialState: WizardState = createInitialWizardState();
+
+/**
+ * Options for useGenerateWizard hook
+ */
+export interface UseGenerateWizardOptions {
+  /**
+   * Initial state to populate the wizard with (for edit mode).
+   * When provided, the wizard will start with these values instead of empty defaults.
+   */
+  initialState?: Partial<WizardState>;
+}
 
 // Step navigation helpers
 function getNextStep(current: WizardStep): WizardStep {
@@ -68,6 +80,9 @@ function isOptionalStep(step: WizardStep): boolean {
 // Reducer function
 function wizardReducer(state: WizardState, action: WizardAction): WizardState {
   switch (action.type) {
+    case 'INITIALIZE':
+      return { ...defaultInitialState, ...action.payload };
+
     case 'SET_CAMPAIGN_SET_NAME':
       return {
         ...state,
@@ -200,7 +215,7 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
       return { ...state, generateResult: action.payload };
 
     case 'RESET':
-      return initialState;
+      return defaultInitialState;
 
     default:
       return state;
@@ -208,8 +223,39 @@ function wizardReducer(state: WizardState, action: WizardAction): WizardState {
 }
 
 // The hook
-export function useGenerateWizard() {
-  const [state, dispatch] = useReducer(wizardReducer, initialState);
+export function useGenerateWizard(options: UseGenerateWizardOptions = {}) {
+  // Merge provided initial state with defaults
+  const mergedInitialState: WizardState = options.initialState
+    ? { ...defaultInitialState, ...options.initialState }
+    : defaultInitialState;
+
+  const [state, dispatch] = useReducer(wizardReducer, mergedInitialState);
+
+  // Track if we've already initialized to prevent infinite loops
+  // when parent re-renders with a new object reference for the same initialState
+  const hasInitialized = useRef(false);
+  // Track the previous initialState to detect actual content changes
+  const prevInitialStateRef = useRef<Partial<WizardState> | undefined>(undefined);
+
+  // Re-initialize when initialState prop changes (for edit mode)
+  // Uses shallow comparison of key properties to detect actual changes vs reference changes
+  useEffect(() => {
+    if (!options.initialState) {
+      return;
+    }
+
+    // Check if initialState has actually changed (not just reference)
+    const prevState = prevInitialStateRef.current;
+    const isActuallyDifferent = !prevState ||
+      prevState.dataSourceId !== options.initialState.dataSourceId ||
+      prevState.campaignSetName !== options.initialState.campaignSetName;
+
+    if (!hasInitialized.current || isActuallyDifferent) {
+      dispatch({ type: 'INITIALIZE', payload: options.initialState });
+      hasInitialized.current = true;
+      prevInitialStateRef.current = options.initialState;
+    }
+  }, [options.initialState]);
 
   // Campaign set actions
   const setCampaignSetName = useCallback((name: string) => {
@@ -388,4 +434,4 @@ export function useGenerateWizard() {
 
 // Export types and helpers for testing
 export type { WizardAction };
-export { wizardReducer, initialState, getNextStep, getPreviousStep, getStepIndex, isOptionalStep };
+export { wizardReducer, defaultInitialState as initialState, getNextStep, getPreviousStep, getStepIndex, isOptionalStep };

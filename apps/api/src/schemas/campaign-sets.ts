@@ -87,65 +87,277 @@ export const budgetConfigSchema = z.object({
 export type BudgetConfig = z.infer<typeof budgetConfigSchema>;
 
 /**
+ * Platform Budgets Schema
+ * Per-platform budget configuration for multi-platform campaigns
+ */
+export const platformBudgetsSchema = z.record(
+  z.string(), // Platform key (google, reddit, facebook)
+  budgetConfigSchema.nullable()
+);
+export type PlatformBudgets = z.infer<typeof platformBudgetsSchema>;
+
+/**
+ * Fallback Strategy Schema
+ * Defines how to handle text that exceeds platform character limits
+ */
+export const fallbackStrategySchema = z.enum(["truncate", "truncate_word", "error"]);
+export type FallbackStrategy = z.infer<typeof fallbackStrategySchema>;
+
+/**
+ * Ad Definition Schema (within hierarchy config)
+ * Enhanced with IDs for editing and fallback strategies
+ */
+export const adDefinitionSchema = z.object({
+  id: z.string().optional(), // Optional ID for editing existing ads
+  headline: z.string().optional(),
+  headlineFallback: fallbackStrategySchema.optional(),
+  description: z.string().optional(),
+  descriptionFallback: fallbackStrategySchema.optional(),
+  displayUrl: z.string().optional(),
+  finalUrl: z.string().optional(),
+  callToAction: z.string().optional(),
+});
+export type AdDefinition = z.infer<typeof adDefinitionSchema>;
+
+/**
+ * Ad Group Definition Schema (within hierarchy config)
+ * Enhanced with IDs for editing
+ */
+export const adGroupDefinitionSchema = z.object({
+  id: z.string().optional(), // Optional ID for editing existing ad groups
+  namePattern: z.string(),
+  keywords: z.array(z.string()).optional(),
+  ads: z.array(adDefinitionSchema),
+});
+export type AdGroupDefinition = z.infer<typeof adGroupDefinitionSchema>;
+
+/**
  * Hierarchy Config Snapshot Schema
  * Matches the database schema CampaignSetConfig.hierarchyConfig
+ * Enhanced with IDs and fallback strategies for round-trip editing
  */
 export const hierarchyConfigSnapshotSchema = z.object({
-  adGroups: z.array(
-    z.object({
-      namePattern: z.string(),
-      keywords: z.array(z.string()).optional(),
-      ads: z.array(
-        z.object({
-          headline: z.string().optional(),
-          description: z.string().optional(),
-          displayUrl: z.string().optional(),
-          finalUrl: z.string().optional(),
-          callToAction: z.string().optional(),
-        })
-      ),
-    })
-  ),
+  adGroups: z.array(adGroupDefinitionSchema),
 });
 export type HierarchyConfigSnapshot = z.infer<typeof hierarchyConfigSnapshotSchema>;
 
 /**
- * Inline Rule Schema
- * Matches the database schema CampaignSetConfig.inlineRules
+ * Inline Condition Schema
+ * A single condition in an inline rule
  */
-export const inlineRuleSchema = z.object({
+export const inlineConditionSchema = z.object({
+  id: z.string(),
   field: z.string(),
   operator: z.string(),
-  value: z.unknown().optional().default(null), // Ensure value is always defined
+  value: z.string(),
+});
+export type InlineCondition = z.infer<typeof inlineConditionSchema>;
+
+/**
+ * Inline Action Schema
+ * An action to take when rule conditions are met
+ */
+export const inlineActionSchema = z.object({
+  id: z.string(),
+  type: z.enum(["skip", "set_field", "modify_field", "add_tag"]),
+  field: z.string().optional(),
+  value: z.string().optional(),
+  operation: z.enum(["append", "prepend", "replace"]).optional(),
+  tag: z.string().optional(),
+});
+export type InlineAction = z.infer<typeof inlineActionSchema>;
+
+/**
+ * Enhanced Inline Rule Schema
+ * Full rule structure with conditions and actions for data transformation
+ */
+export const enhancedInlineRuleSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  enabled: z.boolean(),
+  logic: z.enum(["AND", "OR"]),
+  conditions: z.array(inlineConditionSchema),
+  actions: z.array(inlineActionSchema),
+});
+export type EnhancedInlineRule = z.infer<typeof enhancedInlineRuleSchema>;
+
+/**
+ * Legacy Inline Rule Schema (for backwards compatibility)
+ * Simple rule format from older versions
+ */
+export const legacyInlineRuleSchema = z.object({
+  field: z.string(),
+  operator: z.string(),
+  value: z.unknown().optional().default(null),
   enabled: z.boolean(),
 });
+export type LegacyInlineRule = z.infer<typeof legacyInlineRuleSchema>;
+
+/**
+ * Inline Rule Schema (union of enhanced and legacy formats)
+ * Accepts both the new full structure and legacy simple format for backwards compatibility
+ */
+export const inlineRuleSchema = z.union([enhancedInlineRuleSchema, legacyInlineRuleSchema]);
 export type InlineRule = z.infer<typeof inlineRuleSchema>;
+
+// ============================================================================
+// Thread Config Schemas (Reddit Threads)
+// ============================================================================
+
+/**
+ * Persona Role Schema
+ */
+export const personaRoleSchema = z.enum([
+  "op",
+  "community_member",
+  "skeptic",
+  "enthusiast",
+  "expert",
+  "curious",
+  "moderator",
+]);
+export type PersonaRole = z.infer<typeof personaRoleSchema>;
+
+/**
+ * Persona Tone Schema
+ */
+export const personaToneSchema = z.enum([
+  "friendly",
+  "skeptical",
+  "enthusiastic",
+  "neutral",
+  "curious",
+]);
+export type PersonaTone = z.infer<typeof personaToneSchema>;
+
+/**
+ * Reddit Post Type Schema
+ */
+export const redditPostTypeSchema = z.enum(["text", "link", "image", "video"]);
+export type RedditPostType = z.infer<typeof redditPostTypeSchema>;
+
+/**
+ * Author Persona Schema
+ */
+export const authorPersonaSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string(),
+  role: personaRoleSchema,
+  tone: personaToneSchema.optional(),
+});
+export type AuthorPersona = z.infer<typeof authorPersonaSchema>;
+
+/**
+ * Reddit Post Config Schema
+ */
+export const redditPostConfigSchema = z.object({
+  title: z.string(),
+  body: z.string().optional(),
+  url: z.string().optional(),
+  type: redditPostTypeSchema,
+  subreddit: z.string(),
+  flair: z.string().optional(),
+  nsfw: z.boolean().optional(),
+  spoiler: z.boolean().optional(),
+  sendReplies: z.boolean().optional(),
+});
+export type RedditPostConfig = z.infer<typeof redditPostConfigSchema>;
+
+/**
+ * Comment Definition Schema
+ */
+export const commentDefinitionSchema = z.object({
+  id: z.string(),
+  parentId: z.string().nullable().optional(),
+  persona: z.string(),
+  body: z.string(),
+  depth: z.number().int().nonnegative(),
+  sortOrder: z.number().int().nonnegative(),
+});
+export type CommentDefinition = z.infer<typeof commentDefinitionSchema>;
+
+/**
+ * Thread Config Schema
+ * Configuration for Reddit organic thread generation
+ */
+export const threadConfigSchema = z.object({
+  post: redditPostConfigSchema,
+  comments: z.array(commentDefinitionSchema),
+  personas: z.array(authorPersonaSchema),
+});
+export type ThreadConfig = z.infer<typeof threadConfigSchema>;
+
+// ============================================================================
+// Available Column Schema (Enhanced)
+// ============================================================================
+
+/**
+ * Data Source Column Schema
+ * Column with type information for better autocomplete and validation
+ */
+export const dataSourceColumnSchema = z.object({
+  name: z.string(),
+  type: z.enum(["string", "number", "boolean", "date", "unknown"]),
+  sampleValues: z.array(z.string()).optional(),
+});
+export type DataSourceColumn = z.infer<typeof dataSourceColumnSchema>;
+
+/**
+ * Available Columns Schema
+ * Accepts both simple string array (legacy) and full column objects (enhanced)
+ */
+export const availableColumnsSchema = z.union([
+  z.array(z.string()),
+  z.array(dataSourceColumnSchema),
+]);
+export type AvailableColumns = z.infer<typeof availableColumnsSchema>;
 
 // ============================================================================
 // Campaign Set Config
 // ============================================================================
 
 /**
+ * Campaign Config Schema (Enhanced)
+ * Campaign-level configuration with optional objective
+ */
+export const campaignConfigSchema = z.object({
+  namePattern: z.string(),
+  objective: z.string().optional(),
+});
+export type CampaignConfigType = z.infer<typeof campaignConfigSchema>;
+
+/**
  * Campaign Set Config Schema
  * Complete wizard state snapshot stored at creation time
- * Matches the database schema CampaignSetConfig interface
+ * Enhanced to support all fields needed for round-trip editing
  */
 export const campaignSetConfigSchema = z.object({
+  // Core required fields
   dataSourceId: z.string(),
-  availableColumns: z.array(z.string()),
+  availableColumns: availableColumnsSchema, // Enhanced: accepts string[] or DataSourceColumn[]
   selectedPlatforms: z.array(z.string()), // Database uses string[] not Platform[]
   selectedAdTypes: z.record(z.array(z.string())),
-  campaignConfig: z.object({
-    namePattern: z.string(),
-  }),
-  budgetConfig: budgetConfigSchema.optional(),
-  biddingConfig: z.record(z.unknown()).optional(),
-  hierarchyConfig: hierarchyConfigSnapshotSchema,
-  targetingConfig: z.record(z.unknown()).optional(),
-  inlineRules: z.array(inlineRuleSchema).optional(),
-  generatedAt: z.string(), // Database uses string for ISO date
+  campaignConfig: campaignConfigSchema, // Enhanced: includes objective
+  hierarchyConfig: hierarchyConfigSnapshotSchema, // Enhanced: includes IDs and fallbacks
+  generatedAt: z.string(), // ISO date string
   rowCount: z.number().int().nonnegative(),
   campaignCount: z.number().int().nonnegative(),
+
+  // Budget configuration (legacy single budget and new per-platform)
+  budgetConfig: budgetConfigSchema.optional(), // Legacy single budget
+  platformBudgets: platformBudgetsSchema.optional(), // NEW: Per-platform budgets
+
+  // Bidding and targeting
+  biddingConfig: z.record(z.unknown()).optional(),
+  targetingConfig: z.record(z.unknown()).optional(),
+
+  // Rules (legacy and enhanced)
+  ruleIds: z.array(z.string()).optional(), // NEW: Rule template IDs
+  inlineRules: z.array(inlineRuleSchema).optional(), // Enhanced: supports full structure
+
+  // Thread config (for Reddit)
+  threadConfig: threadConfigSchema.optional(), // NEW: Reddit thread configuration
 });
 export type CampaignSetConfig = z.infer<typeof campaignSetConfigSchema>;
 

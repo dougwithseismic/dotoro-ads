@@ -8,6 +8,13 @@
       "when": 1766390622536,
       "tag": "0000_oval_puff_adder",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1766833512182,
+      "tag": "0001_shocking_junta",
+      "breakpoints": true
     }
   ]
 }

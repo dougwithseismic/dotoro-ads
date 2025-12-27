@@ -34,7 +34,7 @@ export interface SyncApiDataSourceJob {
   userId?: string;
 
   /** How the sync was triggered */
-  triggeredBy: "schedule" | "manual";
+  triggeredBy: "schedule" | "manual" | "creation";
 }
 
 /**
@@ -152,30 +152,38 @@ export async function registerSyncApiDataSourceHandler(boss: PgBoss): Promise<vo
   // Create the queue before registering the worker (required in pg-boss v10+)
   await boss.createQueue(SYNC_API_DATA_SOURCE_JOB);
 
-  boss.work<SyncApiDataSourceJob, SyncApiDataSourceResult>(
+  // pg-boss v10+ passes an array of jobs to the handler (batch processing)
+  // We process jobs sequentially and return results for each
+  await boss.work<SyncApiDataSourceJob, SyncApiDataSourceResult[]>(
     SYNC_API_DATA_SOURCE_JOB,
-    async (job) => {
-      const data = job.data;
+    async (jobs) => {
+      const results: SyncApiDataSourceResult[] = [];
 
-      console.log(
-        `[Job ${job.id}] Starting sync-api-data-source for: ${data.dataSourceId}`
-      );
-
-      try {
-        const result = await handler(data);
+      for (const job of jobs) {
+        const data = job.data;
 
         console.log(
-          `[Job ${job.id}] Sync completed: success=${result.success}, rows=${result.rowCount}, duration=${result.duration}ms`
+          `[Job ${job.id}] Starting sync-api-data-source for: ${data.dataSourceId}`
         );
 
-        return result;
-      } catch (error) {
-        console.error(
-          `[Job ${job.id}] Sync failed:`,
-          error instanceof Error ? error.message : error
-        );
-        throw error;
+        try {
+          const result = await handler(data);
+
+          console.log(
+            `[Job ${job.id}] Sync completed: success=${result.success}, rows=${result.rowCount}, duration=${result.duration}ms`
+          );
+
+          results.push(result);
+        } catch (error) {
+          console.error(
+            `[Job ${job.id}] Sync failed:`,
+            error instanceof Error ? error.message : error
+          );
+          throw error;
+        }
       }
+
+      return results;
     }
   );
 }

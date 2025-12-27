@@ -333,6 +333,64 @@ describe("Sync Google Sheets Job Handler", () => {
       expect(mockFetchAndIngestGoogleSheets).not.toHaveBeenCalled();
     });
 
+    it("should sync data with flat config format (spreadsheetId at root level)", async () => {
+      // This config format is what the frontend sends:
+      // { spreadsheetId, spreadsheetName, sheetName, ... } directly in config
+      // instead of nested under config.googleSheets
+      const mockDataSource = {
+        id: "ds-123",
+        type: "google-sheets",
+        userId: "user-456",
+        config: {
+          // Flat format - sent directly by frontend
+          spreadsheetId: "spreadsheet-flat-123",
+          spreadsheetName: "Flat Config Sheet",
+          sheetName: "Sheet1",
+          syncFrequency: "24h",
+          headerRow: 1,
+        },
+      };
+
+      mockDbSelect.mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue([mockDataSource]),
+          }),
+        }),
+      });
+
+      mockGetGoogleCredentials.mockResolvedValue({
+        accessToken: "valid-token",
+        refreshToken: "refresh-token",
+        expiresAt: Date.now() + 3600000,
+      });
+
+      mockFetchAndIngestGoogleSheets.mockResolvedValue({
+        success: true,
+        rowCount: 75,
+        columns: ["Name", "Email"],
+        duration: 800,
+      });
+
+      const handler = createSyncGoogleSheetsHandler();
+      const result = await handler(mockJobData);
+
+      // Should extract the flat config and pass it to the service
+      expect(mockFetchAndIngestGoogleSheets).toHaveBeenCalledWith(
+        "ds-123",
+        expect.objectContaining({
+          spreadsheetId: "spreadsheet-flat-123",
+          spreadsheetName: "Flat Config Sheet",
+          sheetName: "Sheet1",
+        }),
+        expect.objectContaining({
+          accessToken: "valid-token",
+        })
+      );
+      expect(result.success).toBe(true);
+      expect(result.rowCount).toBe(75);
+    });
+
     it("should handle fetch service returning error", async () => {
       const mockDataSource = {
         id: "ds-123",

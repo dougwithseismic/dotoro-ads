@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { interpolatePattern } from "../types";
+import { KeywordsTable } from "./KeywordsTable";
 import styles from "./KeywordCombinator.module.css";
 
 interface KeywordCombinatorProps {
@@ -13,6 +14,8 @@ interface KeywordCombinatorProps {
   onChange: (keywords: string[]) => void;
   /** Whether to show the preview section */
   showPreview?: boolean;
+  /** Maximum rows to display in table (0 = unlimited) */
+  maxTableRows?: number;
 }
 
 interface ColumnConfig {
@@ -55,8 +58,9 @@ const COLUMN_SUFFIX: ColumnConfig = {
 };
 
 /**
- * Parses a saved keywords array back into column format.
- * Attempts to detect patterns and split intelligently.
+ * Converts a saved keywords array into the three-column format.
+ * Currently places all keywords in the core column; users must manually
+ * redistribute to prefix/suffix columns if needed.
  */
 function parseKeywordsToColumns(
   keywords: string[]
@@ -66,14 +70,7 @@ function parseKeywordsToColumns(
     return [[], [], []];
   }
 
-  // Try to detect if keywords were generated from a combinator pattern
-  // by finding common prefixes and suffixes
-  const prefixes = new Set<string>();
-  const coreTerms = new Set<string>();
-  const suffixes = new Set<string>();
-
-  // For simplicity, if keywords exist, put them all in the core column
-  // Users can manually distribute them if needed
+  // Place all keywords in the core column
   return [[], keywords, []];
 }
 
@@ -140,6 +137,7 @@ export function KeywordCombinator({
   sampleRow,
   onChange,
   showPreview = true,
+  maxTableRows = 50,
 }: KeywordCombinatorProps) {
   // Initialize columns from existing keywords
   const [initialParsed] = useState(() => parseKeywordsToColumns(keywords));
@@ -148,6 +146,9 @@ export function KeywordCombinator({
   const [column1, setColumn1] = useState<string>(initialParsed[0].join("\n"));
   const [column2, setColumn2] = useState<string>(initialParsed[1].join("\n"));
   const [column3, setColumn3] = useState<string>(initialParsed[2].join("\n"));
+
+  // Track excluded keywords (deleted from table)
+  const [excludedKeywords, setExcludedKeywords] = useState<Set<string>>(() => new Set());
 
   // Enabled combination types - default to all enabled
   const [enabledTypes, setEnabledTypes] = useState<Set<CombinationType>>(
@@ -180,10 +181,16 @@ export function KeywordCombinator({
   const col2Array = useMemo(() => parseColumn(column2), [column2]);
   const col3Array = useMemo(() => parseColumn(column3), [column3]);
 
-  // Generate keyword combinations
-  const combinations = useMemo(
+  // Generate keyword combinations (raw, before exclusions)
+  const rawCombinations = useMemo(
     () => generateCombinations(col1Array, col2Array, col3Array, enabledTypes),
     [col1Array, col2Array, col3Array, enabledTypes]
+  );
+
+  // Filter out excluded keywords
+  const combinations = useMemo(
+    () => rawCombinations.filter((kw) => !excludedKeywords.has(kw)),
+    [rawCombinations, excludedKeywords]
   );
 
   // Interpolate combinations with sample data for preview
@@ -191,6 +198,18 @@ export function KeywordCombinator({
     if (!sampleRow) return combinations;
     return combinations.map((keyword) => interpolatePattern(keyword, sampleRow));
   }, [combinations, sampleRow]);
+
+  // Handle deleting a keyword from the table
+  const handleDeleteKeyword = useCallback((index: number) => {
+    if (index < 0 || index >= combinations.length) {
+      console.warn(`[KeywordCombinator] Invalid delete index: ${index}, array length: ${combinations.length}`);
+      return;
+    }
+    const keywordToExclude = combinations[index];
+    if (keywordToExclude) {
+      setExcludedKeywords((prev) => new Set([...prev, keywordToExclude]));
+    }
+  }, [combinations]);
 
   // Use ref pattern to avoid onChange in deps (prevents infinite loop when parent passes inline arrow function)
   const onChangeRef = useRef(onChange);
@@ -230,9 +249,15 @@ export function KeywordCombinator({
       coreTerms: col2Array.length,
       suffixes: col3Array.length,
       combinations: combinations.length,
+      excluded: excludedKeywords.size,
     }),
-    [col1Array, col2Array, col3Array, combinations]
+    [col1Array, col2Array, col3Array, combinations, excludedKeywords]
   );
+
+  // Clear all excluded keywords
+  const handleClearExclusions = useCallback(() => {
+    setExcludedKeywords(new Set());
+  }, []);
 
   return (
     <div className={styles.container}>
@@ -250,7 +275,7 @@ export function KeywordCombinator({
           />
           <p className={styles.columnHint}>{COLUMN_PREFIX.hint}</p>
           {col1Array.length > 0 && (
-            <span className={styles.columnCount}>{col1Array.length} terms</span>
+            <span className={styles.columnCount}>{col1Array.length} term{col1Array.length !== 1 ? "s" : ""}</span>
           )}
         </div>
 
@@ -267,7 +292,7 @@ export function KeywordCombinator({
           />
           <p className={styles.columnHint}>{COLUMN_CORE.hint}</p>
           {col2Array.length > 0 && (
-            <span className={styles.columnCount}>{col2Array.length} terms</span>
+            <span className={styles.columnCount}>{col2Array.length} term{col2Array.length !== 1 ? "s" : ""}</span>
           )}
         </div>
 
@@ -284,7 +309,7 @@ export function KeywordCombinator({
           />
           <p className={styles.columnHint}>{COLUMN_SUFFIX.hint}</p>
           {col3Array.length > 0 && (
-            <span className={styles.columnCount}>{col3Array.length} terms</span>
+            <span className={styles.columnCount}>{col3Array.length} term{col3Array.length !== 1 ? "s" : ""}</span>
           )}
         </div>
       </div>
@@ -324,30 +349,30 @@ export function KeywordCombinator({
         <span className={styles.formulaResult}>
           {stats.combinations} keyword{stats.combinations !== 1 ? "s" : ""}
         </span>
+        {stats.excluded > 0 && (
+          <>
+            <span className={styles.excludedCount}>
+              ({stats.excluded} removed)
+            </span>
+            <button
+              type="button"
+              className={styles.restoreButton}
+              onClick={handleClearExclusions}
+            >
+              Restore all
+            </button>
+          </>
+        )}
       </div>
 
-      {/* Preview Section */}
+      {/* Keywords Table */}
       {showPreview && previewKeywords.length > 0 && (
-        <div className={styles.preview}>
-          <div className={styles.previewHeader}>
-            <span className={styles.previewTitle}>Generated Keywords</span>
-            <span className={styles.previewCount}>
-              Showing {Math.min(previewKeywords.length, 15)} of {previewKeywords.length}
-            </span>
-          </div>
-          <div className={styles.previewList}>
-            {previewKeywords.slice(0, 15).map((keyword, idx) => (
-              <span key={idx} className={styles.previewKeyword}>
-                {keyword}
-              </span>
-            ))}
-            {previewKeywords.length > 15 && (
-              <span className={styles.previewMore}>
-                +{previewKeywords.length - 15} more
-              </span>
-            )}
-          </div>
-        </div>
+        <KeywordsTable
+          keywords={previewKeywords}
+          onDelete={handleDeleteKeyword}
+          maxRows={maxTableRows}
+          headerLabel="Generated Keywords"
+        />
       )}
 
       {/* Empty State */}

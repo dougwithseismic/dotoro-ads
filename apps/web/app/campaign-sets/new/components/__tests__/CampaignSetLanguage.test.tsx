@@ -100,33 +100,34 @@ describe("Campaign Set UI Language", () => {
   });
 
   describe("CampaignEditor component", () => {
-    it("displays 'Campaign Set Builder' as the main title", async () => {
+    it("displays 'Create Campaign Set' as the main title in create mode", async () => {
       render(<CampaignEditor />);
 
       await waitFor(() => {
         expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
-          "Campaign Set Builder"
+          "Create Campaign Set"
         );
       });
     });
 
-    it("displays appropriate subtitle about creating campaign sets", async () => {
+    it("displays appropriate subtitle about building campaign sets", async () => {
       render(<CampaignEditor />);
 
       await waitFor(() => {
         // Check specifically for the header subtitle
-        const subtitle = screen.getByText("Create a campaign set from your data");
+        const subtitle = screen.getByText("Build a campaign set from your data sources");
         expect(subtitle).toBeInTheDocument();
         expect(subtitle.tagName).toBe("P");
       });
     });
 
-    it("displays 'Create Campaign Set' as the main action button text", async () => {
+    it("displays 'Generate' as the main action button text in create mode", async () => {
       render(<CampaignEditor />);
 
       await waitFor(() => {
-        const createButton = screen.getByRole("button", { name: /create campaign set/i });
-        expect(createButton).toBeInTheDocument();
+        // The main action button in create mode says "Generate"
+        const generateButton = screen.getByRole("button", { name: /generate/i });
+        expect(generateButton).toBeInTheDocument();
       });
     });
 

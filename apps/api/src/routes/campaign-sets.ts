@@ -37,7 +37,7 @@ import {
   adAccounts,
   type CampaignSetConfig as DbCampaignSetConfig,
 } from "../services/db.js";
-import { getJobQueue } from "../jobs/queue.js";
+import { getJobQueueReady } from "../jobs/queue.js";
 import { SYNC_CAMPAIGN_SET_JOB } from "../jobs/handlers/sync-campaign-set.js";
 import { jobEvents, type SyncProgressEvent } from "../jobs/events.js";
 import type { SyncCampaignSetJob } from "../jobs/types.js";
@@ -1049,7 +1049,7 @@ campaignSetsApp.openapi(syncCampaignsRoute, async (c) => {
 
   // Queue the sync job
   try {
-    const boss = await getJobQueue();
+    const boss = await getJobQueueReady();
 
     const jobData: SyncCampaignSetJob = {
       campaignSetId: setId,
@@ -1414,7 +1414,7 @@ campaignSetsApp.get("/api/v1/campaign-sets/:setId/sync-stream", async (c) => {
   }
 
   // SECURITY: Validate job exists AND belongs to this campaign set and user
-  const boss = await getJobQueue();
+  const boss = await getJobQueueReady();
   const job = await boss.getJobById(SYNC_CAMPAIGN_SET_JOB, jobId);
 
   if (!job) {

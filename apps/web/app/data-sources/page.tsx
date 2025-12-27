@@ -11,9 +11,10 @@ import {
 } from "./components";
 import { CreateDataSourceDrawer } from "@/app/campaign-sets/new/components/CreateDataSourceDrawer";
 import type { DataSource, DataSourceListResponse, SortDirection } from "./types";
+import { api, API_BASE_URL } from "@/lib/api-client";
 import styles from "./DataSourceList.module.css";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+const API_BASE = API_BASE_URL;
 const SYNC_POLL_INTERVAL = 10000; // Poll every 10 seconds when syncing
 
 type SortableColumn = "name" | "updatedAt";
@@ -212,16 +213,8 @@ export default function DataSourcesPage() {
       }));
 
       try {
-        const response = await fetch(
-          `${API_BASE}/api/v1/data-sources/${id}/sync`,
-          {
-            method: "POST",
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error("Failed to trigger sync");
-        }
+        // Use api client which includes x-user-id header (required for Google Sheets OAuth)
+        await api.post(`/api/v1/data-sources/${id}/sync`);
 
         // On success, show success state briefly then revert
         setSyncButtonStatuses((prev) => ({

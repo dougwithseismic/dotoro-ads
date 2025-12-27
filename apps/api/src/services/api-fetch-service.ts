@@ -233,7 +233,8 @@ function extractColumns(rows: Record<string, unknown>[]): string[] {
   if (rows.length === 0) return [];
 
   // Use the first row to determine columns
-  return Object.keys(rows[0]);
+  const firstRow = rows[0];
+  return firstRow ? Object.keys(firstRow) : [];
 }
 
 /**
