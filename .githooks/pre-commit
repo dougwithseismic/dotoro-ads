@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# Update LOC badge before each commit
+./scripts/update-loc-badge.sh
+
+# Stage the updated README if it changed
+git add README.md

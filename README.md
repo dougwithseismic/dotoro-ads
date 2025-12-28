@@ -1,5 +1,7 @@
 # Dotoro - Programmatic Ad Campaign Builder
 
+![Lines of Code](https://img.shields.io/badge/LOC-318.4k-blue)
+
 An internal programmatic ad campaign generation tool that enables marketing teams to create, manage, and deploy thousands of ad variations across multiple advertising platforms from a single data source.
 
 ## Features
@@ -10,6 +12,7 @@ An internal programmatic ad campaign generation tool that enables marketing team
 - **Creative Management**: Upload and manage creative assets with S3-compatible storage
 - **Reddit Ads Integration**: Full CRUD operations with OAuth 2.0 and sync engine
 - **Preview & Sync**: Preview all generated campaign variations before pushing to ad platforms
+- **Admin Panel**: User management with roles, banning, session control via Better Auth
 
 ## Tech Stack
 
@@ -213,6 +216,18 @@ pnpm db:studio    # Open Drizzle Studio GUI
 - `POST /api/v1/reddit/campaigns` - Create campaign
 - `POST /api/v1/reddit/sync` - Sync campaigns to Reddit
 
+### Google OAuth
+- `POST /api/v1/auth/google/connect` - Initialize Google OAuth flow
+- `GET /api/v1/auth/google/callback` - OAuth callback
+- `GET /api/v1/auth/google/status` - Check connection status
+- `POST /api/v1/auth/google/disconnect` - Disconnect Google account
+
+### Meta OAuth
+- `POST /api/v1/auth/meta/connect` - Initialize Meta OAuth flow
+- `GET /api/v1/auth/meta/callback` - OAuth callback
+- `GET /api/v1/auth/meta/status` - Check connection status
+- `POST /api/v1/auth/meta/disconnect` - Disconnect Meta account
+
 Full API documentation available at `/api/v1/docs` when running the API server.
 
 ## Environment Variables Reference
@@ -237,11 +252,15 @@ Full API documentation available at `/api/v1/docs` when running the API server.
 | `GOOGLE_CLIENT_ID` | Yes**** | - | Google OAuth client ID |
 | `GOOGLE_CLIENT_SECRET` | Yes**** | - | Google OAuth client secret |
 | `GOOGLE_REDIRECT_URI` | No | localhost callback | Google OAuth redirect URI |
+| `META_APP_ID` | Yes***** | - | Meta (Facebook) App ID |
+| `META_APP_SECRET` | Yes***** | - | Meta (Facebook) App Secret |
+| `META_REDIRECT_URI` | No | localhost callback | Meta OAuth redirect URI |
 
 \* Required for production
 \** Required for Reddit integration
 \*** Required when using Reddit OAuth
 \**** Required for Google Sheets/Google Ads integration
+\***** Required for Meta Ads integration
 
 ### Generating Encryption Keys
 
@@ -316,6 +335,83 @@ If not configured, you'll see:
 ⚠ Google OAuth not configured - Google Sheets and Google Ads integration disabled
 ```
 
+### Meta (Facebook) Ads OAuth Setup
+
+To enable Meta Ads integration for campaign management:
+
+#### 1. Create Meta App
+
+1. Go to [Meta for Developers](https://developers.facebook.com/apps/)
+2. Click **Create App**
+3. Select **Business** as the app type
+4. Fill in app details:
+   - App name: "Dotoro"
+   - App contact email: your email
+5. Click **Create App**
+
+#### 2. Add Products
+
+From your app dashboard, add the following products:
+
+1. **Facebook Login**
+   - Click **Set Up** on Facebook Login
+   - Go to **Settings** under Facebook Login
+   - Add Valid OAuth Redirect URIs:
+     ```
+     http://localhost:3001/api/v1/auth/meta/callback
+     ```
+   - For production, add your production callback URL
+
+2. **Marketing API**
+   - Click **Set Up** on Marketing API
+   - Note: Full access requires Business Verification for production use
+   - In development, you can use the Marketing API in development mode
+
+#### 3. Get App Credentials
+
+1. Go to **App Settings > Basic**
+2. Copy the **App ID** and **App Secret**
+3. Note: You may need to click "Show" and enter your password to reveal the App Secret
+
+#### 4. Configure Permissions (for production)
+
+For production use with live ad accounts:
+
+1. Go to **App Review > Permissions and Features**
+2. Request the following permissions:
+   - `ads_read` - Read ads data
+   - `ads_management` - Create and manage ads
+   - `business_management` - Manage business assets
+3. Complete Business Verification if required
+
+#### 5. Add Environment Variables
+
+Add to `apps/api/.env`:
+
+```bash
+# Meta (Facebook) Ads OAuth
+META_APP_ID=your_app_id_here
+META_APP_SECRET=your_app_secret_here
+META_REDIRECT_URI=http://localhost:3001/api/v1/auth/meta/callback
+```
+
+#### 6. Test the Integration
+
+1. Start the API server
+2. Navigate to the Accounts page in the web app
+3. Click "Connect Meta Ads"
+4. Authorize the app with your Facebook account
+5. You should be redirected back with a success message
+
+#### Development vs Production
+
+| Mode | Limitations |
+|------|-------------|
+| **Development** | Can only access ad accounts you own/admin; limited API calls |
+| **Production** | Requires Business Verification; full API access; can manage client accounts |
+
+For development and testing, development mode is sufficient. For managing client ad accounts in production, complete the Business Verification process.
+
 ## Testing
 
 ```bash
@@ -336,6 +432,70 @@ Current test coverage:
 - **packages/reddit-ads**: 92 tests
 - **apps/api**: 235 tests
 - **Total**: 717+ tests
+
+## Admin Panel
+
+The application includes a full admin panel for user management at `/admin`. It uses Better Auth's admin plugin.
+
+### Admin Features
+
+- **Dashboard**: User stats, recent signups, quick actions
+- **User Management**: Search, filter, paginate users
+- **User Detail**: Edit user, manage roles, ban/unban, view/revoke sessions
+- **Create Users**: Admin can create new users directly
+
+### Setting Up Admin Access
+
+#### 1. Apply Database Migration
+
+After pulling the latest changes, run the migration to add admin fields:
+
+```bash
+cd packages/database
+pnpm drizzle-kit migrate
+```
+
+This adds `role`, `banned`, `banReason`, `banExpires` to the user table and `impersonatedBy` to the session table.
+
+#### 2. Create Your First Admin
+
+First, sign up or log in via magic link to create your user account. Then promote yourself to admin:
+
+```bash
+cd packages/database
+pnpm seed:admin your-email@example.com
+```
+
+You should see:
+```
+✓ User your-email@example.com has been promoted to admin
+```
+
+#### 3. Access the Admin Panel
+
+Navigate to http://localhost:3000/admin
+
+You'll see:
+- **Dashboard** with user statistics
+- **Users** list with search and filters
+- **Settings** showing admin configuration
+
+### Admin API Endpoints
+
+The admin routes are protected by the `requireAdmin()` middleware. Non-admin users receive a 403 Forbidden response.
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/auth/admin/list-users` | GET | List users with search/filter/pagination |
+| `/api/auth/admin/create-user` | POST | Create a new user |
+| `/api/auth/admin/set-role` | POST | Change user role |
+| `/api/auth/admin/ban-user` | POST | Ban a user |
+| `/api/auth/admin/unban-user` | POST | Unban a user |
+| `/api/auth/admin/list-user-sessions` | GET | List sessions for a user |
+| `/api/auth/admin/revoke-user-session` | POST | Revoke a specific session |
+| `/api/auth/admin/revoke-user-sessions` | POST | Revoke all user sessions |
+
+These endpoints are provided by Better Auth's admin plugin. See [Better Auth Admin Docs](https://www.better-auth.com/docs/plugins/admin) for full API reference.
 
 ## Development Notes
 
@@ -369,8 +529,8 @@ OAuth tokens are encrypted with AES-256-GCM before storage. In the current imple
 - [x] Phase 1.7: Creative Management
 - [ ] Phase 1.8: Generation Engine
 - [ ] Phase 1.9: Frontend Application
-- [ ] Phase 2: Google Ads Integration
-- [ ] Phase 3: Meta Ads Integration
+- [x] Phase 2: Google Ads Integration (OAuth complete)
+- [x] Phase 3: Meta Ads Integration (OAuth complete)
 
 ## License
 
