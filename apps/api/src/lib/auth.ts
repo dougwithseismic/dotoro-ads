@@ -5,6 +5,7 @@
  * - Magic link authentication (passwordless)
  * - OAuth social sign-in (Google, GitHub)
  * - Admin user management (roles, banning, session management)
+ * - Two-Factor Authentication (TOTP with backup codes)
  * - Session management with 7-day expiry
  * - Drizzle ORM adapter for PostgreSQL
  *
@@ -12,7 +13,7 @@
  */
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { magicLink, admin } from "better-auth/plugins";
+import { magicLink, admin, twoFactor } from "better-auth/plugins";
 import { db } from "../services/db.js";
 import { sendMagicLinkEmail, type SendMagicLinkOptions } from "@repo/email";
 import * as schema from "@repo/database/schema";
@@ -164,6 +165,23 @@ export const auth = betterAuth({
       defaultBanReason: "Account suspended",
       bannedUserMessage:
         "Your account has been suspended. Contact support for assistance.",
+    }),
+    /**
+     * Two-Factor Authentication Plugin
+     *
+     * Enables TOTP-based 2FA with authenticator apps and backup codes.
+     * Users can enable 2FA from their security settings.
+     *
+     * Features:
+     * - TOTP (Time-based One-Time Password) support
+     * - Backup codes for account recovery (10 codes by default)
+     * - QR code generation for authenticator apps
+     *
+     * @see https://www.better-auth.com/docs/plugins/two-factor
+     */
+    twoFactor({
+      issuer: "Dotoro",
+      backupCodeCount: 10,
     }),
   ],
   session: {

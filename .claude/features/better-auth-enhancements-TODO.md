@@ -1,7 +1,7 @@
 # Better Auth Enhancements - Dotoro
 
 **Date:** 2025-12-28
-**Status:** In Progress (Phase 1 + Phase 2 + Phase 3 Complete)
+**Status:** In Progress (Phase 1 + Phase 2 + Phase 3 + Phase 4 Complete)
 **Priority:** 4
 **Complexity:** Medium
 
@@ -411,24 +411,26 @@ export const auth = betterAuth({
 
 ---
 
-### Phase 4: Two-Factor Authentication (Optional)
+### Phase 4: Two-Factor Authentication
 
-**Priority:** LOW - Enhanced security, implement if time permits
+**Priority:** LOW - Enhanced security
+**Status:** COMPLETE
 
 #### 4.1 Backend: 2FA Plugin Setup
 
-- [ ] Add Better Auth 2FA plugin
+- [x] Add Better Auth 2FA plugin
   - File: `apps/api/src/lib/auth.ts`
-  - Import and configure `twoFactor()` plugin
-  - Configure TOTP settings (issuer name, algorithm)
-  - Set backup codes count (default: 10)
+  - Imported and configured `twoFactor()` plugin from `better-auth/plugins`
+  - Configured with issuer: "Dotoro"
+  - Set backup codes count: 10
 
-- [ ] Update database schema for 2FA
-  - Run Better Auth CLI to generate schema
-  - Add twoFactorSecret column to user table
-  - Add backupCodes table if needed
+- [x] Update database schema for 2FA
+  - File: `packages/database/src/schema/auth.ts`
+  - Added `twoFactorEnabled` boolean column to user table
+  - Added `twoFactorSecret` text column for encrypted TOTP secret
+  - Added `twoFactorBackupCodes` text column for encrypted backup codes
 
-**Example 2FA Config:**
+**Actual 2FA Config:**
 ```typescript
 import { twoFactor } from "better-auth/plugins";
 
@@ -437,47 +439,73 @@ export const auth = betterAuth({
     // ... existing plugins
     twoFactor({
       issuer: "Dotoro",
-      totpWindow: 1, // Allow 1 window before/after
+      backupCodeCount: 10,
     }),
   ],
 });
 ```
 
-#### 4.2 Frontend: 2FA Setup Flow
+#### 4.2 Frontend: 2FA Client Setup
 
-- [ ] Create 2FA setup wizard component
+- [x] Add twoFactorClient plugin to auth client
+  - File: `apps/web/lib/auth-client.ts`
+  - Imported `twoFactorClient` from `better-auth/client/plugins`
+  - Added to plugins array in createAuthClient
+  - Exported `twoFactor` API methods for components
+
+#### 4.3 Frontend: 2FA Setup Wizard
+
+- [x] Create 2FA setup wizard component
   - File: `apps/web/components/settings/TwoFactorSetup.tsx`
-  - Step 1: Generate and display QR code
-  - Step 2: Enter verification code from authenticator app
-  - Step 3: Display and confirm backup codes
-  - Step 4: Success confirmation
+  - Step 1: Generate and display QR code (using QR Server API)
+  - Step 2: Enter 6-digit verification code from authenticator app
+  - Step 3: Display backup codes with copy/download options
+  - Step 4: Confirmation checkbox and complete button
+  - Manual entry option for secret key
+  - Step indicator showing progress
+  - Tests: 23 tests in `components/settings/__tests__/TwoFactorSetup.test.tsx`
 
-- [ ] Create 2FA verification component
+#### 4.4 Frontend: 2FA Verification Component
+
+- [x] Create 2FA verification component
   - File: `apps/web/components/auth/TwoFactorVerify.tsx`
-  - 6-digit code input
-  - "Use backup code" option
-  - Remember device checkbox (optional)
+  - 6-digit TOTP code input with numeric keyboard support
+  - "Use backup code" toggle option with different input format
+  - Loading state during verification
+  - Error handling with auto-focus and clear on failure
+  - Keyboard navigation (Enter to submit)
+  - Tests: 24 tests in `components/auth/__tests__/TwoFactorVerify.test.tsx`
 
-- [ ] Update login flow for 2FA
-  - After primary auth, check if 2FA enabled
-  - Redirect to 2FA verification page
-  - Handle backup code usage
-  - Complete session creation after 2FA
+#### 4.5 Frontend: 2FA Management in Settings
 
-#### 4.3 Frontend: 2FA Management
+- [x] Add 2FA section to Security tab in settings page
+  - File: `apps/web/app/settings/page.tsx`
+  - Integrated TwoFactorStatus component into Security tab
+  - Shows 2FA status (enabled/disabled)
+  - Enable button opens TwoFactorSetup wizard
+  - Disable button with confirmation dialog
+  - View/regenerate backup codes option
+  - Tests: 18 tests in `components/settings/__tests__/TwoFactorStatus.test.tsx`
 
-- [ ] Add Security tab to account settings
-  - Enable/disable 2FA toggle
-  - View/regenerate backup codes
-  - Require current auth to modify 2FA settings
+- [x] Create TwoFactorStatus component
+  - File: `apps/web/components/settings/TwoFactorStatus.tsx`
+  - Shows enabled/disabled status with badge
+  - Enable 2FA button triggers setup wizard
+  - Disable 2FA with confirmation dialog
+  - Backup codes modal with copy/download
 
-- [ ] Create backup codes display component
-  - Show codes in grid format
-  - "Copy all" button
-  - "Download as text" button
-  - Warning about storing securely
+#### 4.6 Update Login Flow for 2FA
 
-**Time Estimate:** 6-8 hours (if implemented)
+- [x] Integrated 2FA verification into login flow
+  - File: `apps/web/app/(auth)/login/page.tsx`
+  - Added TwoFactorVerify component import
+  - Added "2fa" state to FormState type
+  - Detect 2FA required response from auth
+  - Show TwoFactorVerify component when needed
+  - Handle success redirect and cancel action
+
+**Time Estimate:** 6-8 hours
+**Actual Time:** Phase 4 completed
 
 ---
 

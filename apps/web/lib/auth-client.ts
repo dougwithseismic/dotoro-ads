@@ -7,7 +7,11 @@
  * @see https://www.better-auth.com/docs/react
  */
 import { createAuthClient } from "better-auth/react";
-import { magicLinkClient, adminClient } from "better-auth/client/plugins";
+import {
+  magicLinkClient,
+  adminClient,
+  twoFactorClient,
+} from "better-auth/client/plugins";
 
 /**
  * Better Auth client configured for the Dotoro application
@@ -15,16 +19,17 @@ import { magicLinkClient, adminClient } from "better-auth/client/plugins";
  * Features:
  * - Magic link authentication (passwordless login)
  * - Admin user management (roles, banning, session management)
+ * - Two-Factor Authentication (TOTP with backup codes)
  * - Session management with automatic token handling
  * - Cross-tab session synchronization
  *
  * Configuration:
  * - baseURL: Points to the API server which handles auth endpoints
- * - plugins: Magic link plugin for passwordless authentication, Admin plugin for user management
+ * - plugins: Magic link, Admin, and Two-Factor plugins
  */
 export const authClient = createAuthClient({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001",
-  plugins: [magicLinkClient(), adminClient()],
+  plugins: [magicLinkClient(), adminClient(), twoFactorClient()],
 });
 
 /**
@@ -115,3 +120,33 @@ export const revokeOtherSessions = authClient.revokeOtherSessions;
 export const listAccounts = authClient.listAccounts;
 export const linkSocial = authClient.linkSocial;
 export const unlinkAccount = authClient.unlinkAccount;
+
+/**
+ * Two-Factor Authentication API
+ *
+ * Better Auth provides built-in 2FA for users to:
+ * - Enable TOTP-based 2FA with authenticator apps
+ * - Verify 2FA codes during login
+ * - Disable 2FA when needed
+ * - Generate and use backup codes for account recovery
+ *
+ * @example
+ * ```tsx
+ * import { twoFactor } from "@/lib/auth-client";
+ *
+ * // Enable 2FA - returns TOTP URI for QR code
+ * const { data } = await twoFactor.enable({ password: "required-password" });
+ * // data.totpURI can be used to generate QR code
+ * // data.backupCodes contains the backup codes
+ *
+ * // Verify TOTP code to complete 2FA setup
+ * await twoFactor.verifyTotp({ code: "123456" });
+ *
+ * // Disable 2FA
+ * await twoFactor.disable({ password: "required-password" });
+ *
+ * // Get 2FA status
+ * const { data: status } = await twoFactor.getTotpUri();
+ * ```
+ */
+export const twoFactor = authClient.twoFactor;

@@ -47,6 +47,15 @@ export const user = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
+    // Admin plugin fields
+    role: text("role").default("user"),
+    banned: boolean("banned").default(false),
+    banReason: text("ban_reason"),
+    banExpires: timestamp("ban_expires", { withTimezone: true }),
+    // Two-Factor Authentication fields
+    twoFactorEnabled: boolean("two_factor_enabled").default(false),
+    twoFactorSecret: text("two_factor_secret"),
+    twoFactorBackupCodes: text("two_factor_backup_codes"),
   },
   (table) => [uniqueIndex("user_email_idx").on(table.email)]
 );
@@ -79,6 +88,8 @@ export const session = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
+    // Admin plugin field for impersonation
+    impersonatedBy: text("impersonated_by").references(() => user.id),
   },
   (table) => [
     index("session_user_idx").on(table.userId),
