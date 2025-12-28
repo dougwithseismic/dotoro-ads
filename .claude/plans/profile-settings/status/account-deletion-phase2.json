@@ -1,0 +1,74 @@
+{
+  "feature": "account-deletion",
+  "phase": 2,
+  "total_phases": 3,
+  "status": "complete",
+  "completed_at": "2025-12-29T00:40:00Z",
+  "summary": {
+    "phase_description": "Frontend UI Components",
+    "items_completed": 17,
+    "items_total": 17,
+    "tests_added": 49,
+    "tests_passing": true
+  },
+  "files_created": [
+    "apps/web/lib/hooks/useAccountDeletion.ts",
+    "apps/web/lib/hooks/__tests__/useAccountDeletion.test.ts",
+    "apps/web/app/[locale]/[teamSlug]/settings/profile/components/DeleteAccountSection.tsx",
+    "apps/web/app/[locale]/[teamSlug]/settings/profile/components/DeleteAccountSection.module.css",
+    "apps/web/app/[locale]/[teamSlug]/settings/profile/components/__tests__/DeleteAccountSection.test.tsx",
+    "apps/web/app/[locale]/[teamSlug]/settings/profile/components/DeleteAccountModal.tsx",
+    "apps/web/app/[locale]/[teamSlug]/settings/profile/components/DeleteAccountModal.module.css",
+    "apps/web/app/[locale]/[teamSlug]/settings/profile/components/__tests__/DeleteAccountModal.test.tsx"
+  ],
+  "files_modified": [
+    "apps/web/lib/api/users.ts",
+    "apps/web/lib/hooks/index.ts",
+    "apps/web/app/[locale]/[teamSlug]/settings/profile/page.tsx",
+    ".claude/plans/profile-settings/features/account-deletion-TODO.md"
+  ],
+  "components_delivered": [
+    {
+      "name": "DeleteAccountSection",
+      "type": "component",
+      "tests": 8,
+      "description": "Danger zone section with warning and delete button"
+    },
+    {
+      "name": "DeleteAccountModal",
+      "type": "component",
+      "tests": 28,
+      "description": "Modal with team preview, email confirmation, and deletion flow"
+    },
+    {
+      "name": "useDeletionPreview",
+      "type": "hook",
+      "tests": 6,
+      "description": "Hook for fetching account deletion preview data"
+    },
+    {
+      "name": "useDeleteAccount",
+      "type": "hook",
+      "tests": 7,
+      "description": "Hook for executing account deletion with logout"
+    },
+    {
+      "name": "fetchDeletionPreview",
+      "type": "api-function",
+      "tests": 0,
+      "description": "API utility to fetch deletion preview"
+    },
+    {
+      "name": "deleteAccount",
+      "type": "api-function",
+      "tests": 0,
+      "description": "API utility to delete user account"
+    }
+  ],
+  "next_phase": {
+    "phase": 3,
+    "description": "Integration Testing",
+    "items_remaining": 4
+  },
+  "blockers": "none"
+}

@@ -1,0 +1,64 @@
+{
+  "phase": "4.2",
+  "feature": "account-deletion",
+  "status": "needs-revision",
+  "review_date": "2025-12-29",
+  "reviewer": "code-review-agent",
+  "summary": {
+    "approved": false,
+    "issues_total": 3,
+    "recommendation": "revise"
+  },
+  "issues": {
+    "critical": [],
+    "major": [
+      {
+        "id": "ADR-001",
+        "title": "Unused ROLE_PRIORITY constant",
+        "file": "apps/api/src/routes/users.ts",
+        "line": 257,
+        "description": "ROLE_PRIORITY constant is defined but never used. Role priority logic is implemented directly in SQL CASE statement.",
+        "fix": "Remove lines 257-262 containing the unused constant"
+      },
+      {
+        "id": "ADR-002",
+        "title": "Solo admin team deletion logic may incorrectly delete teams",
+        "file": "apps/api/src/routes/users.ts",
+        "line": 316,
+        "description": "Condition marks solo admin teams for deletion, but admins should not have authority to delete teams they don't own. Only owners should be able to trigger team deletion.",
+        "fix": "Change condition from (role === 'owner' || role === 'admin') to (role === 'owner') only"
+      }
+    ],
+    "minor": [
+      {
+        "id": "ADR-003",
+        "title": "No rate limiting on destructive endpoint",
+        "file": "apps/api/src/routes/users.ts",
+        "line": 407,
+        "description": "DELETE /api/users/me endpoint lacks rate limiting protection",
+        "fix": "Consider adding rate limiting middleware to this endpoint"
+      }
+    ]
+  },
+  "security": {
+    "status": "acceptable",
+    "notes": "Email confirmation provides good protection. Rate limiting recommended for defense in depth."
+  },
+  "test_coverage": {
+    "status": "adequate",
+    "tests_count": 16,
+    "areas_covered": [
+      "authentication",
+      "validation",
+      "team categorization",
+      "role priority",
+      "seniority selection",
+      "transaction handling"
+    ]
+  },
+  "files_reviewed": [
+    "apps/api/src/routes/users.ts",
+    "apps/api/src/schemas/users.ts",
+    "apps/api/src/__tests__/routes/users.test.ts"
+  ]
+}

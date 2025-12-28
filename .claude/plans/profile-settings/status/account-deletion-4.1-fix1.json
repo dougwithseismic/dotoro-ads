@@ -1,0 +1,28 @@
+{
+  "feature": "account-deletion",
+  "phase": "fix_iteration",
+  "fix_number": 1,
+  "timestamp": "2025-12-29T00:27:00Z",
+  "issues_fixed": [
+    {
+      "id": "ADR-001",
+      "description": "Removed unused ROLE_PRIORITY constant",
+      "file": "apps/api/src/routes/users.ts",
+      "type": "major"
+    },
+    {
+      "id": "ADR-002",
+      "description": "Fixed solo team deletion logic to only allow owners (removed admin from condition)",
+      "file": "apps/api/src/routes/users.ts",
+      "type": "major"
+    }
+  ],
+  "files_changed": [
+    "apps/api/src/routes/users.ts"
+  ],
+  "tests_passing": true,
+  "test_count": 25,
+  "test_changes": "none",
+  "remaining_issues": [],
+  "next_action": "proceed_to_review"
+}

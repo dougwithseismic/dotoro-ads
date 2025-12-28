@@ -1,0 +1,79 @@
+{
+  "feature": "account-deletion",
+  "phase": 2,
+  "phaseName": "Frontend UI",
+  "reviewDate": "2025-12-29",
+  "approved": false,
+  "recommendation": "revise",
+  "issuesTotal": 5,
+  "issuesByCategory": {
+    "critical": [],
+    "major": [
+      {
+        "file": "apps/web/app/[locale]/[teamSlug]/settings/profile/components/DeleteAccountModal.tsx",
+        "line": "149-332",
+        "issue": "Missing focus trap in modal - keyboard users can Tab outside the modal into background content",
+        "confidence": 85,
+        "fix": "Add focus trapping using focus-trap-react or manual implementation"
+      },
+      {
+        "file": "apps/web/app/[locale]/[teamSlug]/settings/profile/components/__tests__/",
+        "issue": "Missing component tests for DeleteAccountSection.tsx and DeleteAccountModal.tsx",
+        "confidence": 85,
+        "fix": "Add component tests covering modal interactions, email validation, loading states, team list rendering"
+      },
+      {
+        "file": "apps/web/lib/api/__tests__/users.test.ts",
+        "issue": "Missing API function tests for fetchDeletionPreview and deleteAccount",
+        "confidence": 85,
+        "fix": "Add tests for API response handling, error scenarios, and request formatting"
+      }
+    ],
+    "minor": [
+      {
+        "file": "multiple",
+        "issue": "Hardcoded English strings should use i18n translation functions given [locale] route support",
+        "confidence": 80,
+        "fix": "Replace hardcoded strings with translation function calls"
+      },
+      {
+        "file": "apps/web/app/[locale]/[teamSlug]/settings/profile/components/DeleteAccountSection.module.css",
+        "line": "70-72",
+        "issue": "Button focus ring uses only box-shadow which may not be visible in Windows High Contrast Mode",
+        "confidence": 80,
+        "fix": "Add outline property alongside box-shadow"
+      }
+    ]
+  },
+  "security": {
+    "concerns": [],
+    "passed": [
+      "Email confirmation required before deletion",
+      "No sensitive data exposed in preview responses",
+      "Authenticated requests with credentials: include",
+      "No tokens or secrets in client-side code"
+    ]
+  },
+  "testCoverage": {
+    "status": "needs-improvement",
+    "hookTests": "comprehensive (300 lines)",
+    "componentTests": "missing",
+    "apiTests": "missing"
+  },
+  "filesReviewed": [
+    "apps/web/lib/hooks/useAccountDeletion.ts",
+    "apps/web/lib/api/users.ts",
+    "apps/web/app/[locale]/[teamSlug]/settings/profile/components/DeleteAccountSection.tsx",
+    "apps/web/app/[locale]/[teamSlug]/settings/profile/components/DeleteAccountSection.module.css",
+    "apps/web/app/[locale]/[teamSlug]/settings/profile/components/DeleteAccountModal.tsx",
+    "apps/web/app/[locale]/[teamSlug]/settings/profile/components/DeleteAccountModal.module.css",
+    "apps/web/app/[locale]/[teamSlug]/settings/profile/page.tsx"
+  ],
+  "strengths": [
+    "Clean hook architecture with separation of concerns",
+    "Good ARIA attributes and keyboard handling",
+    "Proper error handling with retry functionality",
+    "Dark mode support in CSS modules",
+    "Comprehensive hook test coverage"
+  ]
+}

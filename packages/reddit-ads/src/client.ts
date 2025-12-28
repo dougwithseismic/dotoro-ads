@@ -4,7 +4,7 @@ import { RedditApiException, RedditApiErrorCode } from "./types.js";
 // Constants
 // ============================================================================
 
-const REDDIT_ADS_API_BASE_URL = "https://ads-api.reddit.com/api/v2.0";
+const REDDIT_ADS_API_BASE_URL = "https://ads-api.reddit.com/api/v3";
 
 // Rate limit: 600 requests per 10 minutes
 const DEFAULT_RATE_LIMIT = {

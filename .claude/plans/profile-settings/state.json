@@ -1,0 +1,49 @@
+{
+  "version": 3,
+  "workflow_slug": "profile-settings",
+  "project": "Profile Settings Features",
+  "parallelization": false,
+  "execution_levels": [
+    {
+      "level": 0,
+      "features": ["display-name"],
+      "status": "complete"
+    },
+    {
+      "level": 1,
+      "features": ["account-deletion"],
+      "status": "in_progress"
+    }
+  ],
+  "current_level": 1,
+  "current_feature": "account-deletion",
+  "current_phase": "4.1",
+  "current_phase_description": "tdd_implementation_phase2_frontend",
+  "iteration": 1,
+  "parallel_executors": {},
+  "completed_features": ["display-name"],
+  "pending_features": [],
+  "blocked_features": [],
+  "feature_details": {
+    "display-name": {
+      "todo_path": ".claude/plans/profile-settings/features/display-name-TODO.md",
+      "priority": 1,
+      "complexity": "low",
+      "total_checkboxes": 47,
+      "completed_checkboxes": 47,
+      "dependencies": []
+    },
+    "account-deletion": {
+      "todo_path": ".claude/plans/profile-settings/features/account-deletion-TODO.md",
+      "priority": 2,
+      "complexity": "high",
+      "total_checkboxes": 56,
+      "completed_checkboxes": 32,
+      "dependencies": ["display-name"],
+      "phase1_backend_complete": true,
+      "phase1_review_approved": true
+    }
+  },
+  "last_action": "Phase 1 backend approved, starting Phase 2 frontend",
+  "timestamp": "2025-12-29T00:00:00Z"
+}

@@ -37,7 +37,7 @@ describe("RedditApiClient", () => {
       const result = await client.get("/accounts/abc123/campaigns");
 
       expect(fetch).toHaveBeenCalledWith(
-        "https://ads-api.reddit.com/api/v2.0/accounts/abc123/campaigns",
+        "https://ads-api.reddit.com/api/v3/accounts/abc123/campaigns",
         expect.objectContaining({
           method: "GET",
           headers: expect.objectContaining({
