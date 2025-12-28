@@ -7,23 +7,24 @@
  * @see https://www.better-auth.com/docs/react
  */
 import { createAuthClient } from "better-auth/react";
-import { magicLinkClient } from "better-auth/client/plugins";
+import { magicLinkClient, adminClient } from "better-auth/client/plugins";
 
 /**
  * Better Auth client configured for the Dotoro application
  *
  * Features:
  * - Magic link authentication (passwordless login)
+ * - Admin user management (roles, banning, session management)
  * - Session management with automatic token handling
  * - Cross-tab session synchronization
  *
  * Configuration:
  * - baseURL: Points to the API server which handles auth endpoints
- * - plugins: Magic link plugin for passwordless authentication
+ * - plugins: Magic link plugin for passwordless authentication, Admin plugin for user management
  */
 export const authClient = createAuthClient({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001",
-  plugins: [magicLinkClient()],
+  plugins: [magicLinkClient(), adminClient()],
 });
 
 /**
@@ -48,5 +49,43 @@ export const authClient = createAuthClient({
  *   );
  * }
  * ```
+ *
+ * @example
+ * ```tsx
+ * // Admin usage
+ * import { admin } from "@/lib/auth-client";
+ *
+ * // List all users
+ * const { data, error } = await admin.listUsers({ query: { limit: 20 } });
+ *
+ * // Ban a user
+ * await admin.banUser({ userId: "user_id", banReason: "Violation" });
+ * ```
  */
-export const { signIn, signOut, useSession, getSession } = authClient;
+export const { signIn, signOut, useSession, getSession, admin } = authClient;
+
+/**
+ * Session Management API
+ *
+ * Better Auth provides built-in session management for users to:
+ * - View all their active sessions across devices
+ * - Revoke specific sessions remotely
+ * - Revoke all other sessions at once
+ *
+ * @example
+ * ```tsx
+ * import { listSessions, revokeSession, revokeOtherSessions } from "@/lib/auth-client";
+ *
+ * // Get all active sessions
+ * const { data: sessions } = await listSessions();
+ *
+ * // Revoke a specific session by its token
+ * await revokeSession({ token: session.token });
+ *
+ * // Revoke all sessions except current one
+ * await revokeOtherSessions();
+ * ```
+ */
+export const listSessions = authClient.listSessions;
+export const revokeSession = authClient.revokeSession;
+export const revokeOtherSessions = authClient.revokeOtherSessions;

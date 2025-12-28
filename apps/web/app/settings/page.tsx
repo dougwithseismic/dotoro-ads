@@ -17,6 +17,7 @@ import { User, Shield, Bell, Key, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { SettingsLayout, type SettingsTab } from "./components/SettingsLayout";
 import { SettingsSection } from "./components/SettingsSection";
+import { SessionsList } from "@/components/settings/SessionsList";
 
 // Valid tab IDs
 const VALID_TABS = ["account", "sessions", "security", "notifications", "danger"] as const;
@@ -106,20 +107,19 @@ function AccountTabContent({ user }: { user: { email: string; name?: string | nu
 }
 
 /**
- * Sessions Tab Content (Placeholder for Phase 3)
+ * Sessions Tab Content
+ *
+ * Displays active sessions with the ability to revoke individual
+ * sessions or all other sessions at once.
  */
 function SessionsTabContent() {
   return (
     <div data-testid="sessions-tab-content" className="space-y-6">
       <SettingsSection
         title="Active Sessions"
-        description="Manage your active sessions across devices."
+        description="Manage your active sessions across devices. You can sign out of sessions on other devices if you notice any suspicious activity."
       >
-        <div className="p-4 bg-neutral-50 dark:bg-zinc-800/50 rounded-lg text-center">
-          <p className="text-neutral-500 dark:text-neutral-400">
-            Session management coming soon.
-          </p>
-        </div>
+        <SessionsList />
       </SettingsSection>
     </div>
   );
