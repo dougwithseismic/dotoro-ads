@@ -1,111 +1,50 @@
-# Project Orchestration: Full Auth System
+# Project Orchestration: Dotoro Auth Migration
 Generated: 2025-12-28
-Status: Planning Complete
-
----
+Status: In Progress
 
 ## Execution Queue (Dependency-Ordered)
 
-| # | Feature | Status | TODO Doc | Dependencies | Phases | Complexity |
+| # | Feature | Status | TODO Doc | Dependencies | Phases | Checkboxes |
 |---|---------|--------|----------|--------------|--------|------------|
-| 1 | email-system | ✅ Complete | [TODO](features/email-system-TODO.md) | none | 5 | medium |
-| 2 | magic-link-auth | ✅ Complete | [TODO](features/magic-link-auth-TODO.md) | email-system | 5 | high |
-| 3 | team-workspaces | ✅ Complete | [TODO](features/team-workspaces-TODO.md) | magic-link-auth | 4 | high |
-
----
-
-## Dependency Graph
-
-```
-email-system (P1)
-    │
-    ▼
-magic-link-auth (P1)
-    │
-    ▼
-team-workspaces (P2)
-```
-
-**Legend:**
-- P1 = Priority 1 (foundational)
-- P2 = Priority 2 (depends on foundational)
-
----
+| 1 | better-auth-migration | 🔄 In Progress | [TODO](features/better-auth-migration-TODO.md) | none | 6 | 0/62 |
 
 ## Status Legend
-
 - ⏳ Pending - Not yet started
 - 🔄 In Progress - Currently being implemented
-- 🔍 In Review - Code review in progress
-- ✅ Complete - Implemented and reviewed
-- ❌ Blocked - Waiting on external dependency or user input
+- 🔍 In Review - Code review or PR suite in progress
+- ✅ Complete - Implemented, reviewed, validated, committed
+- ❌ Blocked - Waiting on dependency, regression, or user input
 
----
-
-## Feature Summaries
-
-### 1. Email System (`@repo/email`)
-**Goal:** Build reusable email infrastructure with Resend + React Email
-
-Key deliverables:
-- `packages/email/` shared package
-- Resend client wrapper with type-safe API
-- Base email layout component
-- Magic-link email template
-- Development console fallback
-
-### 2. Magic Link Authentication
-**Goal:** Passwordless auth with magic links sent via email
-
-Key deliverables:
-- Database schema: users, magic_link_tokens, sessions
-- Auth API routes: request, verify, session, logout
-- Auth middleware for protected routes
-- Frontend: login page, verify page, auth context
-- Rate limiting and security hardening
-
-### 3. Team Workspaces
-**Goal:** Multi-tenant team management with RBAC
-
-Key deliverables:
-- Database schema: teams, team_memberships, team_invitations
-- Teams API routes: CRUD, members, invitations
-- Team context middleware
-- Frontend: team switcher, settings, invite flow
-- Resource scoping (all existing tables get teamId)
-
----
+## Dependency Graph
+```
+better-auth-migration (no dependencies)
+         │
+         └── Ready to start
+```
 
 ## Progress Log
-
-| Timestamp | Feature | Phase | Status | Notes |
+| Timestamp | Feature | Phase | Action | Notes |
 |-----------|---------|-------|--------|-------|
-| 2025-12-28 10:20 | ALL | Planning | ✅ | TODO docs generated for all 3 features |
-| 2025-12-28 11:10 | email-system | Implementation | ✅ | Package created, 42 tests passing, code reviewed |
-| 2025-12-28 11:32 | magic-link-auth | Implementation | ✅ | Full auth system, 106 tests, code reviewed |
-| 2025-12-28 11:45 | team-workspaces | Implementation | ✅ | Multi-tenant RBAC, 141 tests, code reviewed |
+| 2025-12-28T00:00:00Z | better-auth-migration | Planning | TODO doc generated | 62 checkboxes, 6 phases |
 
----
+## Orchestrator Commands
+- Start: `/feature-orchestrator [features]`
+- Resume: `/feature-orchestrator --resume`
 
-## Execution Commands
+## Feature Summary
 
-To start execution:
-```
-Use TDD agent to complete email-system in its entirety.
-Once done, send to code reviewer, then back to TDD for fixes.
-When approved, commit and move to magic-link-auth.
-```
+### better-auth-migration
+**Goal:** Replace custom authentication with Better Auth library to fix session persistence issues
 
-To resume after interruption:
-```
-/feature-orchestrator --resume
-```
+**Key Deliverables:**
+1. Better Auth server configuration with Hono adapter
+2. Database schema migration to Better Auth tables
+3. Magic link plugin integration with existing Resend email
+4. Frontend migration to Better Auth React client
+5. Updated auth middleware for protected routes
 
----
-
-## Notes
-
-- All features use existing tech stack: Hono API, Next.js 16, Drizzle ORM, PostgreSQL
-- Email provider: Resend (with console fallback for dev)
-- Session storage: HTTP-only cookies (not JWT)
-- Team roles: owner, admin, editor, viewer (fixed RBAC)
+**Success Criteria:**
+- Sessions persist across browser refreshes
+- Magic link flow works end-to-end
+- Existing users retain access
+- No TypeScript errors, build passes

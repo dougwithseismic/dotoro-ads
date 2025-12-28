@@ -1,0 +1,115 @@
+/**
+ * Better Auth Configuration
+ *
+ * Provides authentication functionality using Better Auth library with:
+ * - Magic link authentication (passwordless)
+ * - Session management with 7-day expiry
+ * - Drizzle ORM adapter for PostgreSQL
+ *
+ * @see https://www.better-auth.com/docs
+ */
+import { betterAuth } from "better-auth";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { magicLink } from "better-auth/plugins";
+import { db } from "../services/db.js";
+import { sendMagicLinkEmail, type SendMagicLinkOptions } from "@repo/email";
+
+/**
+ * Send magic link email with development fallback
+ *
+ * Better Auth Contract: This function must throw an error on failure.
+ * - In production: Throws when email send fails
+ * - In development: Logs to console as fallback (no throw, simulating success)
+ *
+ * Development behavior:
+ * The @repo/email package validates for HTTPS URLs. Better Auth generates
+ * http:// URLs in development, so we handle this by logging the URL to
+ * console when the email send fails due to HTTPS validation. This allows
+ * developers to test authentication by clicking the logged URL.
+ */
+async function sendMagicLink({
+  email,
+  url,
+}: {
+  email: string;
+  url: string;
+}): Promise<void> {
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+  const options: SendMagicLinkOptions = {
+    to: email,
+    magicLinkUrl: url,
+    expiresAt,
+  };
+
+  const result = await sendMagicLinkEmail(options);
+
+  if (!result.success) {
+    // In development, the URL might be http:// which fails HTTPS validation
+    // Log the magic link URL so developers can still test authentication
+    if (process.env.NODE_ENV !== "production") {
+      console.log("\n========================================");
+      console.log("MAGIC LINK (Development Fallback)");
+      console.log("========================================");
+      console.log(`Email: ${email}`);
+      console.log(`URL: ${url}`);
+      console.log(`Expires: ${expiresAt.toISOString()}`);
+      console.log("========================================\n");
+    } else {
+      // In production, this is a real error
+      console.error(`[AUTH] Failed to send magic link email: ${result.error}`);
+      throw new Error(`Failed to send magic link email: ${result.error}`);
+    }
+  }
+}
+
+/**
+ * Better Auth instance configured for the Dotoro application
+ *
+ * Features:
+ * - Magic link authentication (passwordless login)
+ * - PostgreSQL database via Drizzle ORM
+ * - 7-day session expiry with 24-hour update interval
+ *
+ * Required environment variables:
+ * - BETTER_AUTH_SECRET: Secret key for signing sessions/tokens
+ * - BETTER_AUTH_URL: Base URL for the auth server (e.g., http://localhost:3001)
+ * - WEB_URL: Frontend URL for trusted origins
+ */
+export const auth = betterAuth({
+  secret: process.env.BETTER_AUTH_SECRET,
+  baseURL: process.env.BETTER_AUTH_URL,
+  database: drizzleAdapter(db, {
+    provider: "pg",
+  }),
+  emailAndPassword: {
+    enabled: false, // Magic link only - no password authentication
+  },
+  plugins: [
+    magicLink({
+      sendMagicLink,
+      expiresIn: 15 * 60, // 15 minutes in seconds
+    }),
+  ],
+  session: {
+    expiresIn: 7 * 24 * 60 * 60, // 7 days in seconds
+    updateAge: 24 * 60 * 60, // Update session every 24 hours
+  },
+  trustedOrigins: [process.env.WEB_URL || "http://localhost:3000"],
+});
+
+/**
+ * Inferred session type from Better Auth
+ * Contains both the session object and the user object
+ */
+export type AuthSession = typeof auth.$Infer.Session;
+
+/**
+ * Session object type (the session part of AuthSession)
+ */
+export type Session = AuthSession["session"];
+
+/**
+ * User object type (the user part of AuthSession)
+ */
+export type User = AuthSession["user"];

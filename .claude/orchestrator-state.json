@@ -1,0 +1,20 @@
+{
+  "version": 2,
+  "project": "dotoro-auth-migration",
+  "current_feature_index": 0,
+  "current_feature": "better-auth-migration",
+  "current_phase": "pending",
+  "phase_description": "awaiting_approval",
+  "iteration": 0,
+  "max_iterations": 3,
+  "review_issues": [],
+  "pr_suite_results": null,
+  "todo_validation": null,
+  "completed_features": [],
+  "pending_features": ["better-auth-migration"],
+  "last_action": "Planning complete, awaiting user approval",
+  "timestamp": "2025-12-28T00:00:00Z",
+  "todo_doc_path": ".claude/features/better-auth-migration-TODO.md",
+  "total_checkboxes": 62,
+  "checked_checkboxes": 0
+}
