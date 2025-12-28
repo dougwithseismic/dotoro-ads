@@ -36,10 +36,16 @@ vi.mock("../../middleware/auth.js", () => ({
   validateSession: vi.fn(),
 }));
 
+// Mock email service
+vi.mock("@repo/email", () => ({
+  sendTeamInvitationEmail: vi.fn(),
+}));
+
 // Import after mocking
 import { invitationsApp } from "../../routes/invitations.js";
 import { db } from "../../services/db.js";
 import { validateSession } from "../../middleware/auth.js";
+import { sendTeamInvitationEmail } from "@repo/email";
 
 // Helper to mock authenticated user
 function mockAuthenticatedUser(userId: string = mockUserId, email: string = "test@example.com") {
@@ -62,6 +68,18 @@ function mockAuthenticatedUser(userId: string = mockUserId, email: string = "tes
 function mockNoAuth() {
   const mockValidateSession = validateSession as ReturnType<typeof vi.fn>;
   mockValidateSession.mockResolvedValue(null);
+}
+
+// Helper to mock successful email sending
+function mockEmailSuccess() {
+  const mockSendEmail = sendTeamInvitationEmail as ReturnType<typeof vi.fn>;
+  mockSendEmail.mockResolvedValue({ success: true, messageId: "msg_123" });
+}
+
+// Helper to mock failed email sending
+function mockEmailFailure(error: string = "SMTP connection failed") {
+  const mockSendEmail = sendTeamInvitationEmail as ReturnType<typeof vi.fn>;
+  mockSendEmail.mockResolvedValue({ success: false, error });
 }
 
 // Reset mocks to return chainable db query pattern
@@ -205,6 +223,159 @@ describe("Invitations API", () => {
       // It should fail with 404 (team not found for user) because our mock returns empty
       // This validates the request was parsed correctly
       expect(res.status).toBe(404);
+    });
+
+    it("should return emailSent: true when email sends successfully", async () => {
+      mockAuthenticatedUser();
+      mockEmailSuccess();
+      const chainable = setupDbMock();
+
+      // Mock team membership with admin role
+      chainable.limit.mockResolvedValueOnce([
+        { id: mockTeamId, name: "Test Team", slug: "test-team", role: "admin" },
+      ]);
+
+      // Mock no existing member
+      chainable.limit.mockResolvedValueOnce([]);
+
+      // Mock no existing invitation
+      chainable.limit.mockResolvedValueOnce([]);
+
+      // Mock invitation creation
+      const mockInvitation = {
+        id: mockInvitationId,
+        email: "invitee@example.com",
+        role: "editor",
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        createdAt: new Date(),
+      };
+      chainable.returning.mockResolvedValueOnce([mockInvitation]);
+
+      const client = testClient(invitationsApp);
+      const res = await client["api"]["teams"][":id"]["invitations"].$post(
+        {
+          param: { id: mockTeamId },
+          json: {
+            email: "invitee@example.com",
+            role: "editor",
+          },
+        },
+        {
+          headers: {
+            cookie: "session=" + mockToken,
+          },
+        }
+      );
+
+      expect(res.status).toBe(201);
+      const body = await res.json();
+      expect(body.emailSent).toBe(true);
+      expect(body.emailError).toBeUndefined();
+      expect(body.inviteLink).toBeUndefined();
+    });
+
+    it("should return emailSent: false with error and inviteLink when email fails", async () => {
+      mockAuthenticatedUser();
+      mockEmailFailure("SMTP connection failed");
+      const chainable = setupDbMock();
+
+      // Mock team membership with admin role
+      chainable.limit.mockResolvedValueOnce([
+        { id: mockTeamId, name: "Test Team", slug: "test-team", role: "admin" },
+      ]);
+
+      // Mock no existing member
+      chainable.limit.mockResolvedValueOnce([]);
+
+      // Mock no existing invitation
+      chainable.limit.mockResolvedValueOnce([]);
+
+      // Mock invitation creation
+      const mockInvitation = {
+        id: mockInvitationId,
+        email: "invitee@example.com",
+        role: "editor",
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        createdAt: new Date(),
+      };
+      chainable.returning.mockResolvedValueOnce([mockInvitation]);
+
+      const client = testClient(invitationsApp);
+      const res = await client["api"]["teams"][":id"]["invitations"].$post(
+        {
+          param: { id: mockTeamId },
+          json: {
+            email: "invitee@example.com",
+            role: "editor",
+          },
+        },
+        {
+          headers: {
+            cookie: "session=" + mockToken,
+          },
+        }
+      );
+
+      expect(res.status).toBe(201);
+      const body = await res.json();
+      expect(body.emailSent).toBe(false);
+      expect(body.emailError).toBe("SMTP connection failed");
+      expect(body.inviteLink).toContain("/invite/");
+    });
+
+    it("should still create invitation when email fails (graceful degradation)", async () => {
+      mockAuthenticatedUser();
+      mockEmailFailure("Resend API rate limit exceeded");
+      const chainable = setupDbMock();
+
+      // Mock team membership with owner role
+      chainable.limit.mockResolvedValueOnce([
+        { id: mockTeamId, name: "Test Team", slug: "test-team", role: "owner" },
+      ]);
+
+      // Mock no existing member
+      chainable.limit.mockResolvedValueOnce([]);
+
+      // Mock no existing invitation
+      chainable.limit.mockResolvedValueOnce([]);
+
+      // Mock invitation creation
+      const mockInvitation = {
+        id: mockInvitationId,
+        email: "invitee@example.com",
+        role: "viewer",
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        createdAt: new Date(),
+      };
+      chainable.returning.mockResolvedValueOnce([mockInvitation]);
+
+      const client = testClient(invitationsApp);
+      const res = await client["api"]["teams"][":id"]["invitations"].$post(
+        {
+          param: { id: mockTeamId },
+          json: {
+            email: "invitee@example.com",
+            role: "viewer",
+          },
+        },
+        {
+          headers: {
+            cookie: "session=" + mockToken,
+          },
+        }
+      );
+
+      // Should return 201 (invitation created) even though email failed
+      expect(res.status).toBe(201);
+      const body = await res.json();
+      expect(body.id).toBe(mockInvitationId);
+      expect(body.email).toBe("invitee@example.com");
+      expect(body.role).toBe("viewer");
+      expect(body.emailSent).toBe(false);
+      expect(body.emailError).toBe("Resend API rate limit exceeded");
+      // Admin can use this link to share manually
+      expect(body.inviteLink).toBeDefined();
+      expect(body.inviteLink).toMatch(/\/invite\/[a-f0-9]+/);
     });
   });
 

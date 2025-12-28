@@ -22,6 +22,7 @@ import {
   teamInvitations,
   user,
 } from "../services/db.js";
+import { sendTeamInvitationEmail } from "@repo/email";
 
 // ============================================================================
 // Constants
@@ -409,8 +410,33 @@ invitationsApp.openapi(sendInvitationRoute, async (c) => {
     })
     .returning();
 
-  // TODO: Send invitation email (implement email service)
+  // Send invitation email
+  // Note: We don't fail the request if email sending fails - the invitation is still created
+  // and the admin can share the link manually using the returned inviteLink
+  const appUrl = process.env.APP_URL || "http://localhost:3000";
+  const emailResult = await sendTeamInvitationEmail({
+    to: email,
+    teamName: teamWithMembership.name,
+    inviterEmail: auth.user.email,
+    inviterName: auth.user.name || undefined,
+    role: role as "admin" | "editor" | "viewer",
+    inviteToken: token,
+    expiresAt,
+  });
 
+  if (!emailResult.success) {
+    console.error("Failed to send invitation email:", {
+      error: emailResult.error,
+      recipientEmail: email,
+      teamId,
+      teamName: teamWithMembership.name,
+      inviterId: auth.user.id,
+      inviterEmail: auth.user.email,
+    });
+  }
+
+  // Return email status so frontend can inform admin if email failed
+  // Include invite link when email fails so admin can share manually
   return c.json(
     {
       id: invitation.id,
@@ -419,6 +445,10 @@ invitationsApp.openapi(sendInvitationRoute, async (c) => {
       inviterEmail: auth.user.email,
       expiresAt: invitation.expiresAt.toISOString(),
       createdAt: invitation.createdAt.toISOString(),
+      emailSent: emailResult.success,
+      emailError: emailResult.success ? undefined : emailResult.error,
+      // Provide invite link when email fails so admin can share manually
+      inviteLink: emailResult.success ? undefined : `${appUrl}/invite/${token}`,
     },
     201
   );

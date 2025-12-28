@@ -8,7 +8,7 @@ Status: In Progress
 |---|---------|--------|----------|--------------|--------|------------|
 | 1 | better-auth-migration | ✅ Complete | [TODO](features/better-auth-migration-TODO.md) | none | 6 | 62/62 |
 | 2 | profile-page | ✅ Phase 1 Done | [TODO](features/profile-page-TODO.md) | none | 5 | 37/82 |
-| 3 | team-invitations | ⏳ Pending | [TODO](features/team-invitations-TODO.md) | none | 4 | 0/47 |
+| 3 | team-invitations | ✅ Phase 1-2 Done | [TODO](features/team-invitations-TODO.md) | none | 4 | 44/70 |
 | 4 | settings-page | ⏳ Pending | [TODO](features/settings-page-TODO.md) | profile-page | 6 | 0/75 |
 | 5 | better-auth-enhancements | ⏳ Pending | [TODO](features/better-auth-enhancements-TODO.md) | settings-page | 4 | 0/48 |
 
@@ -40,6 +40,7 @@ better-auth-migration ✅
 | 2025-12-28T00:05:00Z | better-auth-migration | COMPLETE | Feature done | All 62 items complete |
 | 2025-12-28T00:06:00Z | orchestrator | Planning | 4 new features queued | profile, settings, invitations, auth-enhancements |
 | 2025-12-28T00:07:00Z | profile-page | Phase 1 | Committed | Read-only display, 54 tests, error boundary |
+| 2025-12-28T00:08:00Z | team-invitations | Phase 1-2 | Committed | Email template + API integration, 28 tests |
 
 ## Orchestrator Commands
 - Start: `/feature-orchestrator [features]`

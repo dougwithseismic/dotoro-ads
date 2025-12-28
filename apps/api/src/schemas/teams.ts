@@ -165,6 +165,12 @@ export const invitationSchema = z
     inviterEmail: z.string().email(),
     expiresAt: z.string().datetime(),
     createdAt: z.string().datetime(),
+    /** Whether the invitation email was sent successfully */
+    emailSent: z.boolean().optional(),
+    /** Error message if email sending failed */
+    emailError: z.string().optional(),
+    /** Invite link provided when email fails so admin can share manually */
+    inviteLink: z.string().url().optional(),
   })
   .openapi("Invitation");
 

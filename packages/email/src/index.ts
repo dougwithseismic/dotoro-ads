@@ -50,3 +50,8 @@ export {
 
 // Send function exports
 export { sendMagicLinkEmail } from "./send/magic-link.js";
+export {
+  sendTeamInvitationEmail,
+  type SendTeamInvitationOptions,
+  type TeamInvitationEmailProps,
+} from "./send/team-invitation.js";

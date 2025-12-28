@@ -1,23 +1,23 @@
 {
   "version": 2,
   "project": "dotoro-user-features",
-  "current_feature_index": 1,
-  "current_feature": "profile-page",
-  "current_phase": "0",
-  "phase_description": "sense_check",
+  "current_feature_index": 2,
+  "current_feature": "team-invitations",
+  "current_phase": "4.1",
+  "phase_description": "tdd_implementation",
   "iteration": 0,
   "max_iterations": 3,
   "review_issues": [],
   "pr_suite_results": null,
   "todo_validation": null,
-  "completed_features": ["better-auth-migration"],
-  "pending_features": ["profile-page", "team-invitations", "settings-page", "better-auth-enhancements"],
+  "completed_features": ["better-auth-migration", "profile-page-phase1"],
+  "pending_features": ["team-invitations", "settings-page", "better-auth-enhancements"],
   "execution_queue": [
-    { "name": "profile-page", "dependencies": [], "status": "pending", "todoDoc": ".claude/features/profile-page-TODO.md", "checkboxes": "0/50" },
-    { "name": "team-invitations", "dependencies": [], "status": "pending", "todoDoc": ".claude/features/team-invitations-TODO.md", "checkboxes": "0/47" },
+    { "name": "profile-page", "dependencies": [], "status": "phase1_complete", "todoDoc": ".claude/features/profile-page-TODO.md", "checkboxes": "37/82", "commit": "76bede7" },
+    { "name": "team-invitations", "dependencies": [], "status": "in_progress", "todoDoc": ".claude/features/team-invitations-TODO.md", "checkboxes": "0/47" },
     { "name": "settings-page", "dependencies": ["profile-page"], "status": "pending", "todoDoc": ".claude/features/settings-page-TODO.md", "checkboxes": "0/75" },
     { "name": "better-auth-enhancements", "dependencies": ["settings-page"], "status": "pending", "todoDoc": ".claude/features/better-auth-enhancements-TODO.md", "checkboxes": "0/48" }
   ],
-  "last_action": "Resuming orchestrator - running sense check on completed features",
-  "timestamp": "2025-12-28T00:00:00Z"
+  "last_action": "profile-page Phase 1 committed (76bede7), starting team-invitations",
+  "timestamp": "2025-12-28T00:07:00Z"
 }

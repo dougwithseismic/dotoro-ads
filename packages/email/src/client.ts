@@ -207,6 +207,13 @@ export async function sendEmail(
     return await emailClient.send(options);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    const recipients = Array.isArray(options.to) ? options.to : [options.to];
+    console.error("Email send failed:", {
+      error: message,
+      to: recipients,
+      subject: options.subject,
+      isConsoleFallback: emailClient.isConsoleFallback,
+    });
     return {
       success: false,
       error: message,
