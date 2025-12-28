@@ -10,7 +10,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
-import { users } from "./users.js";
+import { user } from "./auth.js";
 
 // ============================================================================
 // Enums
@@ -94,11 +94,12 @@ export const teamMemberships = pgTable(
     teamId: uuid("team_id")
       .notNull()
       .references(() => teams.id, { onDelete: "cascade" }),
-    userId: uuid("user_id")
+    // User ID is text to match Better Auth's user.id type
+    userId: text("user_id")
       .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+      .references(() => user.id, { onDelete: "cascade" }),
     role: teamRoleEnum("role").notNull().default("viewer"),
-    invitedBy: uuid("invited_by").references(() => users.id, {
+    invitedBy: text("invited_by").references(() => user.id, {
       onDelete: "set null",
     }),
     invitedAt: timestamp("invited_at", { withTimezone: true }),
@@ -142,9 +143,10 @@ export const teamInvitations = pgTable(
     email: varchar("email", { length: 255 }).notNull(),
     role: teamRoleEnum("role").notNull().default("viewer"),
     token: varchar("token", { length: 64 }).notNull().unique(),
-    invitedBy: uuid("invited_by")
+    // User ID is text to match Better Auth's user.id type
+    invitedBy: text("invited_by")
       .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+      .references(() => user.id, { onDelete: "cascade" }),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     acceptedAt: timestamp("accepted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -177,13 +179,13 @@ export const teamMembershipsRelations = relations(
       fields: [teamMemberships.teamId],
       references: [teams.id],
     }),
-    user: one(users, {
+    user: one(user, {
       fields: [teamMemberships.userId],
-      references: [users.id],
+      references: [user.id],
     }),
-    inviter: one(users, {
+    inviter: one(user, {
       fields: [teamMemberships.invitedBy],
-      references: [users.id],
+      references: [user.id],
     }),
   })
 );
@@ -195,9 +197,9 @@ export const teamInvitationsRelations = relations(
       fields: [teamInvitations.teamId],
       references: [teams.id],
     }),
-    inviter: one(users, {
+    inviter: one(user, {
       fields: [teamInvitations.invitedBy],
-      references: [users.id],
+      references: [user.id],
     }),
   })
 );

@@ -2,9 +2,9 @@ import { randomBytes, createHash } from "crypto";
 import { eq, and, lt, isNull, isNotNull } from "drizzle-orm";
 import {
   db,
-  users,
-  magicLinkTokens,
-  sessions,
+  user,
+  session,
+  verification,
   type User,
   type Session,
 } from "./db.js";
@@ -55,19 +55,21 @@ export async function getOrCreateUser(email: string): Promise<GetOrCreateUserRes
   // First, try to find existing user
   const [existingUser] = await db
     .select()
-    .from(users)
-    .where(eq(users.email, email.toLowerCase()))
+    .from(user)
+    .where(eq(user.email, email.toLowerCase()))
     .limit(1);
 
   if (existingUser) {
     return { user: existingUser, isNewUser: false };
   }
 
-  // Create new user
+  // Create new user - Better Auth requires name field
   const [newUser] = await db
-    .insert(users)
+    .insert(user)
     .values({
+      id: randomBytes(16).toString("hex"), // Better Auth uses text IDs
       email: email.toLowerCase(),
+      name: "", // Better Auth requires name
       emailVerified: false,
     })
     .returning();
@@ -112,11 +114,11 @@ export async function createMagicLink(
     const hashedToken = hashToken(rawToken);
     const expiresAt = new Date(Date.now() + MAGIC_LINK_EXPIRY_MS);
 
-    // Store hashed token in database
-    await db.insert(magicLinkTokens).values({
-      userId: user.id,
-      email: user.email,
-      token: hashedToken,
+    // Store hashed token in verification table (Better Auth pattern)
+    await db.insert(verification).values({
+      id: randomBytes(16).toString("hex"), // Better Auth uses text IDs
+      identifier: user.email,
+      value: hashedToken,
       expiresAt,
     });
 
@@ -160,11 +162,11 @@ export async function verifyMagicLink(
   try {
     const hashedToken = hashToken(rawToken);
 
-    // Find the token
+    // Find the token in verification table
     const [tokenRecord] = await db
       .select()
-      .from(magicLinkTokens)
-      .where(eq(magicLinkTokens.token, hashedToken))
+      .from(verification)
+      .where(eq(verification.value, hashedToken))
       .limit(1);
 
     // Token not found
@@ -175,67 +177,40 @@ export async function verifyMagicLink(
       };
     }
 
-    // Token already used
-    if (tokenRecord.usedAt) {
-      return {
-        success: false,
-        error: "Token has already been used",
-      };
-    }
-
     // Token expired
     if (tokenRecord.expiresAt < new Date()) {
+      // Delete expired verification record
+      await db.delete(verification).where(eq(verification.id, tokenRecord.id));
       return {
         success: false,
         error: "Invalid or expired token",
       };
     }
 
-    // Mark token as used
+    // Delete the used verification record (Better Auth pattern)
+    await db.delete(verification).where(eq(verification.id, tokenRecord.id));
+
+    // Get or create user using the identifier (email)
+    const result = await getOrCreateUser(tokenRecord.identifier);
+    const foundUser = result.user;
+
+    // Mark email as verified
     await db
-      .update(magicLinkTokens)
-      .set({ usedAt: new Date() })
-      .where(eq(magicLinkTokens.id, tokenRecord.id));
-
-    // Get or create user (should exist, but handle edge case)
-    let user: User;
-    if (tokenRecord.userId) {
-      const [existingUser] = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, tokenRecord.userId))
-        .limit(1);
-
-      if (!existingUser) {
-        return {
-          success: false,
-          error: "User not found",
-        };
-      }
-      user = existingUser;
-    } else {
-      // Pre-registration flow: create user now
-      const result = await getOrCreateUser(tokenRecord.email);
-      user = result.user;
-    }
-
-    // Mark email as verified and update last login
-    await db
-      .update(users)
+      .update(user)
       .set({
         emailVerified: true,
-        lastLoginAt: new Date(),
+        updatedAt: new Date(),
       })
-      .where(eq(users.id, user.id));
+      .where(eq(user.id, foundUser.id));
 
     // Create session
-    const { sessionToken, expiresAt } = await createSession(user.id, metadata);
+    const { sessionToken, expiresAt } = await createSession(foundUser.id, metadata);
 
     // Return updated user
     const [updatedUser] = await db
       .select()
-      .from(users)
-      .where(eq(users.id, user.id))
+      .from(user)
+      .where(eq(user.id, foundUser.id))
       .limit(1);
 
     return {
@@ -274,9 +249,10 @@ export async function createSession(
   const hashedToken = hashToken(rawToken);
   const expiresAt = new Date(Date.now() + SESSION_EXPIRY_MS);
 
-  const [session] = await db
-    .insert(sessions)
+  const [newSession] = await db
+    .insert(session)
     .values({
+      id: randomBytes(16).toString("hex"), // Better Auth uses text IDs
       userId,
       token: hashedToken,
       expiresAt,
@@ -287,7 +263,7 @@ export async function createSession(
 
   return {
     sessionToken: rawToken,
-    session: session!,
+    session: newSession!,
     expiresAt,
   };
 }
@@ -307,48 +283,48 @@ export async function validateSession(
   const hashedToken = hashToken(rawToken);
 
   // Find session
-  const [session] = await db
+  const [foundSession] = await db
     .select()
-    .from(sessions)
-    .where(eq(sessions.token, hashedToken))
+    .from(session)
+    .where(eq(session.token, hashedToken))
     .limit(1);
 
-  if (!session) {
+  if (!foundSession) {
     return null;
   }
 
   // Check if expired
-  if (session.expiresAt < new Date()) {
+  if (foundSession.expiresAt < new Date()) {
     // Clean up expired session
-    await db.delete(sessions).where(eq(sessions.id, session.id));
+    await db.delete(session).where(eq(session.id, foundSession.id));
     return null;
   }
 
   // Get user
-  const [user] = await db
+  const [foundUser] = await db
     .select()
-    .from(users)
-    .where(eq(users.id, session.userId))
+    .from(user)
+    .where(eq(user.id, foundSession.userId))
     .limit(1);
 
-  if (!user) {
+  if (!foundUser) {
     return null;
   }
 
-  // Update lastActiveAt for sliding expiry
+  // Update updatedAt for sliding expiry (Better Auth pattern)
   await db
-    .update(sessions)
-    .set({ lastActiveAt: new Date() })
-    .where(eq(sessions.id, session.id));
+    .update(session)
+    .set({ updatedAt: new Date() })
+    .where(eq(session.id, foundSession.id));
 
-  return { session, user };
+  return { session: foundSession, user: foundUser };
 }
 
 /**
  * Revoke a specific session by ID
  */
 export async function revokeSession(sessionId: string): Promise<void> {
-  await db.delete(sessions).where(eq(sessions.id, sessionId));
+  await db.delete(session).where(eq(session.id, sessionId));
 }
 
 /**
@@ -356,14 +332,14 @@ export async function revokeSession(sessionId: string): Promise<void> {
  */
 export async function revokeSessionByToken(rawToken: string): Promise<void> {
   const hashedToken = hashToken(rawToken);
-  await db.delete(sessions).where(eq(sessions.token, hashedToken));
+  await db.delete(session).where(eq(session.token, hashedToken));
 }
 
 /**
  * Revoke all sessions for a user
  */
 export async function revokeAllUserSessions(userId: string): Promise<void> {
-  await db.delete(sessions).where(eq(sessions.userId, userId));
+  await db.delete(session).where(eq(session.userId, userId));
 }
 
 // ============================================================================
@@ -371,13 +347,13 @@ export async function revokeAllUserSessions(userId: string): Promise<void> {
 // ============================================================================
 
 /**
- * Clean up expired magic link tokens
+ * Clean up expired verification tokens
  * Should be run periodically (e.g., hourly via pg-boss)
  */
 export async function cleanupExpiredTokens(): Promise<number> {
-  const result = await db
-    .delete(magicLinkTokens)
-    .where(lt(magicLinkTokens.expiresAt, new Date()));
+  await db
+    .delete(verification)
+    .where(lt(verification.expiresAt, new Date()));
 
   // drizzle doesn't return rowCount directly, but the operation succeeds
   return 0; // Return 0 for now, actual count would require raw SQL
@@ -388,9 +364,9 @@ export async function cleanupExpiredTokens(): Promise<number> {
  * Should be run periodically (e.g., hourly via pg-boss)
  */
 export async function cleanupExpiredSessions(): Promise<number> {
-  const result = await db
-    .delete(sessions)
-    .where(lt(sessions.expiresAt, new Date()));
+  await db
+    .delete(session)
+    .where(lt(session.expiresAt, new Date()));
 
   return 0;
 }

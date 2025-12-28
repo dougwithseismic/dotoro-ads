@@ -56,10 +56,11 @@ export {
   // User OAuth Tokens (for data source integrations)
   userOAuthTokens,
 
-  // Auth
-  users,
-  magicLinkTokens,
-  sessions,
+  // Better Auth (authentication)
+  user,
+  session,
+  account,
+  verification,
 
   // Teams
   teams,
@@ -149,13 +150,15 @@ export type {
   UserOAuthToken,
   NewUserOAuthToken,
 
-  // Auth
+  // Better Auth (authentication)
   User,
   NewUser,
-  MagicLinkToken,
-  NewMagicLinkToken,
   Session,
   NewSession,
+  Account,
+  NewAccount,
+  Verification,
+  NewVerification,
 
   // Teams
   Team,

@@ -21,7 +21,7 @@ import {
   db,
   teams,
   teamMemberships,
-  users,
+  user,
 } from "../services/db.js";
 
 // ============================================================================
@@ -726,14 +726,14 @@ teamsApp.openapi(listMembersRoute, async (c) => {
     .select({
       id: teamMemberships.id,
       userId: teamMemberships.userId,
-      email: users.email,
+      email: user.email,
       role: teamMemberships.role,
       invitedAt: teamMemberships.invitedAt,
       acceptedAt: teamMemberships.acceptedAt,
       createdAt: teamMemberships.createdAt,
     })
     .from(teamMemberships)
-    .innerJoin(users, eq(users.id, teamMemberships.userId))
+    .innerJoin(user, eq(user.id, teamMemberships.userId))
     .where(eq(teamMemberships.teamId, id));
 
   const data = members.map((m) => ({
@@ -808,13 +808,13 @@ teamsApp.openapi(updateMemberRoleRoute, async (c) => {
     .returning();
 
   // Get user email
-  const [user] = await db.select({ email: users.email }).from(users).where(eq(users.id, targetUserId));
+  const [foundUser] = await db.select({ email: user.email }).from(user).where(eq(user.id, targetUserId));
 
   return c.json(
     {
       id: updated.id,
       userId: updated.userId,
-      email: user.email,
+      email: foundUser.email,
       role: updated.role,
       invitedAt: updated.invitedAt?.toISOString() ?? null,
       acceptedAt: updated.acceptedAt?.toISOString() ?? null,

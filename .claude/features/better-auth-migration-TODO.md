@@ -3,7 +3,7 @@
 **Project:** Dotoro
 **Feature:** Replace Custom Auth with Better Auth
 **Date:** 2025-12-28
-**Status:** In Progress - Phase 1 Complete
+**Status:** In Progress - Phase 2 Complete
 
 ---
 
@@ -73,11 +73,11 @@ Migrate from custom authentication implementation to Better Auth library, fixing
 - [x] React Context-based auth provider
 - [x] Login and verify pages with proper UX
 
-### Database Schema (Partially Reusable)
+### Database Schema (Greenfield - Fresh Start)
 
-- [x] `users` table with `id`, `email`, `emailVerified`, timestamps
-- [x] `sessions` table with `token`, `userId`, `expiresAt`, metadata
-- [x] `magic_link_tokens` table for verification tokens
+- [x] Old auth tables (`users`, `sessions`, `magic_link_tokens`) deleted
+- [x] Better Auth schema generated via CLI at `packages/database/src/schema/auth.ts`
+- [x] New tables: `user`, `session`, `account`, `verification`
 
 ---
 
@@ -129,106 +129,57 @@ Migrate from custom authentication implementation to Better Auth library, fixing
 
 ---
 
-### Phase 2: Database Schema Migration
+### Phase 2: Database Schema Migration (GREENFIELD APPROACH)
 
 **Priority:** HIGH - Required before Better Auth can function
 **Estimated Time:** 2-3 hours
+**Status:** COMPLETE
 
-#### 2.1 Review Better Auth Schema Requirements
+> **APPROACH CHANGE:** This phase was completed using a GREENFIELD approach instead of the originally planned data migration. The old auth tables (`users.ts`, `sessions.ts`, `magic-link-tokens.ts`) were deleted, and Better Auth CLI was used to generate a fresh schema. No user migration was needed as this is a fresh start.
 
-Better Auth requires specific table structures. We need to either:
-- Option A: Let Better Auth manage its own tables (recommended)
-- Option B: Adapt existing tables to match Better Auth schema
+#### 2.1 Delete Old Auth Schema Files
 
-Recommended approach: Option A with data migration script
+- [x] Delete `packages/database/src/schema/users.ts`
+- [x] Delete `packages/database/src/schema/sessions.ts`
+- [x] Delete `packages/database/src/schema/magic-link-tokens.ts`
+  **Note:** All old auth tables have been removed. Greenfield approach means no legacy data to migrate.
 
-- [ ] Review current `users` table compatibility
-  - Current: `id (uuid)`, `email`, `emailVerified`, `createdAt`, `updatedAt`, `lastLoginAt`
-  - Better Auth needs: `id`, `email`, `emailVerified`, `name`, `image`, `createdAt`, `updatedAt`
+#### 2.2 Create Better Auth Schema File (via CLI)
 
-- [ ] Review Better Auth required tables:
-  - `user` - Core user identity
-  - `session` - Active sessions
-  - `account` - OAuth accounts (optional for magic link only)
-  - `verification` - Magic link/email verification tokens
+- [x] Generate Better Auth schema using `@better-auth/cli`
+  **Implemented:** Schema file created at `packages/database/src/schema/auth.ts` containing:
+  - `user` - Core user identity with `id (text)`, `name`, `email`, `emailVerified`, `image`, timestamps
+  - `session` - Active sessions with token-based auth and expiry
+  - `account` - OAuth provider connections (for future OAuth support)
+  - `verification` - Magic link and email verification tokens
+  - All required indexes and relations
+  - Type exports for all tables
 
-#### 2.2 Create Better Auth Schema File
+  See: `packages/database/src/schema/auth.ts`
 
-- [ ] Create `packages/database/src/schema/auth.ts` for Better Auth tables
-  ```typescript
-  // packages/database/src/schema/auth.ts
-  import { pgTable, text, timestamp, boolean, uuid } from "drizzle-orm/pg-core";
-  import { relations } from "drizzle-orm";
+#### 2.3 Update Schema Exports
 
-  export const user = pgTable("user", {
-    id: uuid("id").primaryKey().defaultRandom(),
-    email: text("email").notNull().unique(),
-    emailVerified: boolean("email_verified").notNull().default(false),
-    name: text("name"),
-    image: text("image"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  });
-
-  export const session = pgTable("session", {
-    id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
-    token: text("token").notNull().unique(),
-    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-    ipAddress: text("ip_address"),
-    userAgent: text("user_agent"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  });
-
-  export const verification = pgTable("verification", {
-    id: uuid("id").primaryKey().defaultRandom(),
-    identifier: text("identifier").notNull(), // email
-    value: text("value").notNull(), // token
-    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  });
-  ```
-
-#### 2.3 Create Migration Script
-
-- [ ] Create data migration SQL to move existing users
-  ```sql
-  -- Migration: Move users from old schema to Better Auth schema
-  INSERT INTO "user" (id, email, email_verified, created_at, updated_at)
-  SELECT id, email, email_verified, created_at, updated_at
-  FROM users
-  ON CONFLICT (id) DO NOTHING;
-  ```
-
-- [ ] Create migration to drop old auth tables after verification
-  ```sql
-  -- After verifying migration success:
-  DROP TABLE IF EXISTS magic_link_tokens;
-  DROP TABLE IF EXISTS sessions;
-  -- Keep users table data but update foreign keys to reference new user table
-  ```
+- [x] Update `packages/database/src/schema/index.ts` to export Better Auth tables
+  **Implemented:** Exports `user`, `session`, `account`, `verification` tables and their relations/types from `./auth.js`
 
 #### 2.4 Update Foreign Key References
 
-- [ ] Update `teams` table foreign keys to reference new `user` table
-- [ ] Update `data_sources` table if it has user references
-- [ ] Update any other tables with `userId` foreign keys
+- [x] Update `teams.ts` foreign keys to reference new `user` table
+  **Implemented:** Updated `packages/database/src/schema/teams.ts`:
+  - `teamMemberships.userId` now uses `text` type to match Better Auth's `user.id`
+  - `teamMemberships.invitedBy` references `user.id`
+  - `teamInvitations.invitedBy` references `user.id`
+  - Updated all Drizzle relations to use the new `user` table
+  - Import updated to use `user` from `./auth.js`
 
-#### 2.5 Generate and Run Drizzle Migration
+#### 2.5 Generate Initial Migration
 
-- [ ] Generate Drizzle migration files
-  ```bash
-  cd packages/database && pnpm drizzle-kit generate
-  ```
-
-- [ ] Review generated migration SQL for correctness
-
-- [ ] Run migration against development database
-  ```bash
-  cd packages/database && pnpm drizzle-kit migrate
-  ```
+- [x] Generate Drizzle migration file
+  **Implemented:** Generated `packages/database/drizzle/0000_initial.sql` containing:
+  - All Better Auth tables (`user`, `session`, `account`, `verification`)
+  - Proper foreign key constraints from teams to user table
+  - All required indexes
+  - Full schema for the entire application (clean start)
 
 ---
 
@@ -717,33 +668,35 @@ Recommended approach: Option A with data migration script
 apps/api/
   src/
     lib/
-      auth.ts              # NEW: Better Auth configuration
+      auth.ts              # DONE: Better Auth configuration
     routes/
-      auth-handler.ts      # NEW: Hono handler for Better Auth
-      auth.ts              # DELETE: Old custom routes
+      auth-handler.ts      # NEW: Hono handler for Better Auth (Phase 3)
+      auth.ts              # DELETE: Old custom routes (Phase 3)
     services/
-      auth-service.ts      # DELETE: Old custom service
+      auth-service.ts      # DELETE: Old custom service (Phase 3)
     middleware/
-      auth.ts              # REPLACE: Better Auth middleware
+      auth.ts              # REPLACE: Better Auth middleware (Phase 4)
 
 apps/web/
   lib/
     auth/
-      auth-client.ts       # NEW: Better Auth React client
-      context.tsx          # REPLACE: Better Auth provider
-      api.ts               # DELETE: Old fetch functions
+      auth-client.ts       # NEW: Better Auth React client (Phase 5)
+      context.tsx          # REPLACE: Better Auth provider (Phase 5)
+      api.ts               # DELETE: Old fetch functions (Phase 5)
     app/
       (auth)/
-        login/page.tsx     # MODIFY: Use signIn.magicLink()
-        verify/page.tsx    # MODIFY: Better Auth verification
+        login/page.tsx     # MODIFY: Use signIn.magicLink() (Phase 5)
+        verify/page.tsx    # MODIFY: Better Auth verification (Phase 5)
 
 packages/database/
   src/
     schema/
-      auth.ts              # NEW: Better Auth schema
-      users.ts             # KEEP: May need minor updates
-      sessions.ts          # DELETE: Replaced by auth.ts
-      magic-link-tokens.ts # DELETE: Replaced by auth.ts
+      auth.ts              # DONE: Better Auth schema (user, session, account, verification)
+      users.ts             # DELETED: Replaced by auth.ts (Greenfield)
+      sessions.ts          # DELETED: Replaced by auth.ts (Greenfield)
+      magic-link-tokens.ts # DELETED: Replaced by auth.ts (Greenfield)
+  drizzle/
+    0000_initial.sql       # DONE: Initial migration with all tables
 ```
 
 ---

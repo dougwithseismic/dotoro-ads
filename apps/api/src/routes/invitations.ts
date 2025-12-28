@@ -21,7 +21,7 @@ import {
   teams,
   teamMemberships,
   teamInvitations,
-  users,
+  user,
 } from "../services/db.js";
 
 // ============================================================================
@@ -371,8 +371,8 @@ invitationsApp.openapi(sendInvitationRoute, async (c) => {
   const existingMember = await db
     .select({ id: teamMemberships.id })
     .from(teamMemberships)
-    .innerJoin(users, eq(users.id, teamMemberships.userId))
-    .where(and(eq(teamMemberships.teamId, teamId), eq(users.email, email)))
+    .innerJoin(user, eq(user.id, teamMemberships.userId))
+    .where(and(eq(teamMemberships.teamId, teamId), eq(user.email, email)))
     .limit(1);
 
   if (existingMember.length > 0) {
@@ -458,10 +458,10 @@ invitationsApp.openapi(listInvitationsRoute, async (c) => {
       invitedBy: teamInvitations.invitedBy,
       expiresAt: teamInvitations.expiresAt,
       createdAt: teamInvitations.createdAt,
-      inviterEmail: users.email,
+      inviterEmail: user.email,
     })
     .from(teamInvitations)
-    .innerJoin(users, eq(users.id, teamInvitations.invitedBy))
+    .innerJoin(user, eq(user.id, teamInvitations.invitedBy))
     .where(
       and(
         eq(teamInvitations.teamId, teamId),
@@ -529,11 +529,11 @@ invitationsApp.openapi(getInvitationDetailsRoute, async (c) => {
       acceptedAt: teamInvitations.acceptedAt,
       teamName: teams.name,
       teamSlug: teams.slug,
-      inviterEmail: users.email,
+      inviterEmail: user.email,
     })
     .from(teamInvitations)
     .innerJoin(teams, eq(teams.id, teamInvitations.teamId))
-    .innerJoin(users, eq(users.id, teamInvitations.invitedBy))
+    .innerJoin(user, eq(user.id, teamInvitations.invitedBy))
     .where(eq(teamInvitations.token, token))
     .limit(1);
 

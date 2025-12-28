@@ -159,7 +159,7 @@ describe("Data Sources Schema", () => {
     });
 
     it("should have correct enum values", () => {
-      expect(dataSourceTypeEnum.enumValues).toEqual(["csv", "api", "manual"]);
+      expect(dataSourceTypeEnum.enumValues).toEqual(["csv", "api", "manual", "google-sheets"]);
     });
   });
 });
