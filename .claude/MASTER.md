@@ -6,7 +6,7 @@ Status: In Progress
 
 | # | Feature | Status | TODO Doc | Dependencies | Phases | Checkboxes |
 |---|---------|--------|----------|--------------|--------|------------|
-| 1 | better-auth-migration | 🔄 In Progress | [TODO](features/better-auth-migration-TODO.md) | none | 6 | 6/62 |
+| 1 | better-auth-migration | 🔄 In Progress | [TODO](features/better-auth-migration-TODO.md) | none | 6 | 45/62 |
 
 ## Status Legend
 - ⏳ Pending - Not yet started
@@ -27,6 +27,9 @@ better-auth-migration (no dependencies)
 |-----------|---------|-------|--------|-------|
 | 2025-12-28T00:00:00Z | better-auth-migration | Planning | TODO doc generated | 62 checkboxes, 6 phases |
 | 2025-12-28T00:01:00Z | better-auth-migration | Phase 1 | Committed | 6/6 items, commit 7b6ef15 |
+| 2025-12-28T00:02:00Z | better-auth-migration | Phase 2 | Committed | 7/7 items (greenfield), commit a345442 |
+| 2025-12-28T00:03:00Z | better-auth-migration | Phase 3 | Committed | 15 items (routes+middleware), commit 1edb3d6 |
+| 2025-12-28T00:04:00Z | better-auth-migration | Phase 5 | Committed | 17 items (frontend), commit 9cb1220 |
 
 ## Orchestrator Commands
 - Start: `/feature-orchestrator [features]`

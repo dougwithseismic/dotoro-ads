@@ -27,7 +27,7 @@ vi.mock("../../services/db.js", () => {
       invitedBy: "invitedBy",
       expiresAt: "expiresAt",
     },
-    users: { id: "id", email: "email" },
+    user: { id: "id", email: "email" },
   };
 });
 

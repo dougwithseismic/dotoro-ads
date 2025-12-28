@@ -554,6 +554,10 @@ teamsApp.openapi(createTeamRoute, async (c) => {
     })
     .returning();
 
+  if (!newTeam) {
+    throw new ApiException(500, ErrorCode.INTERNAL_ERROR, "Failed to create team");
+  }
+
   // Add creator as owner
   await db.insert(teamMemberships).values({
     teamId: newTeam.id,
@@ -596,10 +600,11 @@ teamsApp.openapi(getTeamRoute, async (c) => {
   }
 
   // Get member count
-  const [{ count: memberCount }] = await db
+  const memberCountResult = await db
     .select({ count: count(teamMemberships.id) })
     .from(teamMemberships)
     .where(eq(teamMemberships.teamId, id));
+  const memberCount = memberCountResult[0]?.count ?? 0;
 
   return c.json(
     {
@@ -646,11 +651,16 @@ teamsApp.openapi(updateTeamRoute, async (c) => {
     .where(eq(teams.id, id))
     .returning();
 
+  if (!updated) {
+    throw new ApiException(500, ErrorCode.INTERNAL_ERROR, "Failed to update team");
+  }
+
   // Get member count
-  const [{ count: memberCount }] = await db
+  const memberCountResult = await db
     .select({ count: count(teamMemberships.id) })
     .from(teamMemberships)
     .where(eq(teamMemberships.teamId, id));
+  const memberCount = memberCountResult[0]?.count ?? 0;
 
   return c.json(
     {
@@ -776,10 +786,11 @@ teamsApp.openapi(updateMemberRoleRoute, async (c) => {
 
   // Don't allow removing last owner
   if (targetMembership.role === "owner" && newRole !== "owner") {
-    const [{ count: ownerCount }] = await db
+    const ownerCountResult = await db
       .select({ count: count(teamMemberships.id) })
       .from(teamMemberships)
       .where(and(eq(teamMemberships.teamId, teamId), eq(teamMemberships.role, "owner")));
+    const ownerCount = ownerCountResult[0]?.count ?? 0;
 
     if (ownerCount <= 1) {
       throw new ApiException(400, ErrorCode.VALIDATION_ERROR, "Cannot remove last owner");
@@ -792,8 +803,16 @@ teamsApp.openapi(updateMemberRoleRoute, async (c) => {
     .where(eq(teamMemberships.id, targetMembership.id))
     .returning();
 
+  if (!updated) {
+    throw new ApiException(500, ErrorCode.INTERNAL_ERROR, "Failed to update member role");
+  }
+
   // Get user email
   const [foundUser] = await db.select({ email: user.email }).from(user).where(eq(user.id, targetUserId));
+
+  if (!foundUser) {
+    throw new ApiException(404, ErrorCode.NOT_FOUND, "User not found");
+  }
 
   return c.json(
     {
@@ -843,10 +862,11 @@ teamsApp.openapi(removeMemberRoute, async (c) => {
 
   // Don't allow removing last owner
   if (targetMembership.role === "owner") {
-    const [{ count: ownerCount }] = await db
+    const ownerCountResult = await db
       .select({ count: count(teamMemberships.id) })
       .from(teamMemberships)
       .where(and(eq(teamMemberships.teamId, teamId), eq(teamMemberships.role, "owner")));
+    const ownerCount = ownerCountResult[0]?.count ?? 0;
 
     if (ownerCount <= 1) {
       throw new ApiException(400, ErrorCode.VALIDATION_ERROR, "Cannot remove last owner");
