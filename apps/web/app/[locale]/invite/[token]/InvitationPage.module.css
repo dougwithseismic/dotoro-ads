@@ -1,0 +1,250 @@
+/**
+ * InvitationPage Styles
+ *
+ * Page layout and loading skeleton styles.
+ */
+
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: #f9fafb;
+}
+
+@media (prefers-color-scheme: dark) {
+  .container {
+    background: #0a0a0b;
+  }
+}
+
+/* Loading Skeleton */
+.loadingCard {
+  width: 100%;
+  max-width: 480px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  padding: 1.5rem;
+  border: 1px solid #e5e7eb;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .loadingCard {
+    background: #1f2937;
+    border-color: #374151;
+  }
+}
+
+.loadingHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.loadingAvatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  background: #e5e7eb;
+}
+
+@media (prefers-color-scheme: dark) {
+  .loadingAvatar {
+    background: #374151;
+  }
+}
+
+.loadingHeaderContent {
+  flex: 1;
+}
+
+.loadingTitle {
+  height: 24px;
+  width: 70%;
+  background: #e5e7eb;
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  .loadingTitle {
+    background: #374151;
+  }
+}
+
+.loadingSubtitle {
+  height: 16px;
+  width: 50%;
+  background: #e5e7eb;
+  border-radius: 4px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .loadingSubtitle {
+    background: #374151;
+  }
+}
+
+.loadingDetails {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  .loadingDetails {
+    border-top-color: #374151;
+  }
+}
+
+.loadingRow {
+  height: 16px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  margin-bottom: 0.75rem;
+}
+
+.loadingRow:last-child {
+  width: 60%;
+  margin-bottom: 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .loadingRow {
+    background: #374151;
+  }
+}
+
+.loadingActions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.loadingButton {
+  height: 44px;
+  background: #e5e7eb;
+  border-radius: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .loadingButton {
+    background: #374151;
+  }
+}
+
+/* Error container for network errors */
+.errorContainer {
+  width: 100%;
+  max-width: 480px;
+  text-align: center;
+  padding: 2rem;
+}
+
+.errorContainer h1 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 0.5rem 0;
+}
+
+.errorContainer p {
+  font-size: 0.9375rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .errorContainer h1 {
+    color: #f9fafb;
+  }
+
+  .errorContainer p {
+    color: #9ca3af;
+  }
+}
+
+/* Error page action buttons */
+.errorActions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  justify-content: center;
+}
+
+.retryButton {
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: white;
+  background: #2563eb;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.retryButton:hover {
+  background: #1d4ed8;
+}
+
+.retryButton:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.homeLink {
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #374151;
+  background: transparent;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.homeLink:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.homeLink:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .retryButton {
+    background: #3b82f6;
+  }
+
+  .retryButton:hover {
+    background: #2563eb;
+  }
+
+  .homeLink {
+    color: #e5e7eb;
+    border-color: #4b5563;
+  }
+
+  .homeLink:hover {
+    background: #374151;
+    border-color: #6b7280;
+  }
+}

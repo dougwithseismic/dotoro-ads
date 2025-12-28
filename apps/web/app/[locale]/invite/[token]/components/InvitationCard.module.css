@@ -1,0 +1,201 @@
+/**
+ * InvitationCard Styles
+ *
+ * Responsive card layout for displaying team invitation details.
+ * Mobile-first with centered desktop layout.
+ */
+
+.card {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  padding: 1.5rem;
+  border: 1px solid #e5e7eb;
+}
+
+@media (prefers-color-scheme: dark) {
+  .card {
+    background: #1f2937;
+    border-color: #374151;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
+  }
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.avatar {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.headerContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.teamName {
+  font-size: 1.375rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 0.25rem 0;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+@media (prefers-color-scheme: dark) {
+  .teamName {
+    color: #f9fafb;
+  }
+}
+
+.inviteMessage {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .inviteMessage {
+    color: #9ca3af;
+  }
+}
+
+.inviterEmail {
+  font-weight: 500;
+  color: #374151;
+}
+
+@media (prefers-color-scheme: dark) {
+  .inviterEmail {
+    color: #d1d5db;
+  }
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+@media (prefers-color-scheme: dark) {
+  .details {
+    border-top-color: #374151;
+  }
+}
+
+.detailRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.detailLabel {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+@media (prefers-color-scheme: dark) {
+  .detailLabel {
+    color: #9ca3af;
+  }
+}
+
+/* Role Badge Styles */
+.roleBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 9999px;
+  text-transform: capitalize;
+}
+
+.roleBadgeAdmin {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+@media (prefers-color-scheme: dark) {
+  .roleBadgeAdmin {
+    background-color: rgba(251, 191, 36, 0.2);
+    color: #fcd34d;
+  }
+}
+
+.roleBadgeEditor {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+@media (prefers-color-scheme: dark) {
+  .roleBadgeEditor {
+    background-color: rgba(59, 130, 246, 0.2);
+    color: #93c5fd;
+  }
+}
+
+.roleBadgeViewer {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+@media (prefers-color-scheme: dark) {
+  .roleBadgeViewer {
+    background-color: rgba(156, 163, 175, 0.2);
+    color: #d1d5db;
+  }
+}
+
+/* Expiry Info */
+.expiryInfo {
+  font-size: 0.875rem;
+  color: #374151;
+  font-weight: 500;
+}
+
+@media (prefers-color-scheme: dark) {
+  .expiryInfo {
+    color: #d1d5db;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .card {
+    border-radius: 0;
+    box-shadow: none;
+    border-left: none;
+    border-right: none;
+  }
+
+  .avatar {
+    width: 48px;
+    height: 48px;
+    font-size: 1.125rem;
+  }
+
+  .teamName {
+    font-size: 1.25rem;
+  }
+}

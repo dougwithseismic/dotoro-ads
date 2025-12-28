@@ -1,0 +1,366 @@
+/**
+ * InvitationActions Styles
+ *
+ * Styles for authentication state display and action buttons.
+ */
+
+.container {
+  width: 100%;
+  max-width: 480px;
+  margin: 1.5rem auto 0;
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.loadingSkeleton {
+  height: 44px;
+  background: #e5e7eb;
+  border-radius: 8px;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .loadingSkeleton {
+    background: #374151;
+  }
+}
+
+.signInMessage {
+  text-align: center;
+  font-size: 0.9375rem;
+  color: #6b7280;
+  margin: 0 0 1rem 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .signInMessage {
+    color: #9ca3af;
+  }
+}
+
+.userInfo {
+  text-align: center;
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0 0 1rem 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .userInfo {
+    color: #9ca3af;
+  }
+}
+
+.userEmail {
+  font-weight: 500;
+  color: #374151;
+}
+
+@media (prefers-color-scheme: dark) {
+  .userEmail {
+    color: #d1d5db;
+  }
+}
+
+/* Warning box for email mismatch */
+.warningBox {
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  .warningBox {
+    background: rgba(251, 191, 36, 0.1);
+    border-color: #d97706;
+  }
+}
+
+.warningText {
+  font-size: 0.875rem;
+  color: #92400e;
+  margin: 0 0 0.75rem 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .warningText {
+    color: #fcd34d;
+  }
+}
+
+.switchAccountButton {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #92400e;
+  background: transparent;
+  border: 1px solid #f59e0b;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.switchAccountButton:hover {
+  background: rgba(245, 158, 11, 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+  .switchAccountButton {
+    color: #fcd34d;
+    border-color: #d97706;
+  }
+
+  .switchAccountButton:hover {
+    background: rgba(251, 191, 36, 0.15);
+  }
+}
+
+/* Error box */
+.errorBox {
+  background: #fef2f2;
+  border: 1px solid #ef4444;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+@media (prefers-color-scheme: dark) {
+  .errorBox {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: #dc2626;
+  }
+}
+
+.errorText {
+  font-size: 0.875rem;
+  color: #dc2626;
+  margin: 0 0 0.75rem 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .errorText {
+    color: #fca5a5;
+  }
+}
+
+.retryButton {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #dc2626;
+  background: transparent;
+  border: 1px solid #ef4444;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.retryButton:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+  .retryButton {
+    color: #fca5a5;
+    border-color: #dc2626;
+  }
+
+  .retryButton:hover {
+    background: rgba(239, 68, 68, 0.15);
+  }
+}
+
+/* Action buttons */
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.acceptButton {
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  color: white;
+  background: #2563eb;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.acceptButton:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.acceptButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.declineButton {
+  width: 100%;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #374151;
+  background: transparent;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.declineButton:hover:not(:disabled) {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.declineButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (prefers-color-scheme: dark) {
+  .declineButton {
+    color: #d1d5db;
+    border-color: #4b5563;
+  }
+
+  .declineButton:hover:not(:disabled) {
+    background: #374151;
+    border-color: #6b7280;
+  }
+}
+
+/* Decline confirmation dialog */
+.dialog {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 50;
+  padding: 1rem;
+}
+
+.dialogContent {
+  width: 100%;
+  max-width: 400px;
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+@media (prefers-color-scheme: dark) {
+  .dialogContent {
+    background: #1f2937;
+  }
+}
+
+.dialogTitle {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 0.5rem 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .dialogTitle {
+    color: #f9fafb;
+  }
+}
+
+.dialogMessage {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0 0 1.5rem 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .dialogMessage {
+    color: #9ca3af;
+  }
+}
+
+.dialogActions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
+.cancelButton {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+  background: transparent;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cancelButton:hover:not(:disabled) {
+  background: #f9fafb;
+}
+
+.cancelButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (prefers-color-scheme: dark) {
+  .cancelButton {
+    color: #d1d5db;
+    border-color: #4b5563;
+  }
+
+  .cancelButton:hover:not(:disabled) {
+    background: #374151;
+  }
+}
+
+.confirmDeclineButton {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: white;
+  background: #dc2626;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.confirmDeclineButton:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.confirmDeclineButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

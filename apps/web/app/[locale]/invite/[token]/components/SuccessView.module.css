@@ -1,0 +1,142 @@
+/**
+ * SuccessView Styles
+ *
+ * Celebratory success state styling with animation.
+ */
+
+.container {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  text-align: center;
+  padding: 2rem;
+}
+
+.iconContainer {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 1.5rem;
+  background: #ecfdf5;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: scaleIn 0.3s ease-out;
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .iconContainer {
+    background: rgba(16, 185, 129, 0.2);
+  }
+}
+
+.icon {
+  width: 40px;
+  height: 40px;
+  color: #10b981;
+  animation: checkmarkDraw 0.5s ease-out 0.2s both;
+}
+
+@keyframes checkmarkDraw {
+  from {
+    stroke-dasharray: 100;
+    stroke-dashoffset: 100;
+  }
+  to {
+    stroke-dasharray: 100;
+    stroke-dashoffset: 0;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .icon {
+    color: #34d399;
+  }
+}
+
+.heading {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 0.75rem 0;
+  animation: fadeInUp 0.3s ease-out 0.3s both;
+}
+
+@keyframes fadeInUp {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .heading {
+    color: #f9fafb;
+  }
+}
+
+.message {
+  font-size: 1rem;
+  color: #6b7280;
+  margin: 0 0 2rem 0;
+  animation: fadeInUp 0.3s ease-out 0.4s both;
+}
+
+@media (prefers-color-scheme: dark) {
+  .message {
+    color: #9ca3af;
+  }
+}
+
+.role {
+  font-weight: 600;
+  color: #374151;
+}
+
+@media (prefers-color-scheme: dark) {
+  .role {
+    color: #d1d5db;
+  }
+}
+
+.actions {
+  animation: fadeInUp 0.3s ease-out 0.5s both;
+}
+
+.primaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  color: white;
+  background: #2563eb;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+
+.primaryButton:hover {
+  background: #1d4ed8;
+}
+
+.primaryButton:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.3);
+}
