@@ -3,7 +3,7 @@
 **Project:** Dotoro
 **Feature:** Replace Custom Auth with Better Auth
 **Date:** 2025-12-28
-**Status:** In Progress - Phase 3 Complete
+**Status:** In Progress - Phase 5 Complete
 
 ---
 
@@ -336,143 +336,52 @@ Migrate from custom authentication implementation to Better Auth library, fixing
 
 #### 5.1 Install Better Auth React Package
 
-- [ ] Add `@better-auth/react` to `apps/web`
+- [x] Add `better-auth` to `apps/web` (includes React client)
   ```bash
-  cd apps/web && pnpm add @better-auth/react@latest
+  cd apps/web && pnpm add better-auth@latest
   ```
+  **Note:** The `better-auth` package includes the React client - no separate `@better-auth/react` package needed. Import from `"better-auth/react"`.
 
 #### 5.2 Create Better Auth Client
 
-- [ ] Create `apps/web/lib/auth-client.ts`
-  ```typescript
-  // apps/web/lib/auth-client.ts
-  import { createAuthClient } from "better-auth/react";
-  import { magicLinkClient } from "better-auth/client/plugins";
-
-  export const authClient = createAuthClient({
-    baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001",
-    plugins: [magicLinkClient()],
-  });
-
-  export const {
-    signIn,
-    signOut,
-    useSession,
-    getSession,
-  } = authClient;
-  ```
+- [x] Create `apps/web/lib/auth-client.ts`
+  **Implemented:** Created Better Auth client configuration with magic link plugin.
+  See: `apps/web/lib/auth-client.ts`
 
 #### 5.3 Replace Auth Context Provider
 
-- [ ] Replace `apps/web/lib/auth/context.tsx` with Better Auth provider
-  ```typescript
-  // apps/web/lib/auth/context.tsx
-  "use client";
-
-  import { createContext, useContext, type ReactNode } from "react";
-  import { useRouter, usePathname } from "next/navigation";
-  import { useSession, signOut } from "./auth-client";
-
-  const PUBLIC_ROUTES = ["/login", "/verify"];
-
-  interface AuthContextValue {
-    user: { id: string; email: string; emailVerified: boolean } | null;
-    isLoading: boolean;
-    isAuthenticated: boolean;
-    logout: () => Promise<void>;
-    refreshSession: () => Promise<void>;
-  }
-
-  const AuthContext = createContext<AuthContextValue | null>(null);
-
-  export function AuthProvider({ children }: { children: ReactNode }) {
-    const { data: session, isPending, refetch } = useSession();
-    const router = useRouter();
-    const pathname = usePathname();
-
-    const logout = async () => {
-      await signOut();
-      router.push("/login");
-    };
-
-    const value: AuthContextValue = {
-      user: session?.user ? {
-        id: session.user.id,
-        email: session.user.email,
-        emailVerified: session.user.emailVerified,
-      } : null,
-      isLoading: isPending,
-      isAuthenticated: !!session?.user,
-      logout,
-      refreshSession: refetch,
-    };
-
-    return (
-      <AuthContext.Provider value={value}>
-        {children}
-      </AuthContext.Provider>
-    );
-  }
-
-  export function useAuth(): AuthContextValue {
-    const context = useContext(AuthContext);
-    if (!context) {
-      throw new Error("useAuth must be used within an AuthProvider");
-    }
-    return context;
-  }
-  ```
+- [x] Replace `apps/web/lib/auth/context.tsx` with Better Auth provider
+  **Implemented:** AuthProvider now uses Better Auth's `useSession` hook for session management. Includes redirect logic for protected routes, logout handling, and session refresh.
+  See: `apps/web/lib/auth/context.tsx`
 
 #### 5.4 Update Login Page
 
-- [ ] Modify `apps/web/app/(auth)/login/page.tsx` to use Better Auth
-  ```typescript
-  // Key changes:
-  import { signIn } from "@/lib/auth-client";
-
-  // Replace requestMagicLink with:
-  await signIn.magicLink({ email });
-  ```
+- [x] Modify `apps/web/app/(auth)/login/page.tsx` to use Better Auth
+  **Implemented:** Login page now uses `signIn.magicLink({ email, callbackURL })` from Better Auth client.
+  See: `apps/web/app/(auth)/login/page.tsx`
 
 #### 5.5 Update Verify Page
 
-- [ ] Modify `apps/web/app/(auth)/verify/page.tsx`
-  - Better Auth handles token verification automatically via `/api/auth/magic-link/verify`
-  - Update to use Better Auth's verification flow
-
-  ```typescript
-  // The verify page may need to call:
-  import { signIn } from "@/lib/auth-client";
-
-  // Better Auth magic link verification:
-  await signIn.magicLink({ token });
-  ```
+- [x] Modify `apps/web/app/(auth)/verify/page.tsx`
+  **Implemented:** Verify page now uses `authClient.magicLink.verify({ query: { token } })` for token verification. Handles both scenarios: when user arrives after Better Auth auto-verification, and manual token verification as fallback.
+  See: `apps/web/app/(auth)/verify/page.tsx`
 
 #### 5.6 Delete Legacy Auth Files
 
-- [ ] Delete `apps/web/lib/auth/api.ts`
-- [ ] Update `apps/web/lib/auth/index.ts` exports
-- [ ] Remove unused type definitions from `apps/web/lib/auth/types.ts`
+- [x] Delete `apps/web/lib/auth/api.ts`
+  **Implemented:** Deleted the legacy API file containing `requestMagicLink`, `verifyMagicLink`, `getSession`, and `logout` functions.
+- [x] Update `apps/web/lib/auth/index.ts` exports
+  **Implemented:** Updated to export from `context.tsx` and re-export Better Auth utilities from `auth-client.ts`.
+- [x] Update `apps/web/lib/auth/types.ts` with Better Auth types
+  **Implemented:** Updated User and Session types to match Better Auth structures.
 
 #### 5.7 Update Auth Types
 
-- [ ] Update `apps/web/lib/auth/types.ts` to match Better Auth types
-  ```typescript
-  // Ensure types align with Better Auth user/session shapes
-  export interface User {
-    id: string;
-    email: string;
-    emailVerified: boolean;
-    name?: string | null;
-    image?: string | null;
-  }
-
-  export interface Session {
-    id: string;
-    userId: string;
-    expiresAt: string;
-  }
-  ```
+- [x] Update `apps/web/lib/auth/types.ts` to match Better Auth types
+  **Implemented:** Types updated to match Better Auth structures:
+  - `User`: id, email, emailVerified, name?, image?
+  - `Session`: id, userId, expiresAt
+  See: `apps/web/lib/auth/types.ts`
 
 ---
 

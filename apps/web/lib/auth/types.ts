@@ -1,42 +1,32 @@
 /**
  * Auth Types for Dotoro Web App
+ *
+ * These types align with Better Auth's user and session structures
+ * while providing a consistent interface for the application.
  */
 
 /**
- * User object returned from the API
+ * User object from Better Auth
  */
 export interface User {
   id: string;
   email: string;
   emailVerified: boolean;
+  name?: string | null;
+  image?: string | null;
 }
 
 /**
- * Session response from GET /api/auth/session
+ * Session object from Better Auth
  */
-export interface SessionResponse {
-  user: User | null;
-  expiresAt: string | null;
+export interface Session {
+  id: string;
+  userId: string;
+  expiresAt: Date;
 }
 
 /**
- * Magic link request response
- */
-export interface MagicLinkRequestResponse {
-  success: true;
-  message: string;
-}
-
-/**
- * Magic link verify response
- */
-export interface MagicLinkVerifyResponse {
-  user: User;
-  expiresAt: string;
-}
-
-/**
- * Auth context value
+ * Auth context value provided by AuthProvider
  */
 export interface AuthContextValue {
   user: User | null;

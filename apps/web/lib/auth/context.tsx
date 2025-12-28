@@ -3,14 +3,13 @@
 import {
   createContext,
   useContext,
-  useState,
-  useEffect,
   useCallback,
+  useEffect,
   type ReactNode,
 } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { useSession, signOut as betterAuthSignOut } from "../auth-client";
 import type { User, AuthContextValue } from "./types";
-import { getSession, logout as logoutApi } from "./api";
 
 // Create the context
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -24,83 +23,70 @@ interface AuthProviderProps {
 
 /**
  * Auth Provider Component
- * Wraps the app and provides authentication state
+ * Wraps the app and provides authentication state using Better Auth
+ *
+ * Uses Better Auth's useSession hook which:
+ * - Automatically fetches session on mount
+ * - Handles session refresh and token rotation
+ * - Syncs session across browser tabs
  */
 export function AuthProvider({ children }: AuthProviderProps) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: session, isPending, refetch } = useSession();
   const router = useRouter();
   const pathname = usePathname();
 
-  // Refresh session from API
-  const refreshSession = useCallback(async () => {
-    try {
-      const session = await getSession();
-      setUser(session.user);
-    } catch (error) {
-      console.error("Failed to refresh session:", error);
-      setUser(null);
-    }
-  }, []);
-
-  // Initial session check
-  useEffect(() => {
-    const checkSession = async () => {
-      setIsLoading(true);
-      try {
-        const session = await getSession();
-        setUser(session.user);
-      } catch (error) {
-        console.error("Failed to check session:", error);
-        setUser(null);
-      } finally {
-        setIsLoading(false);
+  // Transform Better Auth user to our User type
+  const user: User | null = session?.user
+    ? {
+        id: session.user.id,
+        email: session.user.email,
+        emailVerified: session.user.emailVerified ?? false,
+        name: session.user.name ?? null,
+        image: session.user.image ?? null,
       }
-    };
-
-    checkSession();
-  }, []);
+    : null;
 
   // Redirect logic
   useEffect(() => {
-    if (isLoading) return;
+    if (isPending) return;
 
-    const isPublicRoute = PUBLIC_ROUTES.some(route => pathname.startsWith(route));
+    const isPublicRoute = PUBLIC_ROUTES.some((route) =>
+      pathname.startsWith(route)
+    );
 
     if (!user && !isPublicRoute) {
       // Not authenticated and trying to access protected route
       const redirectUrl = encodeURIComponent(pathname);
       router.push(`/login?redirect=${redirectUrl}`);
     }
-  }, [user, isLoading, pathname, router]);
+  }, [user, isPending, pathname, router]);
 
   // Logout function
   const logout = useCallback(async () => {
     try {
-      await logoutApi();
-      setUser(null);
+      await betterAuthSignOut();
       router.push("/login");
     } catch (error) {
       console.error("Logout failed:", error);
-      // Still clear local state even if API call fails
-      setUser(null);
+      // Still redirect even if API call fails
       router.push("/login");
     }
   }, [router]);
 
+  // Refresh session wrapper
+  const refreshSession = useCallback(async () => {
+    await refetch();
+  }, [refetch]);
+
   const value: AuthContextValue = {
     user,
-    isLoading,
+    isLoading: isPending,
     isAuthenticated: !!user,
     logout,
     refreshSession,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 /**

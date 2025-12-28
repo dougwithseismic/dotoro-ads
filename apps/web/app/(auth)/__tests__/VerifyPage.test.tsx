@@ -10,19 +10,27 @@ vi.mock("next/navigation", () => ({
   })),
 }));
 
-// Mock the auth API
-vi.mock("@/lib/auth", () => ({
-  verifyMagicLink: vi.fn(),
+// Mock the Better Auth client
+const mockVerify = vi.fn();
+const mockGetSession = vi.fn();
+vi.mock("@/lib/auth-client", () => ({
+  authClient: {
+    magicLink: {
+      verify: (...args: unknown[]) => mockVerify(...args),
+    },
+    getSession: (...args: unknown[]) => mockGetSession(...args),
+  },
 }));
 
 // Import after mocks
 import VerifyPage from "../verify/page";
-import { verifyMagicLink } from "@/lib/auth";
 import { useSearchParams } from "next/navigation";
 
 describe("VerifyPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default mock for getSession - no session
+    mockGetSession.mockResolvedValue({ data: null });
   });
 
   it("should show error when token is missing", async () => {
@@ -31,10 +39,15 @@ describe("VerifyPage", () => {
       get: vi.fn((key: string) => null),
     });
 
+    // When no token, getSession returns no session
+    mockGetSession.mockResolvedValue({ data: null });
+
     render(<VerifyPage />);
 
     await waitFor(() => {
-      expect(screen.getByText(/invalid verification link/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/invalid verification link/i)
+      ).toBeInTheDocument();
     });
   });
 
@@ -44,9 +57,8 @@ describe("VerifyPage", () => {
       get: vi.fn((key: string) => (key === "token" ? "a".repeat(64) : null)),
     });
 
-    const mockVerifyMagicLink = verifyMagicLink as ReturnType<typeof vi.fn>;
     // Return a promise that never resolves
-    mockVerifyMagicLink.mockReturnValue(new Promise(() => {}));
+    mockVerify.mockReturnValue(new Promise(() => {}));
 
     render(<VerifyPage />);
 
@@ -58,15 +70,17 @@ describe("VerifyPage", () => {
     mockUseSearchParams.mockReturnValue({
       get: vi.fn((key: string) => {
         if (key === "token") return "a".repeat(64);
-        if (key === "redirect") return "/dashboard";
+        if (key === "callbackURL") return "/dashboard";
         return null;
       }),
     });
 
-    const mockVerifyMagicLink = verifyMagicLink as ReturnType<typeof vi.fn>;
-    mockVerifyMagicLink.mockResolvedValue({
-      user: { id: "user-id", email: "test@example.com", emailVerified: true },
-      expiresAt: new Date().toISOString(),
+    mockVerify.mockResolvedValue({
+      data: {
+        user: { id: "user-id", email: "test@example.com", emailVerified: true },
+        session: { expiresAt: new Date().toISOString() },
+      },
+      error: null,
     });
 
     render(<VerifyPage />);
@@ -90,10 +104,12 @@ describe("VerifyPage", () => {
       get: vi.fn((key: string) => (key === "token" ? "a".repeat(64) : null)),
     });
 
-    const mockVerifyMagicLink = verifyMagicLink as ReturnType<typeof vi.fn>;
-    mockVerifyMagicLink.mockResolvedValue({
-      user: { id: "user-id", email: "test@example.com", emailVerified: true },
-      expiresAt: new Date().toISOString(),
+    mockVerify.mockResolvedValue({
+      data: {
+        user: { id: "user-id", email: "test@example.com", emailVerified: true },
+        session: { expiresAt: new Date().toISOString() },
+      },
+      error: null,
     });
 
     render(<VerifyPage />);
@@ -112,8 +128,10 @@ describe("VerifyPage", () => {
       get: vi.fn((key: string) => (key === "token" ? "a".repeat(64) : null)),
     });
 
-    const mockVerifyMagicLink = verifyMagicLink as ReturnType<typeof vi.fn>;
-    mockVerifyMagicLink.mockRejectedValue(new Error("Invalid or expired token"));
+    mockVerify.mockResolvedValue({
+      data: null,
+      error: { message: "Invalid or expired token" },
+    });
 
     render(<VerifyPage />);
 
@@ -129,14 +147,18 @@ describe("VerifyPage", () => {
       get: vi.fn((key: string) => (key === "token" ? "a".repeat(64) : null)),
     });
 
-    const mockVerifyMagicLink = verifyMagicLink as ReturnType<typeof vi.fn>;
-    mockVerifyMagicLink.mockRejectedValue(new Error("Token has already been used"));
+    mockVerify.mockResolvedValue({
+      data: null,
+      error: { message: "Token has already been used" },
+    });
 
     render(<VerifyPage />);
 
     await waitFor(() => {
       expect(screen.getByText(/verification failed/i)).toBeInTheDocument();
-      expect(screen.getByText(/token has already been used/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/token has already been used/i)
+      ).toBeInTheDocument();
     });
   });
 
@@ -146,15 +168,49 @@ describe("VerifyPage", () => {
       get: vi.fn((key: string) => (key === "token" ? "a".repeat(64) : null)),
     });
 
-    const mockVerifyMagicLink = verifyMagicLink as ReturnType<typeof vi.fn>;
-    mockVerifyMagicLink.mockRejectedValue(new Error("Token expired"));
+    mockVerify.mockResolvedValue({
+      data: null,
+      error: { message: "Token expired" },
+    });
 
     render(<VerifyPage />);
 
     await waitFor(() => {
-      const newLinkButton = screen.getByRole("link", { name: /request a new magic link/i });
+      const newLinkButton = screen.getByRole("link", {
+        name: /request a new magic link/i,
+      });
       expect(newLinkButton).toBeInTheDocument();
       expect(newLinkButton).toHaveAttribute("href", "/login");
     });
+  });
+
+  it("should check session when no token and user is already authenticated", async () => {
+    const mockUseSearchParams = useSearchParams as ReturnType<typeof vi.fn>;
+    mockUseSearchParams.mockReturnValue({
+      get: vi.fn((key: string) => {
+        if (key === "callbackURL") return "/dashboard";
+        return null;
+      }),
+    });
+
+    // User already has a session (arrived after Better Auth auto-verified)
+    mockGetSession.mockResolvedValue({
+      data: {
+        user: { id: "user-id", email: "test@example.com", emailVerified: true },
+      },
+    });
+
+    render(<VerifyPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/you're signed in/i)).toBeInTheDocument();
+    });
+
+    await waitFor(
+      () => {
+        expect(mockPush).toHaveBeenCalledWith("/dashboard");
+      },
+      { timeout: 3000 }
+    );
   });
 });

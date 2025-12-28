@@ -12,14 +12,16 @@ vi.mock("next/navigation", () => ({
   })),
 }));
 
-// Mock the auth API
-vi.mock("@/lib/auth", () => ({
-  requestMagicLink: vi.fn(),
+// Mock the Better Auth client
+const mockMagicLink = vi.fn();
+vi.mock("@/lib/auth-client", () => ({
+  signIn: {
+    magicLink: (...args: unknown[]) => mockMagicLink(...args),
+  },
 }));
 
 // Import after mocks
 import LoginPage from "../login/page";
-import { requestMagicLink } from "@/lib/auth";
 
 describe("LoginPage", () => {
   const user = userEvent.setup();
@@ -53,9 +55,8 @@ describe("LoginPage", () => {
   });
 
   it("should show loading state while submitting", async () => {
-    const mockRequestMagicLink = requestMagicLink as ReturnType<typeof vi.fn>;
     // Create a promise that doesn't resolve immediately
-    mockRequestMagicLink.mockReturnValue(new Promise(() => {}));
+    mockMagicLink.mockReturnValue(new Promise(() => {}));
 
     render(<LoginPage />);
 
@@ -69,10 +70,9 @@ describe("LoginPage", () => {
   });
 
   it("should show success state after successful submission", async () => {
-    const mockRequestMagicLink = requestMagicLink as ReturnType<typeof vi.fn>;
-    mockRequestMagicLink.mockResolvedValue({
-      success: true,
-      message: "Magic link sent",
+    mockMagicLink.mockResolvedValue({
+      data: { status: true },
+      error: null,
     });
 
     render(<LoginPage />);
@@ -90,9 +90,33 @@ describe("LoginPage", () => {
     expect(screen.getByText(/test@example.com/i)).toBeInTheDocument();
   });
 
-  it("should show error message on API failure", async () => {
-    const mockRequestMagicLink = requestMagicLink as ReturnType<typeof vi.fn>;
-    mockRequestMagicLink.mockRejectedValue(new Error("Rate limit exceeded"));
+  it("should call signIn.magicLink with correct parameters", async () => {
+    mockMagicLink.mockResolvedValue({
+      data: { status: true },
+      error: null,
+    });
+
+    render(<LoginPage />);
+
+    const emailInput = screen.getByLabelText(/email address/i);
+    await user.type(emailInput, "test@example.com");
+
+    const submitButton = screen.getByRole("button", { name: /continue with email/i });
+    await user.click(submitButton);
+
+    await waitFor(() => {
+      expect(mockMagicLink).toHaveBeenCalledWith({
+        email: "test@example.com",
+        callbackURL: "/",
+      });
+    });
+  });
+
+  it("should show error message on API failure with error response", async () => {
+    mockMagicLink.mockResolvedValue({
+      data: null,
+      error: { message: "Rate limit exceeded" },
+    });
 
     render(<LoginPage />);
 
@@ -107,11 +131,26 @@ describe("LoginPage", () => {
     });
   });
 
+  it("should show error message on API rejection", async () => {
+    mockMagicLink.mockRejectedValue(new Error("Network error"));
+
+    render(<LoginPage />);
+
+    const emailInput = screen.getByLabelText(/email address/i);
+    await user.type(emailInput, "test@example.com");
+
+    const submitButton = screen.getByRole("button", { name: /continue with email/i });
+    await user.click(submitButton);
+
+    await waitFor(() => {
+      expect(screen.getByText(/network error/i)).toBeInTheDocument();
+    });
+  });
+
   it("should allow resending magic link after success", async () => {
-    const mockRequestMagicLink = requestMagicLink as ReturnType<typeof vi.fn>;
-    mockRequestMagicLink.mockResolvedValue({
-      success: true,
-      message: "Magic link sent",
+    mockMagicLink.mockResolvedValue({
+      data: { status: true },
+      error: null,
     });
 
     render(<LoginPage />);

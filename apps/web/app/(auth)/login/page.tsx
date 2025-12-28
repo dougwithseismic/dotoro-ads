@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { requestMagicLink } from "@/lib/auth";
+import { signIn } from "@/lib/auth-client";
 
 type FormState = "idle" | "loading" | "success" | "error";
 
@@ -32,13 +32,24 @@ function LoginForm() {
     setErrorMessage("");
 
     try {
-      await requestMagicLink(email);
+      // Use Better Auth's signIn.magicLink method
+      const result = await signIn.magicLink({
+        email,
+        callbackURL: redirectUrl || "/",
+      });
+
+      if (result.error) {
+        throw new Error(result.error.message || "Failed to send magic link");
+      }
+
       setSubmittedEmail(email);
       setFormState("success");
     } catch (error) {
       setFormState("error");
       setErrorMessage(
-        error instanceof Error ? error.message : "Something went wrong. Please try again."
+        error instanceof Error
+          ? error.message
+          : "Something went wrong. Please try again."
       );
     }
   };
@@ -75,7 +86,8 @@ function LoginForm() {
         </p>
 
         <p className="text-sm text-neutral-500 dark:text-neutral-500 mb-6">
-          Click the link in the email to sign in. The link expires in 15 minutes.
+          Click the link in the email to sign in. The link expires in 15
+          minutes.
         </p>
 
         <button
@@ -126,7 +138,9 @@ function LoginForm() {
 
         {formState === "error" && (
           <div className="p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-            <p className="text-sm text-red-600 dark:text-red-400">{errorMessage}</p>
+            <p className="text-sm text-red-600 dark:text-red-400">
+              {errorMessage}
+            </p>
           </div>
         )}
 
@@ -179,7 +193,9 @@ function LoginForm() {
  */
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="text-center text-neutral-500">Loading...</div>}>
+    <Suspense
+      fallback={<div className="text-center text-neutral-500">Loading...</div>}
+    >
       <LoginForm />
     </Suspense>
   );

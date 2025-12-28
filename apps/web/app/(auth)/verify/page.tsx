@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { verifyMagicLink } from "@/lib/auth";
+import { authClient } from "@/lib/auth-client";
 import Link from "next/link";
 
 type VerifyState = "loading" | "success" | "error";
@@ -10,45 +10,78 @@ type VerifyState = "loading" | "success" | "error";
 /**
  * Verify Form Component
  * Uses useSearchParams so must be wrapped in Suspense
+ *
+ * Better Auth handles magic link verification via the token in the URL.
+ * The magic link URL format is: /api/auth/magic-link/verify?token=xxx&callbackURL=/
+ * When the user clicks the link, Better Auth verifies the token and sets the session cookie.
+ *
+ * This page can be reached in two scenarios:
+ * 1. Directly after Better Auth verification (if callbackURL was set to /verify)
+ * 2. As a manual fallback for token verification
  */
 function VerifyForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
   const token = searchParams.get("token");
-  const redirectUrl = searchParams.get("redirect") || "/";
+  const callbackURL = searchParams.get("callbackURL") || "/";
 
   const [state, setState] = useState<VerifyState>("loading");
   const [errorMessage, setErrorMessage] = useState("");
 
-  useEffect(() => {
+  const verifyToken = useCallback(async () => {
     if (!token) {
-      setState("error");
-      setErrorMessage("Invalid verification link. Please request a new magic link.");
+      // No token means this page was reached after Better Auth already verified
+      // Check if we have a session
+      const { data: session } = await authClient.getSession();
+
+      if (session?.user) {
+        setState("success");
+        setTimeout(() => {
+          router.push(callbackURL);
+        }, 1500);
+      } else {
+        setState("error");
+        setErrorMessage(
+          "Invalid verification link. Please request a new magic link."
+        );
+      }
       return;
     }
 
-    const verify = async () => {
-      try {
-        await verifyMagicLink(token);
-        setState("success");
+    // Manual token verification (fallback path)
+    try {
+      // Use Better Auth's magicLink.verify() method
+      // Token must be passed in the query object per Better Auth's API
+      const result = await authClient.magicLink.verify({
+        query: {
+          token,
+        },
+      });
 
-        // Redirect after a brief delay so user sees success
-        setTimeout(() => {
-          router.push(redirectUrl);
-        }, 1500);
-      } catch (error) {
-        setState("error");
-        setErrorMessage(
-          error instanceof Error
-            ? error.message
-            : "Verification failed. The link may have expired."
-        );
+      if (result.error) {
+        throw new Error(result.error.message || "Verification failed");
       }
-    };
 
-    verify();
-  }, [token, redirectUrl, router]);
+      setState("success");
+
+      // Redirect after a brief delay so user sees success
+      setTimeout(() => {
+        router.push(callbackURL);
+      }, 1500);
+    } catch (error) {
+      setState("error");
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Verification failed. The link may have expired."
+      );
+    }
+  }, [token, callbackURL, router]);
+
+  useEffect(() => {
+    verifyToken();
+  }, [verifyToken]);
 
   // Loading state
   if (state === "loading") {
@@ -161,32 +194,34 @@ function VerifyForm() {
  */
 export default function VerifyPage() {
   return (
-    <Suspense fallback={
-      <div className="text-center">
-        <div className="w-16 h-16 mx-auto mb-4 relative">
-          <svg
-            className="animate-spin w-16 h-16 text-blue-600 dark:text-blue-400"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            />
-          </svg>
+    <Suspense
+      fallback={
+        <div className="text-center">
+          <div className="w-16 h-16 mx-auto mb-4 relative">
+            <svg
+              className="animate-spin w-16 h-16 text-blue-600 dark:text-blue-400"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              />
+            </svg>
+          </div>
+          <p className="text-neutral-500">Loading...</p>
         </div>
-        <p className="text-neutral-500">Loading...</p>
-      </div>
-    }>
+      }
+    >
       <VerifyForm />
     </Suspense>
   );
