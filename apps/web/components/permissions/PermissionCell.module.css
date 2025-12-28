@@ -1,0 +1,146 @@
+.cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  transition: background-color 0.15s ease;
+  position: relative;
+  cursor: default;
+}
+
+.cell:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  .cell:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+  }
+}
+
+/* Allowed state - green check */
+.allowed {
+  color: #16a34a;
+}
+
+@media (prefers-color-scheme: dark) {
+  .allowed {
+    color: #22c55e;
+  }
+}
+
+/* Denied state - gray X */
+.denied {
+  color: #9ca3af;
+}
+
+@media (prefers-color-scheme: dark) {
+  .denied {
+    color: #6b7280;
+  }
+}
+
+/* Dangerous + allowed state - amber warning */
+.dangerous {
+  color: #d97706;
+  background-color: rgba(217, 119, 6, 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  .dangerous {
+    color: #fbbf24;
+    background-color: rgba(251, 191, 36, 0.12);
+  }
+}
+
+.dangerous:hover {
+  background-color: rgba(217, 119, 6, 0.12);
+}
+
+@media (prefers-color-scheme: dark) {
+  .dangerous:hover {
+    background-color: rgba(251, 191, 36, 0.16);
+  }
+}
+
+/* Icon styles */
+.icon {
+  width: 18px;
+  height: 18px;
+}
+
+.iconSmall {
+  width: 14px;
+  height: 14px;
+}
+
+/* Tooltip styles */
+.tooltipContainer {
+  position: relative;
+}
+
+.tooltip {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 12px;
+  background-color: #1f2937;
+  color: #f9fafb;
+  font-size: 12px;
+  line-height: 1.4;
+  border-radius: 6px;
+  white-space: normal;
+  max-width: 280px;
+  width: max-content;
+  z-index: 50;
+  margin-bottom: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  text-align: center;
+}
+
+@media (prefers-color-scheme: dark) {
+  .tooltip {
+    background-color: #374151;
+    color: #f9fafb;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+}
+
+/* Tooltip arrow */
+.tooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 6px;
+  border-style: solid;
+  border-color: #1f2937 transparent transparent transparent;
+}
+
+@media (prefers-color-scheme: dark) {
+  .tooltip::after {
+    border-color: #374151 transparent transparent transparent;
+  }
+}
+
+/* Warning indicator for dangerous permissions */
+.warningIndicator {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  background-color: #dc2626;
+  border-radius: 50%;
+  border: 2px solid white;
+}
+
+@media (prefers-color-scheme: dark) {
+  .warningIndicator {
+    border-color: #18181b;
+  }
+}

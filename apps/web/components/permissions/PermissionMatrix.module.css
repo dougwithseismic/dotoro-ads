@@ -1,0 +1,244 @@
+.container {
+  overflow-x: auto;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  background-color: white;
+}
+
+@media (prefers-color-scheme: dark) {
+  .container {
+    border-color: rgba(255, 255, 255, 0.1);
+    background-color: #18181b;
+  }
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 600px;
+}
+
+/* Header row */
+.headerRow {
+  position: sticky;
+  top: 0;
+  background-color: #f9fafb;
+  z-index: 10;
+}
+
+@media (prefers-color-scheme: dark) {
+  .headerRow {
+    background-color: #27272a;
+  }
+}
+
+.headerCell {
+  padding: 16px 12px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  white-space: nowrap;
+}
+
+@media (prefers-color-scheme: dark) {
+  .headerCell {
+    color: #e5e7eb;
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+.headerCell:first-child {
+  text-align: left;
+  padding-left: 20px;
+  min-width: 200px;
+}
+
+/* Current user's role column highlighting */
+.currentRoleHeader {
+  background-color: rgba(59, 130, 246, 0.08);
+  position: relative;
+}
+
+@media (prefers-color-scheme: dark) {
+  .currentRoleHeader {
+    background-color: rgba(59, 130, 246, 0.12);
+  }
+}
+
+.youIndicator {
+  display: block;
+  font-size: 10px;
+  font-weight: 500;
+  color: #3b82f6;
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.roleLevel {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: #9ca3af;
+  margin-top: 2px;
+}
+
+/* Resource group header */
+.resourceGroupRow {
+  background-color: #f3f4f6;
+}
+
+@media (prefers-color-scheme: dark) {
+  .resourceGroupRow {
+    background-color: #27272a;
+  }
+}
+
+.resourceGroupCell {
+  padding: 12px 20px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+@media (prefers-color-scheme: dark) {
+  .resourceGroupCell {
+    color: #9ca3af;
+    border-bottom-color: rgba(255, 255, 255, 0.05);
+  }
+}
+
+.resourceIcon {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.resourceIcon svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Permission rows */
+.permissionRow {
+  transition: background-color 0.15s ease;
+}
+
+.permissionRow:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+@media (prefers-color-scheme: dark) {
+  .permissionRow:hover {
+    background-color: rgba(255, 255, 255, 0.02);
+  }
+}
+
+.permissionRow:last-child td {
+  border-bottom: none;
+}
+
+.permissionCell {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+@media (prefers-color-scheme: dark) {
+  .permissionCell {
+    border-bottom-color: rgba(255, 255, 255, 0.05);
+  }
+}
+
+.permissionCell:first-child {
+  padding-left: 20px;
+}
+
+/* Permission name cell */
+.permissionNameCell {
+  padding-left: 32px !important;
+}
+
+.permissionName {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.permissionLabel {
+  font-size: 14px;
+  color: #374151;
+}
+
+@media (prefers-color-scheme: dark) {
+  .permissionLabel {
+    color: #e5e7eb;
+  }
+}
+
+/* Role cells */
+.roleCell {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.currentRoleCell {
+  background-color: rgba(59, 130, 246, 0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  .currentRoleCell {
+    background-color: rgba(59, 130, 246, 0.08);
+  }
+}
+
+/* Filter controls */
+.filterBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  background-color: #fafafa;
+}
+
+@media (prefers-color-scheme: dark) {
+  .filterBar {
+    background-color: #1f1f23;
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+.filterLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+@media (prefers-color-scheme: dark) {
+  .filterLabel {
+    color: #9ca3af;
+  }
+}
+
+.filterCheckbox {
+  width: 16px;
+  height: 16px;
+  accent-color: #3b82f6;
+  cursor: pointer;
+}
+
+/* Empty state */
+.emptyState {
+  padding: 40px;
+  text-align: center;
+  color: #9ca3af;
+  font-size: 14px;
+}
