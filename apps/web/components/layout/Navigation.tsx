@@ -10,8 +10,9 @@ import {
   Filter,
   Megaphone,
   User,
-  Settings,
   UserCircle,
+  Users,
+  Cog,
 } from "lucide-react";
 
 interface NavItem {
@@ -37,8 +38,9 @@ const managementNavItems: NavItem[] = [
 ];
 
 const settingsNavItems: NavItem[] = [
+  { label: "Settings", href: "/settings", icon: Cog },
   { label: "Profile", href: "/settings/profile", icon: UserCircle },
-  { label: "Team", href: "/settings/team", icon: Settings },
+  { label: "Team", href: "/settings/team", icon: Users },
 ];
 
 interface NavigationProps {
@@ -51,6 +53,11 @@ export function Navigation({ collapsed = false }: NavigationProps) {
   const isActive = (href: string) => {
     if (href === "/") {
       return pathname === "/";
+    }
+    // For /settings, only match exact path or with query params
+    // to avoid matching /settings/profile or /settings/team
+    if (href === "/settings") {
+      return pathname === "/settings" || pathname.startsWith("/settings?");
     }
     return pathname.startsWith(href);
   };

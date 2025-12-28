@@ -1,5 +1,33 @@
 import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+// Mock next/navigation
+vi.mock("next/navigation", () => ({
+  useRouter: vi.fn(() => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+  })),
+  usePathname: vi.fn(() => "/"),
+}));
+
+// Mock auth context
+const mockLogout = vi.fn();
+vi.mock("@/lib/auth", () => ({
+  useAuth: vi.fn(() => ({
+    user: {
+      id: "user-1",
+      email: "test@example.com",
+      name: "Test User",
+      emailVerified: true,
+      image: null,
+    },
+    isLoading: false,
+    isAuthenticated: true,
+    logout: mockLogout,
+    refreshSession: vi.fn(),
+  })),
+}));
+
 import { TopBar } from "../TopBar";
 
 describe("TopBar", () => {

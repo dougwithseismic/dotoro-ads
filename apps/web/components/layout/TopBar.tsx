@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { Menu, ChevronDown, User, Settings, LogOut } from "lucide-react";
 import { ThemeToggle } from "./ThemeProvider";
+import { useAuth } from "@/lib/auth";
 
 interface Breadcrumb {
   label: string;
@@ -18,6 +19,12 @@ interface TopBarProps {
 export function TopBar({ breadcrumbs = [], onMobileMenuToggle }: TopBarProps) {
   const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const { user, logout } = useAuth();
+
+  const handleSignOut = async () => {
+    setAccountDropdownOpen(false);
+    await logout();
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -103,22 +110,25 @@ export function TopBar({ breadcrumbs = [], onMobileMenuToggle }: TopBarProps) {
             >
               <div className="px-4 py-3 border-b border-zinc-800">
                 <p className="text-sm font-medium text-zinc-100">
-                  Current Account
+                  {user?.name || "Account"}
                 </p>
-                <p className="text-sm text-zinc-500">
-                  user@example.com
+                <p className="text-sm text-zinc-500 truncate">
+                  {user?.email || "user@example.com"}
                 </p>
               </div>
 
               <div className="py-1">
-                <button
+                <Link
+                  href="/settings"
+                  onClick={() => setAccountDropdownOpen(false)}
                   className="flex items-center gap-3 w-full px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-colors"
                   role="menuitem"
                 >
                   <Settings className="w-4 h-4" />
                   Settings
-                </button>
+                </Link>
                 <button
+                  onClick={handleSignOut}
                   className="flex items-center gap-3 w-full px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-zinc-100 transition-colors"
                   role="menuitem"
                 >
