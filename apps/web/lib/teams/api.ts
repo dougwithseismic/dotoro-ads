@@ -16,7 +16,7 @@ import type {
   CreateTeamInput,
   UpdateTeamInput,
   SendInvitationInput,
-} from "./types.js";
+} from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 

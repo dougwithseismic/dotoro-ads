@@ -9,8 +9,8 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import type { User, AuthContextValue } from "./types.js";
-import { getSession, logout as logoutApi } from "./api.js";
+import type { User, AuthContextValue } from "./types";
+import { getSession, logout as logoutApi } from "./api";
 
 // Create the context
 const AuthContext = createContext<AuthContextValue | null>(null);

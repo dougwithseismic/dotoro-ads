@@ -1,16 +1,16 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { requestMagicLink } from "@/lib/auth";
 
 type FormState = "idle" | "loading" | "success" | "error";
 
 /**
- * Login Page
- * Email input form for requesting magic link
+ * Login Form Component
+ * Uses useSearchParams so must be wrapped in Suspense
  */
-export default function LoginPage() {
+function LoginForm() {
   const searchParams = useSearchParams();
   const redirectUrl = searchParams.get("redirect");
 
@@ -170,5 +170,17 @@ export default function LoginPage() {
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * Login Page
+ * Wraps LoginForm in Suspense for useSearchParams
+ */
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="text-center text-neutral-500">Loading...</div>}>
+      <LoginForm />
+    </Suspense>
   );
 }
