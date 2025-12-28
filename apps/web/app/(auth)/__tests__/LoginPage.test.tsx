@@ -107,7 +107,8 @@ describe("LoginPage", () => {
     await waitFor(() => {
       expect(mockMagicLink).toHaveBeenCalledWith({
         email: "test@example.com",
-        callbackURL: "/",
+        // callbackURL is now absolute (window.location.origin)
+        callbackURL: expect.stringMatching(/^https?:\/\//),
       });
     });
   });

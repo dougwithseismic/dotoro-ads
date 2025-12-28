@@ -33,9 +33,11 @@ function LoginForm() {
 
     try {
       // Use Better Auth's signIn.magicLink method
+      // callbackURL must be absolute - Better Auth redirects relative to its baseURL (API)
+      const baseUrl = window.location.origin;
       const result = await signIn.magicLink({
         email,
-        callbackURL: redirectUrl || "/",
+        callbackURL: redirectUrl ? `${baseUrl}${redirectUrl}` : baseUrl,
       });
 
       if (result.error) {
