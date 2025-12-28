@@ -9,6 +9,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
+import { teams } from "./teams.js";
 
 /**
  * SECURITY NOTE: The credentials, accessToken, and refreshToken fields
@@ -41,6 +42,7 @@ export const adAccounts = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     userId: uuid("user_id"), // Nullable for now, will be required when auth is implemented
+    teamId: uuid("team_id").references(() => teams.id, { onDelete: "cascade" }), // Nullable for migration, will be required
     platform: varchar("platform", { length: 50 }).notNull(), // 'google_ads', 'meta', 'tiktok', etc.
     accountId: varchar("account_id", { length: 255 }).notNull(),
     accountName: varchar("account_name", { length: 255 }).notNull(),
@@ -59,6 +61,7 @@ export const adAccounts = pgTable(
     index("ad_accounts_status_idx").on(table.status),
     index("ad_accounts_platform_account_idx").on(table.platform, table.accountId),
     index("ad_accounts_user_idx").on(table.userId),
+    index("ad_accounts_team_idx").on(table.teamId),
     uniqueIndex("ad_accounts_platform_account_unique_idx").on(
       table.platform,
       table.accountId

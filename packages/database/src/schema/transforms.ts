@@ -10,6 +10,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { dataSources } from "./data-sources.js";
+import { teams } from "./teams.js";
 
 /**
  * Aggregation Function Type
@@ -81,6 +82,7 @@ export const transforms = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     userId: uuid("user_id"), // Nullable for now, will be required when auth is implemented
+    teamId: uuid("team_id").references(() => teams.id, { onDelete: "cascade" }), // Nullable for migration, will be required
     name: varchar("name", { length: 255 }).notNull(),
     description: text("description"),
     sourceDataSourceId: uuid("source_data_source_id")
@@ -104,6 +106,7 @@ export const transforms = pgTable(
     index("transforms_output_idx").on(table.outputDataSourceId),
     index("transforms_enabled_idx").on(table.enabled),
     index("transforms_user_idx").on(table.userId),
+    index("transforms_team_idx").on(table.teamId),
   ]
 );
 

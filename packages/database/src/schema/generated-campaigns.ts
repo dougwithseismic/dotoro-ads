@@ -15,6 +15,7 @@ import { campaignTemplates, platformEnum } from "./campaign-templates.js";
 import { dataRows } from "./data-sources.js";
 import { campaignSets } from "./campaign-sets.js";
 import { adGroups } from "./ad-groups.js";
+import { teams } from "./teams.js";
 
 /**
  * Campaign Status Enum
@@ -48,6 +49,7 @@ export const generatedCampaigns = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     userId: uuid("user_id"), // Nullable for now, will be required when auth is implemented
+    teamId: uuid("team_id").references(() => teams.id, { onDelete: "cascade" }), // Nullable for migration, will be required
     // NOTE: This is nullable initially to support the data migration process.
     // After running:
     //   1. pnpm db:migrate-campaign-sets (to assign all campaigns to sets)
@@ -79,6 +81,7 @@ export const generatedCampaigns = pgTable(
     index("generated_campaigns_data_row_idx").on(table.dataRowId),
     index("generated_campaigns_status_idx").on(table.status),
     index("generated_campaigns_user_idx").on(table.userId),
+    index("generated_campaigns_team_idx").on(table.teamId),
     index("generated_campaigns_set_idx").on(table.campaignSetId),
     index("generated_campaigns_set_order_idx").on(
       table.campaignSetId,

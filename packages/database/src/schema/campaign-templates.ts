@@ -9,6 +9,7 @@ import {
   index,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
+import { teams } from "./teams.js";
 
 /**
  * Platform Enum
@@ -24,6 +25,7 @@ export const campaignTemplates = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     userId: uuid("user_id"), // Nullable for now, will be required when auth is implemented
+    teamId: uuid("team_id").references(() => teams.id, { onDelete: "cascade" }), // Nullable for migration, will be required
     name: varchar("name", { length: 255 }).notNull(),
     platform: platformEnum("platform").notNull(),
     structure: jsonb("structure").$type<CampaignStructure>(),
@@ -38,6 +40,7 @@ export const campaignTemplates = pgTable(
   (table) => [
     index("campaign_templates_platform_idx").on(table.platform),
     index("campaign_templates_user_idx").on(table.userId),
+    index("campaign_templates_team_idx").on(table.teamId),
   ]
 );
 

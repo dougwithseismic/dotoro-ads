@@ -18,6 +18,8 @@ import { jobsApp } from "./routes/jobs.js";
 import { googleAuthApp } from "./routes/google.js";
 import { googleSheetsApp } from "./routes/google-sheets.js";
 import { authApp } from "./routes/auth.js";
+import { teamsApp } from "./routes/teams.js";
+import { invitationsApp } from "./routes/invitations.js";
 import { registerOpenAPIEndpoints, openApiConfig } from "./lib/openapi.js";
 import { ApiException, ErrorCode } from "./lib/errors.js";
 
@@ -114,6 +116,8 @@ app.route("/", jobsApp);
 app.route("/", googleAuthApp);
 app.route("/", googleSheetsApp);
 app.route("/", authApp);
+app.route("/", teamsApp);
+app.route("/", invitationsApp);
 
 // ============================================================================
 // OpenAPI Documentation

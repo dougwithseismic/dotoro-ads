@@ -11,6 +11,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { transforms } from "./transforms.js";
+import { teams } from "./teams.js";
 
 /**
  * Data Source Type Enum
@@ -31,6 +32,7 @@ export const dataSources = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     userId: uuid("user_id"), // Nullable for now, will be required when auth is implemented
+    teamId: uuid("team_id").references(() => teams.id, { onDelete: "cascade" }), // Nullable for migration, will be required
     name: varchar("name", { length: 255 }).notNull(),
     type: dataSourceTypeEnum("type").notNull(),
     config: jsonb("config").$type<Record<string, unknown>>(),
@@ -45,6 +47,7 @@ export const dataSources = pgTable(
   (table) => [
     index("data_sources_type_idx").on(table.type),
     index("data_sources_user_idx").on(table.userId),
+    index("data_sources_team_idx").on(table.teamId),
   ]
 );
 

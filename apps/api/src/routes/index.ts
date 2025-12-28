@@ -8,3 +8,4 @@ export { redditApp } from "./reddit.js";
 export { creativesApp } from "./creatives.js";
 export { transformsApp } from "./transforms.js";
 export { googleAuthApp } from "./google.js";
+export { teamsApp } from "./teams.js";

@@ -12,6 +12,7 @@ import { relations } from "drizzle-orm";
 import { dataSources } from "./data-sources.js";
 import { campaignTemplates } from "./campaign-templates.js";
 import { generatedCampaigns } from "./generated-campaigns.js";
+import { teams } from "./teams.js";
 
 /**
  * Campaign Set Status Enum
@@ -50,6 +51,7 @@ export const campaignSets = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     userId: uuid("user_id"), // Nullable for now, will be required when auth is implemented
+    teamId: uuid("team_id").references(() => teams.id, { onDelete: "cascade" }), // Nullable for migration, will be required
     name: varchar("name", { length: 255 }).notNull(),
     description: text("description"),
     dataSourceId: uuid("data_source_id").references(() => dataSources.id, {
@@ -74,6 +76,7 @@ export const campaignSets = pgTable(
   },
   (table) => [
     index("campaign_sets_user_idx").on(table.userId),
+    index("campaign_sets_team_idx").on(table.teamId),
     index("campaign_sets_status_idx").on(table.status),
     index("campaign_sets_sync_status_idx").on(table.syncStatus),
     index("campaign_sets_data_source_idx").on(table.dataSourceId),

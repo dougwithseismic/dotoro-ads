@@ -11,6 +11,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
+import { teams } from "./teams.js";
 
 /**
  * Creative Type Enum
@@ -60,6 +61,7 @@ export const creatives = pgTable(
   "creatives",
   {
     id: uuid("id").primaryKey().defaultRandom(),
+    teamId: uuid("team_id").references(() => teams.id, { onDelete: "cascade" }), // Nullable for migration, will be required
     accountId: varchar("account_id", { length: 255 }).notNull(), // Reddit ad account reference
     name: varchar("name", { length: 255 }).notNull(),
     type: creativeTypeEnum("type").notNull(),
@@ -80,6 +82,7 @@ export const creatives = pgTable(
       .$onUpdate(() => new Date()),
   },
   (table) => [
+    index("creatives_team_idx").on(table.teamId),
     index("creatives_account_idx").on(table.accountId),
     index("creatives_type_idx").on(table.type),
     index("creatives_status_idx").on(table.status),

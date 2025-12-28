@@ -12,6 +12,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { campaignTemplates } from "./campaign-templates.js";
+import { teams } from "./teams.js";
 
 /**
  * Rule Type Enum
@@ -31,6 +32,7 @@ export const rules = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     userId: uuid("user_id"), // Nullable for now, will be required when auth is implemented
+    teamId: uuid("team_id").references(() => teams.id, { onDelete: "cascade" }), // Nullable for migration, will be required
     name: varchar("name", { length: 255 }).notNull(),
     type: ruleTypeEnum("type").notNull(),
     conditions: jsonb("conditions").$type<RuleCondition[]>().notNull(),
@@ -49,6 +51,7 @@ export const rules = pgTable(
     index("rules_type_idx").on(table.type),
     index("rules_enabled_priority_idx").on(table.enabled, table.priority),
     index("rules_user_idx").on(table.userId),
+    index("rules_team_idx").on(table.teamId),
   ]
 );
 

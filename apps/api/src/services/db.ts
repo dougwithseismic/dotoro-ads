@@ -60,6 +60,11 @@ export {
   users,
   magicLinkTokens,
   sessions,
+
+  // Teams
+  teams,
+  teamMemberships,
+  teamInvitations,
 } from "@repo/database";
 
 // Export types
@@ -151,4 +156,15 @@ export type {
   NewMagicLinkToken,
   Session,
   NewSession,
+
+  // Teams
+  Team,
+  NewTeam,
+  TeamMembership,
+  NewTeamMembership,
+  TeamInvitation,
+  NewTeamInvitation,
+  TeamSettings,
+  TeamRole,
+  TeamPlan,
 } from "@repo/database";

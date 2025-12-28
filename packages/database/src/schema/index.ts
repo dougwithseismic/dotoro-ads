@@ -188,3 +188,26 @@ export type { MagicLinkToken, NewMagicLinkToken } from "./magic-link-tokens.js";
 // Sessions (auth)
 export { sessions, sessionsRelations } from "./sessions.js";
 export type { Session, NewSession } from "./sessions.js";
+
+// Teams (multi-tenant workspaces)
+export {
+  teams,
+  teamMemberships,
+  teamInvitations,
+  teamsRelations,
+  teamMembershipsRelations,
+  teamInvitationsRelations,
+  teamRoleEnum,
+  teamPlanEnum,
+} from "./teams.js";
+export type {
+  Team,
+  NewTeam,
+  TeamMembership,
+  NewTeamMembership,
+  TeamInvitation,
+  NewTeamInvitation,
+  TeamSettings,
+  TeamRole,
+  TeamPlan,
+} from "./teams.js";
