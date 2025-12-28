@@ -10,6 +10,8 @@ import {
   Filter,
   Megaphone,
   User,
+  Settings,
+  UserCircle,
 } from "lucide-react";
 
 interface NavItem {
@@ -32,6 +34,11 @@ const dataNavItems: NavItem[] = [
 const managementNavItems: NavItem[] = [
   { label: "Campaign Sets", href: "/campaign-sets", icon: Megaphone },
   { label: "Accounts", href: "/accounts", icon: User },
+];
+
+const settingsNavItems: NavItem[] = [
+  { label: "Profile", href: "/settings/profile", icon: UserCircle },
+  { label: "Team", href: "/settings/team", icon: Settings },
 ];
 
 interface NavigationProps {
@@ -93,6 +100,8 @@ export function Navigation({ collapsed = false }: NavigationProps) {
       {renderSection(dataNavItems, "Data")}
 
       {renderSection(managementNavItems, "Management")}
+
+      {renderSection(settingsNavItems, "Settings")}
     </nav>
   );
 }

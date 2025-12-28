@@ -36,6 +36,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const pathname = usePathname();
 
   // Transform Better Auth user to our User type
+  // Better Auth includes createdAt/updatedAt from the database schema
   const user: User | null = session?.user
     ? {
         id: session.user.id,
@@ -43,6 +44,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
         emailVerified: session.user.emailVerified ?? false,
         name: session.user.name ?? null,
         image: session.user.image ?? null,
+        createdAt: session.user.createdAt ?? null,
+        updatedAt: session.user.updatedAt ?? null,
       }
     : null;
 

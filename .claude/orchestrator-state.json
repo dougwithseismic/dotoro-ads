@@ -1,20 +1,23 @@
 {
   "version": 2,
-  "project": "dotoro-auth-migration",
-  "current_feature_index": 0,
-  "current_feature": "better-auth-migration",
-  "current_phase": "pending",
-  "phase_description": "awaiting_approval",
+  "project": "dotoro-user-features",
+  "current_feature_index": 1,
+  "current_feature": "profile-page",
+  "current_phase": "0",
+  "phase_description": "sense_check",
   "iteration": 0,
   "max_iterations": 3,
   "review_issues": [],
   "pr_suite_results": null,
   "todo_validation": null,
-  "completed_features": [],
-  "pending_features": ["better-auth-migration"],
-  "last_action": "Planning complete, awaiting user approval",
-  "timestamp": "2025-12-28T00:00:00Z",
-  "todo_doc_path": ".claude/features/better-auth-migration-TODO.md",
-  "total_checkboxes": 62,
-  "checked_checkboxes": 0
+  "completed_features": ["better-auth-migration"],
+  "pending_features": ["profile-page", "team-invitations", "settings-page", "better-auth-enhancements"],
+  "execution_queue": [
+    { "name": "profile-page", "dependencies": [], "status": "pending", "todoDoc": ".claude/features/profile-page-TODO.md", "checkboxes": "0/50" },
+    { "name": "team-invitations", "dependencies": [], "status": "pending", "todoDoc": ".claude/features/team-invitations-TODO.md", "checkboxes": "0/47" },
+    { "name": "settings-page", "dependencies": ["profile-page"], "status": "pending", "todoDoc": ".claude/features/settings-page-TODO.md", "checkboxes": "0/75" },
+    { "name": "better-auth-enhancements", "dependencies": ["settings-page"], "status": "pending", "todoDoc": ".claude/features/better-auth-enhancements-TODO.md", "checkboxes": "0/48" }
+  ],
+  "last_action": "Resuming orchestrator - running sense check on completed features",
+  "timestamp": "2025-12-28T00:00:00Z"
 }

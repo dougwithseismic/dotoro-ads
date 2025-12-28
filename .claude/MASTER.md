@@ -1,4 +1,4 @@
-# Project Orchestration: Dotoro Auth Migration
+# Project Orchestration: Dotoro
 Generated: 2025-12-28
 Status: In Progress
 
@@ -6,7 +6,11 @@ Status: In Progress
 
 | # | Feature | Status | TODO Doc | Dependencies | Phases | Checkboxes |
 |---|---------|--------|----------|--------------|--------|------------|
-| 1 | better-auth-migration | 🔄 In Progress | [TODO](features/better-auth-migration-TODO.md) | none | 6 | 45/62 |
+| 1 | better-auth-migration | ✅ Complete | [TODO](features/better-auth-migration-TODO.md) | none | 6 | 62/62 |
+| 2 | profile-page | ✅ Phase 1 Done | [TODO](features/profile-page-TODO.md) | none | 5 | 37/82 |
+| 3 | team-invitations | ⏳ Pending | [TODO](features/team-invitations-TODO.md) | none | 4 | 0/47 |
+| 4 | settings-page | ⏳ Pending | [TODO](features/settings-page-TODO.md) | profile-page | 6 | 0/75 |
+| 5 | better-auth-enhancements | ⏳ Pending | [TODO](features/better-auth-enhancements-TODO.md) | settings-page | 4 | 0/48 |
 
 ## Status Legend
 - ⏳ Pending - Not yet started
@@ -17,9 +21,11 @@ Status: In Progress
 
 ## Dependency Graph
 ```
-better-auth-migration (no dependencies)
+better-auth-migration ✅
          │
-         └── Ready to start
+         ├── profile-page ──────► settings-page ──────► better-auth-enhancements
+         │                              │
+         └── team-invitations ──────────┘
 ```
 
 ## Progress Log
@@ -30,6 +36,10 @@ better-auth-migration (no dependencies)
 | 2025-12-28T00:02:00Z | better-auth-migration | Phase 2 | Committed | 7/7 items (greenfield), commit a345442 |
 | 2025-12-28T00:03:00Z | better-auth-migration | Phase 3 | Committed | 15 items (routes+middleware), commit 1edb3d6 |
 | 2025-12-28T00:04:00Z | better-auth-migration | Phase 5 | Committed | 17 items (frontend), commit 9cb1220 |
+| 2025-12-28T00:05:00Z | better-auth-migration | Phase 6 | Committed | 17 items (cleanup), commit ce4de52 |
+| 2025-12-28T00:05:00Z | better-auth-migration | COMPLETE | Feature done | All 62 items complete |
+| 2025-12-28T00:06:00Z | orchestrator | Planning | 4 new features queued | profile, settings, invitations, auth-enhancements |
+| 2025-12-28T00:07:00Z | profile-page | Phase 1 | Committed | Read-only display, 54 tests, error boundary |
 
 ## Orchestrator Commands
 - Start: `/feature-orchestrator [features]`

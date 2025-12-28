@@ -7,6 +7,10 @@
 
 /**
  * User object from Better Auth
+ *
+ * Includes timestamps from the database schema for profile display.
+ * Note: createdAt/updatedAt come as ISO strings from Better Auth API
+ * and may need parsing before display.
  */
 export interface User {
   id: string;
@@ -14,6 +18,8 @@ export interface User {
   emailVerified: boolean;
   name?: string | null;
   image?: string | null;
+  createdAt?: Date | string | null;
+  updatedAt?: Date | string | null;
 }
 
 /**
