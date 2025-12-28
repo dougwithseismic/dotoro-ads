@@ -1,5 +1,4 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
-import { getCookie } from "hono/cookie";
 import { eq, and, count, sql } from "drizzle-orm";
 import {
   createTeamSchema,
@@ -16,19 +15,13 @@ import {
 import { errorResponseSchema } from "../schemas/common.js";
 import { commonResponses } from "../lib/openapi.js";
 import { ApiException, ErrorCode } from "../lib/errors.js";
-import { validateSession } from "../services/auth-service.js";
+import { validateSession } from "../middleware/auth.js";
 import {
   db,
   teams,
   teamMemberships,
   user,
 } from "../services/db.js";
-
-// ============================================================================
-// Constants
-// ============================================================================
-
-const SESSION_COOKIE_NAME = "session";
 
 // ============================================================================
 // Helpers
@@ -47,11 +40,10 @@ function generateSlug(name: string): string {
 }
 
 /**
- * Get authenticated user from session cookie
+ * Get authenticated user from request headers
  */
-async function getAuthenticatedUser(sessionToken: string | undefined) {
-  if (!sessionToken) return null;
-  return validateSession(sessionToken);
+async function getAuthenticatedUser(headers: Headers) {
+  return validateSession(headers);
 }
 
 /**
@@ -478,8 +470,7 @@ const removeMemberRoute = createRoute({
 // ============================================================================
 
 teamsApp.openapi(listTeamsRoute, async (c) => {
-  const sessionToken = getCookie(c, SESSION_COOKIE_NAME);
-  const auth = await getAuthenticatedUser(sessionToken);
+  const auth = await getAuthenticatedUser(c.req.raw.headers);
 
   if (!auth) {
     throw new ApiException(401, ErrorCode.UNAUTHORIZED, "Authentication required");
@@ -533,8 +524,7 @@ teamsApp.openapi(listTeamsRoute, async (c) => {
 });
 
 teamsApp.openapi(createTeamRoute, async (c) => {
-  const sessionToken = getCookie(c, SESSION_COOKIE_NAME);
-  const auth = await getAuthenticatedUser(sessionToken);
+  const auth = await getAuthenticatedUser(c.req.raw.headers);
 
   if (!auth) {
     throw new ApiException(401, ErrorCode.UNAUTHORIZED, "Authentication required");
@@ -592,8 +582,7 @@ teamsApp.openapi(createTeamRoute, async (c) => {
 });
 
 teamsApp.openapi(getTeamRoute, async (c) => {
-  const sessionToken = getCookie(c, SESSION_COOKIE_NAME);
-  const auth = await getAuthenticatedUser(sessionToken);
+  const auth = await getAuthenticatedUser(c.req.raw.headers);
 
   if (!auth) {
     throw new ApiException(401, ErrorCode.UNAUTHORIZED, "Authentication required");
@@ -632,8 +621,7 @@ teamsApp.openapi(getTeamRoute, async (c) => {
 });
 
 teamsApp.openapi(updateTeamRoute, async (c) => {
-  const sessionToken = getCookie(c, SESSION_COOKIE_NAME);
-  const auth = await getAuthenticatedUser(sessionToken);
+  const auth = await getAuthenticatedUser(c.req.raw.headers);
 
   if (!auth) {
     throw new ApiException(401, ErrorCode.UNAUTHORIZED, "Authentication required");
@@ -684,8 +672,7 @@ teamsApp.openapi(updateTeamRoute, async (c) => {
 });
 
 teamsApp.openapi(deleteTeamRoute, async (c) => {
-  const sessionToken = getCookie(c, SESSION_COOKIE_NAME);
-  const auth = await getAuthenticatedUser(sessionToken);
+  const auth = await getAuthenticatedUser(c.req.raw.headers);
 
   if (!auth) {
     throw new ApiException(401, ErrorCode.UNAUTHORIZED, "Authentication required");
@@ -708,8 +695,7 @@ teamsApp.openapi(deleteTeamRoute, async (c) => {
 });
 
 teamsApp.openapi(listMembersRoute, async (c) => {
-  const sessionToken = getCookie(c, SESSION_COOKIE_NAME);
-  const auth = await getAuthenticatedUser(sessionToken);
+  const auth = await getAuthenticatedUser(c.req.raw.headers);
 
   if (!auth) {
     throw new ApiException(401, ErrorCode.UNAUTHORIZED, "Authentication required");
@@ -750,8 +736,7 @@ teamsApp.openapi(listMembersRoute, async (c) => {
 });
 
 teamsApp.openapi(updateMemberRoleRoute, async (c) => {
-  const sessionToken = getCookie(c, SESSION_COOKIE_NAME);
-  const auth = await getAuthenticatedUser(sessionToken);
+  const auth = await getAuthenticatedUser(c.req.raw.headers);
 
   if (!auth) {
     throw new ApiException(401, ErrorCode.UNAUTHORIZED, "Authentication required");
@@ -825,8 +810,7 @@ teamsApp.openapi(updateMemberRoleRoute, async (c) => {
 });
 
 teamsApp.openapi(removeMemberRoute, async (c) => {
-  const sessionToken = getCookie(c, SESSION_COOKIE_NAME);
-  const auth = await getAuthenticatedUser(sessionToken);
+  const auth = await getAuthenticatedUser(c.req.raw.headers);
 
   if (!auth) {
     throw new ApiException(401, ErrorCode.UNAUTHORIZED, "Authentication required");

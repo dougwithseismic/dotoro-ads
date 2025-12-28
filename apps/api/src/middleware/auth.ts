@@ -1,8 +1,12 @@
-import { getCookie } from "hono/cookie";
+/**
+ * Authentication Middleware
+ *
+ * Uses Better Auth for session validation.
+ * Provides middleware functions for protected routes.
+ */
 import type { Context, Next, MiddlewareHandler } from "hono";
-import { validateSession } from "../services/auth-service.js";
+import { auth, type Session, type User } from "../lib/auth.js";
 import { ErrorCode } from "../lib/errors.js";
-import type { User, Session } from "../services/db.js";
 
 // ============================================================================
 // Types
@@ -23,8 +27,6 @@ export interface OptionalAuthVariables {
   user: User | null;
   session: Session | null;
 }
-
-const SESSION_COOKIE_NAME = "session";
 
 // ============================================================================
 // Middleware
@@ -49,9 +51,11 @@ export function requireAuth(): MiddlewareHandler<{
   Variables: AuthVariables;
 }> {
   return async (c: Context, next: Next) => {
-    const sessionToken = getCookie(c, SESSION_COOKIE_NAME);
+    const session = await auth.api.getSession({
+      headers: c.req.raw.headers,
+    });
 
-    if (!sessionToken) {
+    if (!session) {
       return c.json(
         {
           error: "Authentication required",
@@ -61,21 +65,9 @@ export function requireAuth(): MiddlewareHandler<{
       );
     }
 
-    const result = await validateSession(sessionToken);
-
-    if (!result) {
-      return c.json(
-        {
-          error: "Invalid or expired session",
-          code: ErrorCode.UNAUTHORIZED,
-        },
-        401
-      );
-    }
-
     // Attach user and session to context
-    c.set("user", result.user);
-    c.set("session", result.session);
+    c.set("user", session.user);
+    c.set("session", session.session);
 
     await next();
   };
@@ -103,18 +95,11 @@ export function optionalAuth(): MiddlewareHandler<{
   Variables: OptionalAuthVariables;
 }> {
   return async (c: Context, next: Next) => {
-    const sessionToken = getCookie(c, SESSION_COOKIE_NAME);
+    const session = await auth.api.getSession({
+      headers: c.req.raw.headers,
+    });
 
-    if (!sessionToken) {
-      c.set("user", null);
-      c.set("session", null);
-      await next();
-      return;
-    }
-
-    const result = await validateSession(sessionToken);
-
-    if (!result) {
+    if (!session) {
       c.set("user", null);
       c.set("session", null);
       await next();
@@ -122,8 +107,8 @@ export function optionalAuth(): MiddlewareHandler<{
     }
 
     // Attach user and session to context
-    c.set("user", result.user);
-    c.set("session", result.session);
+    c.set("user", session.user);
+    c.set("session", session.session);
 
     await next();
   };
@@ -151,4 +136,40 @@ export function getAuthSession(c: Context): Session {
     throw new Error("Session not found in context. Did you forget to use requireAuth middleware?");
   }
   return session;
+}
+
+// ============================================================================
+// Session Validation (for direct use in routes)
+// ============================================================================
+
+/**
+ * Result of session validation
+ */
+export interface ValidateSessionResult {
+  session: Session;
+  user: User;
+}
+
+/**
+ * Validate a session from request headers
+ * Use this when you need to validate a session outside of middleware.
+ *
+ * For route handlers, prefer using requireAuth() or optionalAuth() middleware instead.
+ *
+ * @param headers - Request headers containing session cookie
+ * @returns Session and user if valid, null otherwise
+ */
+export async function validateSession(
+  headers: Headers
+): Promise<ValidateSessionResult | null> {
+  const session = await auth.api.getSession({ headers });
+
+  if (!session) {
+    return null;
+  }
+
+  return {
+    session: session.session,
+    user: session.user,
+  };
 }

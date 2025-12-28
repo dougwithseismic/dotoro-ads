@@ -1,5 +1,4 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
-import { getCookie } from "hono/cookie";
 import { eq, and, isNull, gt } from "drizzle-orm";
 import * as crypto from "crypto";
 import {
@@ -15,7 +14,7 @@ import {
 import { errorResponseSchema } from "../schemas/common.js";
 import { commonResponses } from "../lib/openapi.js";
 import { ApiException, ErrorCode } from "../lib/errors.js";
-import { validateSession } from "../services/auth-service.js";
+import { validateSession } from "../middleware/auth.js";
 import {
   db,
   teams,
@@ -28,7 +27,6 @@ import {
 // Constants
 // ============================================================================
 
-const SESSION_COOKIE_NAME = "session";
 const INVITATION_EXPIRY_DAYS = 7;
 const TOKEN_LENGTH = 64;
 
@@ -37,11 +35,10 @@ const TOKEN_LENGTH = 64;
 // ============================================================================
 
 /**
- * Get authenticated user from session cookie
+ * Get authenticated user from request headers
  */
-async function getAuthenticatedUser(sessionToken: string | undefined) {
-  if (!sessionToken) return null;
-  return validateSession(sessionToken);
+async function getAuthenticatedUser(headers: Headers) {
+  return validateSession(headers);
 }
 
 /**
@@ -346,8 +343,7 @@ const declineInvitationRoute = createRoute({
 // ============================================================================
 
 invitationsApp.openapi(sendInvitationRoute, async (c) => {
-  const sessionToken = getCookie(c, SESSION_COOKIE_NAME);
-  const auth = await getAuthenticatedUser(sessionToken);
+  const auth = await getAuthenticatedUser(c.req.raw.headers);
 
   if (!auth) {
     throw new ApiException(401, ErrorCode.UNAUTHORIZED, "Authentication required");
@@ -429,8 +425,7 @@ invitationsApp.openapi(sendInvitationRoute, async (c) => {
 });
 
 invitationsApp.openapi(listInvitationsRoute, async (c) => {
-  const sessionToken = getCookie(c, SESSION_COOKIE_NAME);
-  const auth = await getAuthenticatedUser(sessionToken);
+  const auth = await getAuthenticatedUser(c.req.raw.headers);
 
   if (!auth) {
     throw new ApiException(401, ErrorCode.UNAUTHORIZED, "Authentication required");
@@ -483,8 +478,7 @@ invitationsApp.openapi(listInvitationsRoute, async (c) => {
 });
 
 invitationsApp.openapi(revokeInvitationRoute, async (c) => {
-  const sessionToken = getCookie(c, SESSION_COOKIE_NAME);
-  const auth = await getAuthenticatedUser(sessionToken);
+  const auth = await getAuthenticatedUser(c.req.raw.headers);
 
   if (!auth) {
     throw new ApiException(401, ErrorCode.UNAUTHORIZED, "Authentication required");
@@ -564,8 +558,7 @@ invitationsApp.openapi(getInvitationDetailsRoute, async (c) => {
 });
 
 invitationsApp.openapi(acceptInvitationRoute, async (c) => {
-  const sessionToken = getCookie(c, SESSION_COOKIE_NAME);
-  const auth = await getAuthenticatedUser(sessionToken);
+  const auth = await getAuthenticatedUser(c.req.raw.headers);
 
   if (!auth) {
     throw new ApiException(401, ErrorCode.UNAUTHORIZED, "Authentication required");

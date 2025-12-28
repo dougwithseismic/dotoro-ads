@@ -4,10 +4,9 @@ import { testClient } from "hono/testing";
 
 const mockTeamId = "550e8400-e29b-41d4-a716-446655440000";
 const mockUserId = "550e8400-e29b-41d4-a716-446655440001";
-const mockSessionToken = "a".repeat(64);
 
-// Mock the auth service
-vi.mock("../../services/auth-service.js", () => ({
+// Mock the auth middleware's validateSession function (which uses Better Auth)
+vi.mock("../../middleware/auth.js", () => ({
   validateSession: vi.fn(),
 }));
 
@@ -29,12 +28,12 @@ import {
   getTeamContext,
   type TeamRole,
 } from "../../middleware/team-auth.js";
-import * as authService from "../../services/auth-service.js";
+import { validateSession } from "../../middleware/auth.js";
 import { db } from "../../services/db.js";
 
 // Helper to mock authenticated user
 function mockAuthenticatedUser(userId: string = mockUserId, email: string = "test@example.com") {
-  const mockValidateSession = authService.validateSession as ReturnType<typeof vi.fn>;
+  const mockValidateSession = validateSession as ReturnType<typeof vi.fn>;
   mockValidateSession.mockResolvedValue({
     session: {
       id: "session-123",
@@ -51,7 +50,7 @@ function mockAuthenticatedUser(userId: string = mockUserId, email: string = "tes
 
 // Helper to mock no authentication
 function mockNoAuth() {
-  const mockValidateSession = authService.validateSession as ReturnType<typeof vi.fn>;
+  const mockValidateSession = validateSession as ReturnType<typeof vi.fn>;
   mockValidateSession.mockResolvedValue(null);
 }
 
@@ -102,7 +101,7 @@ describe("Team Auth Middleware", () => {
         {},
         {
           headers: {
-            cookie: "session=" + mockSessionToken,
+            cookie: "better-auth.session_token=test-token",
           },
         }
       );
@@ -124,7 +123,7 @@ describe("Team Auth Middleware", () => {
         {},
         {
           headers: {
-            cookie: "session=" + mockSessionToken,
+            cookie: "better-auth.session_token=test-token",
             "x-team-id": "not-a-uuid",
           },
         }
@@ -149,7 +148,7 @@ describe("Team Auth Middleware", () => {
         {},
         {
           headers: {
-            cookie: "session=" + mockSessionToken,
+            cookie: "better-auth.session_token=test-token",
             "x-team-id": mockTeamId,
           },
         }
@@ -184,7 +183,7 @@ describe("Team Auth Middleware", () => {
         {},
         {
           headers: {
-            cookie: "session=" + mockSessionToken,
+            cookie: "better-auth.session_token=test-token",
             "x-team-id": mockTeamId,
           },
         }
@@ -219,7 +218,7 @@ describe("Team Auth Middleware", () => {
       // Note: Hono test client handles query params differently
       const res = await app.request(`/team-resource?teamId=${mockTeamId}`, {
         headers: {
-          cookie: "session=" + mockSessionToken,
+          cookie: "better-auth.session_token=test-token",
         },
       });
 
@@ -251,7 +250,7 @@ describe("Team Auth Middleware", () => {
       const differentTeamId = "660e8400-e29b-41d4-a716-446655440099";
       const res = await app.request(`/team-resource?teamId=${differentTeamId}`, {
         headers: {
-          cookie: "session=" + mockSessionToken,
+          cookie: "better-auth.session_token=test-token",
           "x-team-id": mockTeamId,
         },
       });
@@ -285,7 +284,7 @@ describe("Team Auth Middleware", () => {
         {},
         {
           headers: {
-            cookie: "session=" + mockSessionToken,
+            cookie: "better-auth.session_token=test-token",
             "x-team-id": mockTeamId,
           },
         }
@@ -316,7 +315,7 @@ describe("Team Auth Middleware", () => {
         {},
         {
           headers: {
-            cookie: "session=" + mockSessionToken,
+            cookie: "better-auth.session_token=test-token",
             "x-team-id": mockTeamId,
           },
         }
@@ -347,7 +346,7 @@ describe("Team Auth Middleware", () => {
         {},
         {
           headers: {
-            cookie: "session=" + mockSessionToken,
+            cookie: "better-auth.session_token=test-token",
             "x-team-id": mockTeamId,
           },
         }
@@ -407,7 +406,7 @@ describe("Team Auth Middleware", () => {
           {},
           {
             headers: {
-              cookie: "session=" + mockSessionToken,
+              cookie: "better-auth.session_token=test-token",
               "x-team-id": mockTeamId,
             },
           }
@@ -470,7 +469,7 @@ describe("Team Auth Middleware", () => {
         {},
         {
           headers: {
-            cookie: "session=" + mockSessionToken,
+            cookie: "better-auth.session_token=test-token",
             "x-team-id": mockTeamId,
           },
         }

@@ -2,15 +2,18 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Hono } from "hono";
 import { testClient } from "hono/testing";
 
-// Mock the auth service
-vi.mock("../../services/auth-service.js", () => ({
-  validateSession: vi.fn(),
-  hashToken: vi.fn((token: string) => `hashed_${token}`),
+// Mock the Better Auth lib
+vi.mock("../../lib/auth.js", () => ({
+  auth: {
+    api: {
+      getSession: vi.fn(),
+    },
+  },
 }));
 
 // Import after mocking
 import { requireAuth, optionalAuth } from "../../middleware/auth.js";
-import * as authService from "../../services/auth-service.js";
+import { auth } from "../../lib/auth.js";
 
 describe("Auth Middleware", () => {
   beforeEach(() => {
@@ -19,8 +22,8 @@ describe("Auth Middleware", () => {
 
   describe("requireAuth", () => {
     it("should allow access with valid session", async () => {
-      const mockValidateSession = authService.validateSession as ReturnType<typeof vi.fn>;
-      mockValidateSession.mockResolvedValue({
+      const mockGetSession = auth.api.getSession as ReturnType<typeof vi.fn>;
+      mockGetSession.mockResolvedValue({
         session: {
           id: "session-id",
           userId: "user-id",
@@ -45,7 +48,7 @@ describe("Auth Middleware", () => {
         {},
         {
           headers: {
-            cookie: "session=" + "a".repeat(64),
+            cookie: "better-auth.session_token=test-token",
           },
         }
       );
@@ -55,7 +58,10 @@ describe("Auth Middleware", () => {
       expect(json.userId).toBe("user-id");
     });
 
-    it("should reject access without session cookie", async () => {
+    it("should reject access without session", async () => {
+      const mockGetSession = auth.api.getSession as ReturnType<typeof vi.fn>;
+      mockGetSession.mockResolvedValue(null);
+
       const app = new Hono();
       app.use("*", requireAuth());
       app.get("/protected", (c) => c.json({ ok: true }));
@@ -69,8 +75,8 @@ describe("Auth Middleware", () => {
     });
 
     it("should reject access with invalid session", async () => {
-      const mockValidateSession = authService.validateSession as ReturnType<typeof vi.fn>;
-      mockValidateSession.mockResolvedValue(null);
+      const mockGetSession = auth.api.getSession as ReturnType<typeof vi.fn>;
+      mockGetSession.mockResolvedValue(null);
 
       const app = new Hono();
       app.use("*", requireAuth());
@@ -81,14 +87,14 @@ describe("Auth Middleware", () => {
         {},
         {
           headers: {
-            cookie: "session=" + "a".repeat(64),
+            cookie: "better-auth.session_token=invalid-token",
           },
         }
       );
 
       expect(res.status).toBe(401);
       const json = await res.json();
-      expect(json.error).toBe("Invalid or expired session");
+      expect(json.error).toBe("Authentication required");
     });
 
     it("should attach user and session to context", async () => {
@@ -103,8 +109,8 @@ describe("Auth Middleware", () => {
         expiresAt: new Date(Date.now() + 86400000),
       };
 
-      const mockValidateSession = authService.validateSession as ReturnType<typeof vi.fn>;
-      mockValidateSession.mockResolvedValue({
+      const mockGetSession = auth.api.getSession as ReturnType<typeof vi.fn>;
+      mockGetSession.mockResolvedValue({
         session: mockSession,
         user: mockUser,
       });
@@ -126,7 +132,7 @@ describe("Auth Middleware", () => {
         {},
         {
           headers: {
-            cookie: "session=" + "a".repeat(64),
+            cookie: "better-auth.session_token=test-token",
           },
         }
       );
@@ -141,8 +147,8 @@ describe("Auth Middleware", () => {
 
   describe("optionalAuth", () => {
     it("should allow access without session (user is null)", async () => {
-      const mockValidateSession = authService.validateSession as ReturnType<typeof vi.fn>;
-      mockValidateSession.mockResolvedValue(null);
+      const mockGetSession = auth.api.getSession as ReturnType<typeof vi.fn>;
+      mockGetSession.mockResolvedValue(null);
 
       const app = new Hono();
       app.use("*", optionalAuth());
@@ -160,8 +166,8 @@ describe("Auth Middleware", () => {
     });
 
     it("should attach user when session is valid", async () => {
-      const mockValidateSession = authService.validateSession as ReturnType<typeof vi.fn>;
-      mockValidateSession.mockResolvedValue({
+      const mockGetSession = auth.api.getSession as ReturnType<typeof vi.fn>;
+      mockGetSession.mockResolvedValue({
         session: {
           id: "session-id",
           userId: "user-id",
@@ -189,7 +195,7 @@ describe("Auth Middleware", () => {
         {},
         {
           headers: {
-            cookie: "session=" + "a".repeat(64),
+            cookie: "better-auth.session_token=test-token",
           },
         }
       );
@@ -201,6 +207,9 @@ describe("Auth Middleware", () => {
     });
 
     it("should allow access when session cookie is missing", async () => {
+      const mockGetSession = auth.api.getSession as ReturnType<typeof vi.fn>;
+      mockGetSession.mockResolvedValue(null);
+
       const app = new Hono();
       app.use("*", optionalAuth());
       app.get("/public", (c) => {

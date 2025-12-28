@@ -1,7 +1,6 @@
-import { getCookie } from "hono/cookie";
 import type { Context, Next, MiddlewareHandler } from "hono";
 import { eq, and } from "drizzle-orm";
-import { validateSession } from "../services/auth-service.js";
+import { validateSession } from "./auth.js";
 import { db, teams, teamMemberships } from "../services/db.js";
 import { ErrorCode } from "../lib/errors.js";
 
@@ -44,7 +43,6 @@ export interface TeamAuthVariables {
   teamContext: TeamContext;
 }
 
-const SESSION_COOKIE_NAME = "session";
 const TEAM_ID_HEADER = "x-team-id";
 const TEAM_ID_QUERY = "teamId";
 
@@ -87,24 +85,12 @@ export function requireTeamAuth(): MiddlewareHandler<{
 }> {
   return async (c: Context, next: Next) => {
     // 1. Verify user authentication
-    const sessionToken = getCookie(c, SESSION_COOKIE_NAME);
-
-    if (!sessionToken) {
-      return c.json(
-        {
-          error: "Authentication required",
-          code: ErrorCode.UNAUTHORIZED,
-        },
-        401
-      );
-    }
-
-    const authResult = await validateSession(sessionToken);
+    const authResult = await validateSession(c.req.raw.headers);
 
     if (!authResult) {
       return c.json(
         {
-          error: "Invalid or expired session",
+          error: "Authentication required",
           code: ErrorCode.UNAUTHORIZED,
         },
         401

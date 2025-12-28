@@ -32,18 +32,18 @@ vi.mock("../../services/db.js", () => {
 });
 
 // Mock auth service
-vi.mock("../../services/auth-service.js", () => ({
+vi.mock("../../middleware/auth.js", () => ({
   validateSession: vi.fn(),
 }));
 
 // Import after mocking
 import { invitationsApp } from "../../routes/invitations.js";
 import { db } from "../../services/db.js";
-import * as authService from "../../services/auth-service.js";
+import { validateSession } from "../../middleware/auth.js";
 
 // Helper to mock authenticated user
 function mockAuthenticatedUser(userId: string = mockUserId, email: string = "test@example.com") {
-  const mockValidateSession = authService.validateSession as ReturnType<typeof vi.fn>;
+  const mockValidateSession = validateSession as ReturnType<typeof vi.fn>;
   mockValidateSession.mockResolvedValue({
     session: {
       id: "session-123",
@@ -60,7 +60,7 @@ function mockAuthenticatedUser(userId: string = mockUserId, email: string = "tes
 
 // Helper to mock no authentication
 function mockNoAuth() {
-  const mockValidateSession = authService.validateSession as ReturnType<typeof vi.fn>;
+  const mockValidateSession = validateSession as ReturnType<typeof vi.fn>;
   mockValidateSession.mockResolvedValue(null);
 }
 

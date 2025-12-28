@@ -17,7 +17,7 @@ import { campaignSetsApp } from "./routes/campaign-sets.js";
 import { jobsApp } from "./routes/jobs.js";
 import { googleAuthApp } from "./routes/google.js";
 import { googleSheetsApp } from "./routes/google-sheets.js";
-import { authApp } from "./routes/auth.js";
+import { authHandler } from "./routes/auth-handler.js";
 import { teamsApp } from "./routes/teams.js";
 import { invitationsApp } from "./routes/invitations.js";
 import { registerOpenAPIEndpoints, openApiConfig } from "./lib/openapi.js";
@@ -115,7 +115,7 @@ app.route("/", campaignSetsApp);
 app.route("/", jobsApp);
 app.route("/", googleAuthApp);
 app.route("/", googleSheetsApp);
-app.route("/", authApp);
+app.route("/", authHandler);
 app.route("/", teamsApp);
 app.route("/", invitationsApp);
 

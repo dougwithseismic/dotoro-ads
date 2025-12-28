@@ -3,7 +3,7 @@
 **Project:** Dotoro
 **Feature:** Replace Custom Auth with Better Auth
 **Date:** 2025-12-28
-**Status:** In Progress - Phase 2 Complete
+**Status:** In Progress - Phase 3 Complete
 
 ---
 
@@ -190,7 +190,7 @@ Migrate from custom authentication implementation to Better Auth library, fixing
 
 #### 3.1 Create Hono Auth Handler
 
-- [ ] Create `apps/api/src/routes/auth-handler.ts`
+- [x] Create `apps/api/src/routes/auth-handler.ts`
   ```typescript
   // apps/api/src/routes/auth-handler.ts
   import { Hono } from "hono";
@@ -208,7 +208,7 @@ Migrate from custom authentication implementation to Better Auth library, fixing
 
 #### 3.2 Update Main App Router
 
-- [ ] Modify `apps/api/src/index.ts` to mount Better Auth handler
+- [x] Modify `apps/api/src/app.ts` to mount Better Auth handler
   ```typescript
   import { authHandler } from "./routes/auth-handler.js";
 
@@ -221,14 +221,20 @@ Migrate from custom authentication implementation to Better Auth library, fixing
 
 #### 3.3 Remove Legacy Auth Routes
 
-- [ ] Delete or archive `apps/api/src/routes/auth.ts`
-- [ ] Delete `apps/api/src/services/auth-service.ts`
-- [ ] Update `apps/api/src/services/db.ts` to remove old auth imports
+- [x] Delete `apps/api/src/routes/auth.ts`
+- [x] Delete `apps/api/src/services/auth-service.ts`
+- [x] Delete `apps/api/src/__tests__/routes/auth.test.ts`
+- [x] Delete `apps/api/src/__tests__/services/auth-service.test.ts`
+- [x] Update `apps/api/src/middleware/auth.ts` to use Better Auth
+- [x] Update `apps/api/src/middleware/team-auth.ts` to use new auth middleware
+- [x] Update `apps/api/src/routes/teams.ts` to use new auth middleware
+- [x] Update `apps/api/src/routes/invitations.ts` to use new auth middleware
+- [x] Update test files to mock new auth middleware
 
 #### 3.4 Update OpenAPI Documentation
 
-- [ ] Remove old auth routes from OpenAPI schema
-- [ ] Add Better Auth endpoints documentation (optional, as Better Auth handles this internally)
+- [x] Old auth routes automatically removed (file deleted)
+- [x] Better Auth handles its own endpoints internally (no OpenAPI spec needed)
 
 ---
 
@@ -239,7 +245,8 @@ Migrate from custom authentication implementation to Better Auth library, fixing
 
 #### 4.1 Create New Auth Middleware
 
-- [ ] Replace `apps/api/src/middleware/auth.ts` with Better Auth version
+- [x] Replace `apps/api/src/middleware/auth.ts` with Better Auth version
+  **Note:** Completed as part of Phase 3 to maintain a working build
   ```typescript
   // apps/api/src/middleware/auth.ts
   import type { Context, Next, MiddlewareHandler } from "hono";
@@ -313,9 +320,12 @@ Migrate from custom authentication implementation to Better Auth library, fixing
 
 #### 4.2 Update Protected Route Handlers
 
-- [ ] Verify all routes using `requireAuth()` still work
-- [ ] Test `c.get("user")` returns correct user object shape
-- [ ] Update any code depending on old `User` type from custom auth
+- [x] Verify all routes using `requireAuth()` still work
+  **Note:** Completed as part of Phase 3 - teams.ts and invitations.ts updated
+- [x] Test `c.get("user")` returns correct user object shape
+  **Note:** Auth middleware tests pass (7/7 tests)
+- [x] Update any code depending on old `User` type from custom auth
+  **Note:** All route handlers updated to use new middleware validateSession signature
 
 ---
 
