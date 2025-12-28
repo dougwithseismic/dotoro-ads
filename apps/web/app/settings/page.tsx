@@ -18,6 +18,7 @@ import { useAuth } from "@/lib/auth";
 import { SettingsLayout, type SettingsTab } from "./components/SettingsLayout";
 import { SettingsSection } from "./components/SettingsSection";
 import { SessionsList } from "@/components/settings/SessionsList";
+import { ConnectedAccountsList } from "@/components/settings/ConnectedAccountsList";
 
 // Valid tab IDs
 const VALID_TABS = ["account", "sessions", "security", "notifications", "danger"] as const;
@@ -126,32 +127,19 @@ function SessionsTabContent() {
 }
 
 /**
- * Security Tab Content (Placeholder for Phase 4)
+ * Security Tab Content
+ *
+ * Displays connected accounts allowing users to link/unlink OAuth providers.
+ * Users can connect Google, GitHub, and other providers to their account.
  */
 function SecurityTabContent() {
   return (
     <div data-testid="security-tab-content" className="space-y-6">
       <SettingsSection
-        title="Authentication Method"
-        description="Your current authentication method."
-      >
-        <div className="flex items-center gap-3">
-          <span className="text-neutral-900 dark:text-neutral-100">Magic Link (Email)</span>
-          <span className="px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 rounded">
-            Active
-          </span>
-        </div>
-      </SettingsSection>
-
-      <SettingsSection
         title="Connected Accounts"
-        description="External accounts linked to your profile."
+        description="Manage your linked authentication methods. Connect additional accounts to enable alternative sign-in options."
       >
-        <div className="p-4 bg-neutral-50 dark:bg-zinc-800/50 rounded-lg text-center">
-          <p className="text-neutral-500 dark:text-neutral-400">
-            OAuth connections coming soon.
-          </p>
-        </div>
+        <ConnectedAccountsList />
       </SettingsSection>
     </div>
   );

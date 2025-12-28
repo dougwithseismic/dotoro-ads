@@ -3,6 +3,8 @@
  *
  * Provides authentication functionality using Better Auth library with:
  * - Magic link authentication (passwordless)
+ * - OAuth social sign-in (Google, GitHub)
+ * - Admin user management (roles, banning, session management)
  * - Session management with 7-day expiry
  * - Drizzle ORM adapter for PostgreSQL
  *
@@ -10,7 +12,7 @@
  */
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { magicLink } from "better-auth/plugins";
+import { magicLink, admin } from "better-auth/plugins";
 import { db } from "../services/db.js";
 import { sendMagicLinkEmail, type SendMagicLinkOptions } from "@repo/email";
 import * as schema from "@repo/database/schema";
@@ -69,6 +71,8 @@ async function sendMagicLink({
  *
  * Features:
  * - Magic link authentication (passwordless login)
+ * - OAuth social sign-in (Google, GitHub)
+ * - Account linking (multiple auth methods per user)
  * - PostgreSQL database via Drizzle ORM
  * - 7-day session expiry with 24-hour update interval
  *
@@ -76,6 +80,12 @@ async function sendMagicLink({
  * - BETTER_AUTH_SECRET: Secret key for signing sessions/tokens
  * - BETTER_AUTH_URL: Base URL for the auth server (e.g., http://localhost:3001)
  * - WEB_URL: Frontend URL for trusted origins
+ *
+ * Optional OAuth environment variables:
+ * - AUTH_GOOGLE_CLIENT_ID: Google OAuth client ID
+ * - AUTH_GOOGLE_CLIENT_SECRET: Google OAuth client secret
+ * - AUTH_GITHUB_CLIENT_ID: GitHub OAuth client ID
+ * - AUTH_GITHUB_CLIENT_SECRET: GitHub OAuth client secret
  */
 export const auth = betterAuth({
   secret: process.env.BETTER_AUTH_SECRET,
@@ -93,10 +103,67 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: false, // Magic link only - no password authentication
   },
+  /**
+   * Account Linking Configuration
+   *
+   * Enables users to link multiple authentication methods (OAuth, magic link)
+   * to a single account. When a user authenticates with a provider that returns
+   * a verified email matching an existing account, the accounts are linked.
+   *
+   * Security considerations:
+   * - Only trusted providers (Google, GitHub) auto-link on verified email
+   * - Users cannot unlink their last auth method to prevent lockout
+   * - Different emails are NOT allowed (must match for auto-link)
+   *
+   * @see https://www.better-auth.com/docs/concepts/users-accounts
+   */
+  account: {
+    accountLinking: {
+      enabled: true,
+      // Trusted providers will auto-link even if email verification status is uncertain
+      trustedProviders: ["google", "github"],
+    },
+  },
+  /**
+   * OAuth Social Providers
+   *
+   * Google and GitHub OAuth are configured here. If the environment
+   * variables are not set, the providers will not be available.
+   *
+   * Callback URLs:
+   * - Google: {BETTER_AUTH_URL}/api/auth/callback/google
+   * - GitHub: {BETTER_AUTH_URL}/api/auth/callback/github
+   */
+  socialProviders: {
+    // Google OAuth - requires AUTH_GOOGLE_CLIENT_ID and AUTH_GOOGLE_CLIENT_SECRET
+    ...(process.env.AUTH_GOOGLE_CLIENT_ID &&
+      process.env.AUTH_GOOGLE_CLIENT_SECRET && {
+        google: {
+          clientId: process.env.AUTH_GOOGLE_CLIENT_ID,
+          clientSecret: process.env.AUTH_GOOGLE_CLIENT_SECRET,
+        },
+      }),
+    // GitHub OAuth - requires AUTH_GITHUB_CLIENT_ID and AUTH_GITHUB_CLIENT_SECRET
+    ...(process.env.AUTH_GITHUB_CLIENT_ID &&
+      process.env.AUTH_GITHUB_CLIENT_SECRET && {
+        github: {
+          clientId: process.env.AUTH_GITHUB_CLIENT_ID,
+          clientSecret: process.env.AUTH_GITHUB_CLIENT_SECRET,
+        },
+      }),
+  },
   plugins: [
     magicLink({
       sendMagicLink,
       expiresIn: 15 * 60, // 15 minutes in seconds
+    }),
+    admin({
+      defaultRole: "user",
+      adminRoles: ["admin"],
+      impersonationSessionDuration: 3600, // 1 hour in seconds
+      defaultBanReason: "Account suspended",
+      bannedUserMessage:
+        "Your account has been suspended. Contact support for assistance.",
     }),
   ],
   session: {
@@ -114,10 +181,61 @@ export type AuthSession = typeof auth.$Infer.Session;
 
 /**
  * Session object type (the session part of AuthSession)
+ * Includes impersonatedBy field when admin plugin is active
  */
 export type Session = AuthSession["session"];
 
 /**
  * User object type (the user part of AuthSession)
+ * Includes admin fields: role, banned, banReason, banExpires
  */
 export type User = AuthSession["user"];
+
+/**
+ * Admin role type - the allowed admin roles in the system
+ */
+export type AdminRole = "admin";
+
+/**
+ * User role type - all possible roles
+ */
+export type UserRole = "user" | AdminRole;
+
+/**
+ * Type guard to check if a user has an admin role
+ * @param user - The user object to check
+ * @returns True if the user has an admin role
+ */
+export function isAdmin(user: User | null | undefined): boolean {
+  return user?.role === "admin";
+}
+
+/**
+ * Type guard to check if a user is banned
+ * @param user - The user object to check
+ * @returns True if the user is currently banned
+ */
+export function isBanned(user: User | null | undefined): boolean {
+  if (!user?.banned) return false;
+
+  // Check if ban has expired
+  if (user.banExpires) {
+    const banExpiresDate = new Date(user.banExpires);
+    if (banExpiresDate < new Date()) {
+      return false; // Ban has expired
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Type guard to check if a session is an impersonation session
+ * @param session - The session object to check
+ * @returns True if this session is from an admin impersonating a user
+ */
+export function isImpersonatedSession(
+  session: Session | null | undefined
+): boolean {
+  return !!session?.impersonatedBy;
+}

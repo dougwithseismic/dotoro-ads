@@ -89,3 +89,29 @@ export const { signIn, signOut, useSession, getSession, admin } = authClient;
 export const listSessions = authClient.listSessions;
 export const revokeSession = authClient.revokeSession;
 export const revokeOtherSessions = authClient.revokeOtherSessions;
+
+/**
+ * Account Linking API
+ *
+ * Better Auth provides built-in account linking for users to:
+ * - View all linked authentication accounts (OAuth, magic link)
+ * - Link additional OAuth providers to their account
+ * - Unlink accounts (with safety check for last auth method)
+ *
+ * @example
+ * ```tsx
+ * import { listAccounts, linkSocial, unlinkAccount } from "@/lib/auth-client";
+ *
+ * // Get all linked accounts for the current user
+ * const { data: accounts } = await listAccounts();
+ *
+ * // Link a new OAuth provider (redirects to OAuth flow)
+ * await linkSocial({ provider: "google", callbackURL: "/settings?tab=security" });
+ *
+ * // Unlink an account (fails if it's the last auth method)
+ * await unlinkAccount({ providerId: "google" });
+ * ```
+ */
+export const listAccounts = authClient.listAccounts;
+export const linkSocial = authClient.linkSocial;
+export const unlinkAccount = authClient.unlinkAccount;
