@@ -55,6 +55,11 @@ export {
 
   // User OAuth Tokens (for data source integrations)
   userOAuthTokens,
+
+  // Auth
+  users,
+  magicLinkTokens,
+  sessions,
 } from "@repo/database";
 
 // Export types
@@ -138,4 +143,12 @@ export type {
   // User OAuth Tokens
   UserOAuthToken,
   NewUserOAuthToken,
+
+  // Auth
+  User,
+  NewUser,
+  MagicLinkToken,
+  NewMagicLinkToken,
+  Session,
+  NewSession,
 } from "@repo/database";

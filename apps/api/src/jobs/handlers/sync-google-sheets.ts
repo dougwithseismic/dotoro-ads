@@ -118,15 +118,33 @@ export function createSyncGoogleSheetsHandler(): (
     // Validate it has googleSheets configuration
     // Support both nested (config.googleSheets) and flat (config.spreadsheetId) formats
     // The flat format is what the frontend sends directly
+    // Note: config.googleSheets may exist but only contain sync status fields,
+    // while actual config (spreadsheetId, sheetName) is at top level
     const config = dataSource.config as DataSourceConfig | null;
-    const googleSheetsConfig = config?.googleSheets ??
-      (config?.spreadsheetId ? config as unknown as GoogleSheetsConfig : null);
 
-    if (!googleSheetsConfig) {
+    // Check for spreadsheetId at top level (flat) or nested (in googleSheets)
+    const spreadsheetId = config?.spreadsheetId ?? config?.googleSheets?.spreadsheetId;
+
+    if (!spreadsheetId) {
       throw new Error(
         `Data source has no Google Sheets configuration: ${dataSourceId}`
       );
     }
+
+    // Build complete GoogleSheetsConfig by merging top-level fields with any nested fields
+    // Top-level fields take precedence (as they're the source of truth from creation)
+    // Cast config fields as they come from the index signature [key: string]: unknown
+    const googleSheetsConfig: GoogleSheetsConfig = {
+      spreadsheetId: spreadsheetId,
+      sheetName: (config?.sheetName as string | undefined) ?? config?.googleSheets?.sheetName ?? "Sheet1",
+      spreadsheetName: (config?.spreadsheetName as string | undefined) ?? config?.googleSheets?.spreadsheetName ?? "",
+      headerRow: (config?.headerRow as number | undefined) ?? config?.googleSheets?.headerRow ?? 1,
+      syncFrequency: (config?.syncFrequency as SyncFrequency | undefined) ?? config?.googleSheets?.syncFrequency ?? "manual",
+      // Preserve any existing sync status fields
+      lastSyncAt: config?.googleSheets?.lastSyncAt,
+      lastSyncStatus: config?.googleSheets?.lastSyncStatus,
+      lastSyncError: config?.googleSheets?.lastSyncError,
+    };
 
     // Get OAuth credentials for the user
     const credentials = await getGoogleCredentials(userId);

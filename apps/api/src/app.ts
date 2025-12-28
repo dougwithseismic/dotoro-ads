@@ -17,6 +17,7 @@ import { campaignSetsApp } from "./routes/campaign-sets.js";
 import { jobsApp } from "./routes/jobs.js";
 import { googleAuthApp } from "./routes/google.js";
 import { googleSheetsApp } from "./routes/google-sheets.js";
+import { authApp } from "./routes/auth.js";
 import { registerOpenAPIEndpoints, openApiConfig } from "./lib/openapi.js";
 import { ApiException, ErrorCode } from "./lib/errors.js";
 
@@ -112,6 +113,7 @@ app.route("/", campaignSetsApp);
 app.route("/", jobsApp);
 app.route("/", googleAuthApp);
 app.route("/", googleSheetsApp);
+app.route("/", authApp);
 
 // ============================================================================
 // OpenAPI Documentation

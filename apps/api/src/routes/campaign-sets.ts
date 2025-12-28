@@ -989,15 +989,21 @@ campaignSetsApp.openapi(generateCampaignsRoute, async (c) => {
     throw createValidationError("Campaign set has no hierarchy configuration");
   }
 
-  // CRITICAL: Verify data source belongs to the requesting user
+  // CRITICAL: Verify data source exists and user has access
+  // Allow access if: data source belongs to user OR is a demo data source (userId is null)
   const [dataSource] = await db
     .select()
     .from(dataSources)
-    .where(and(eq(dataSources.id, config.dataSourceId), eq(dataSources.userId, userId)))
+    .where(eq(dataSources.id, config.dataSourceId))
     .limit(1);
 
   if (!dataSource) {
-    throw createValidationError("Data source not found or access denied");
+    throw createValidationError("Data source not found");
+  }
+
+  // Check authorization: user must own the data source OR it's a demo data source
+  if (dataSource.userId !== null && dataSource.userId !== userId) {
+    throw createValidationError("Access denied to this data source");
   }
 
   // Import and use the campaign generation service

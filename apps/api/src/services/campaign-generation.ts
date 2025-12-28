@@ -254,8 +254,8 @@ export class CampaignGenerationService {
             .insert(generatedCampaigns)
             .values({
               campaignSetId: config.campaignSetId,
-              templateId: config.templateId || "00000000-0000-0000-0000-000000000000", // Required by schema
-              dataRowId: campaignGroup.rows[0]?.id || "00000000-0000-0000-0000-000000000000",
+              templateId: config.templateId || null, // Nullable - campaigns can be generated without templates
+              dataRowId: campaignGroup.rows[0]?.id || null, // Nullable - campaigns can be generated from in-memory data
               campaignData: {
                 name: campaignGroup.name,
                 platform,

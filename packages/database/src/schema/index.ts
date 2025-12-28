@@ -173,3 +173,18 @@ export type {
   UserOAuthToken,
   NewUserOAuthToken,
 } from "./user-oauth-tokens.js";
+
+// Users (auth)
+export { users, usersRelations } from "./users.js";
+export type { User, NewUser } from "./users.js";
+
+// Magic Link Tokens (auth)
+export {
+  magicLinkTokens,
+  magicLinkTokensRelations,
+} from "./magic-link-tokens.js";
+export type { MagicLinkToken, NewMagicLinkToken } from "./magic-link-tokens.js";
+
+// Sessions (auth)
+export { sessions, sessionsRelations } from "./sessions.js";
+export type { Session, NewSession } from "./sessions.js";

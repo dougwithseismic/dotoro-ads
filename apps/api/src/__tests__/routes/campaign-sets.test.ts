@@ -645,7 +645,7 @@ describe("Campaign Sets API", () => {
 
       expect(response.status).toBe(400);
       const body = await response.json();
-      expect(body.error).toContain("Data source not found or access denied");
+      expect(body.error).toContain("Data source not found");
     });
 
     it("should return 400 when data source belongs to different user", async () => {
@@ -656,7 +656,7 @@ describe("Campaign Sets API", () => {
       // Data source exists but belongs to a different user
       const differentUserDataSource = {
         id: mockDataSourceId,
-        userId: "different-user-id",
+        userId: "different-user-id", // Different from testUserId
         name: "Other User's Data",
         type: "csv",
       };
@@ -668,8 +668,8 @@ describe("Campaign Sets API", () => {
         if (callCount === 1) {
           return Promise.resolve([mockSet]);
         }
-        // Data source check - query filters by userId, so return empty
-        return Promise.resolve([]);
+        // Data source exists but belongs to different user
+        return Promise.resolve([differentUserDataSource]);
       });
       const mockDbWhere = vi.fn().mockReturnValue({ limit: mockDbLimit });
       const mockDbFrom = vi.fn().mockReturnValue({ where: mockDbWhere });
@@ -684,7 +684,7 @@ describe("Campaign Sets API", () => {
 
       expect(response.status).toBe(400);
       const body = await response.json();
-      expect(body.error).toContain("Data source not found or access denied");
+      expect(body.error).toContain("Access denied to this data source");
     });
   });
 

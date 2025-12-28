@@ -58,11 +58,9 @@ export const generatedCampaigns = pgTable(
       onDelete: "set null",
     }),
     templateId: uuid("template_id")
-      .notNull()
-      .references(() => campaignTemplates.id, { onDelete: "cascade" }),
+      .references(() => campaignTemplates.id, { onDelete: "set null" }),
     dataRowId: uuid("data_row_id")
-      .notNull()
-      .references(() => dataRows.id, { onDelete: "cascade" }),
+      .references(() => dataRows.id, { onDelete: "set null" }),
     campaignData: jsonb("campaign_data")
       .$type<GeneratedCampaignData>()
       .notNull(),

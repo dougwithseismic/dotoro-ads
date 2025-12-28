@@ -276,6 +276,36 @@ const updateDataSourceRoute = createRoute({
   },
 });
 
+// PATCH /api/v1/data-sources/:id - Partially update a data source
+const patchDataSourceRoute = createRoute({
+  method: "patch",
+  path: "/api/v1/data-sources/{id}",
+  tags: ["Data Sources"],
+  summary: "Partially update a data source",
+  description: "Partially updates an existing data source. Config updates are merged with existing config.",
+  request: {
+    params: idParamSchema,
+    body: {
+      content: {
+        "application/json": {
+          schema: updateDataSourceSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Data source updated successfully",
+      content: {
+        "application/json": {
+          schema: dataSourceSchema,
+        },
+      },
+    },
+    ...commonResponses,
+  },
+});
+
 // Query schema for delete with force option
 const deleteQuerySchema = z.object({
   force: z.enum(["true", "false"]).optional().default("false"),
@@ -1022,7 +1052,77 @@ dataSourcesApp.openapi(updateDataSourceRoute, async (c) => {
     updates.type = body.type;
   }
   if (body.config !== undefined) {
-    updates.config = body.config ?? null;
+    // Merge new config with existing config instead of replacing
+    // This preserves fields not included in the update (e.g., spreadsheetId when updating sheetName)
+    const existingConfig = (existing.config as Record<string, unknown>) ?? {};
+    const newConfig = body.config ?? {};
+    updates.config = { ...existingConfig, ...newConfig };
+  }
+
+  const [updatedDataSource] = await db
+    .update(dataSources)
+    .set(updates)
+    .where(eq(dataSources.id, id))
+    .returning();
+
+  if (!updatedDataSource) {
+    throw createNotFoundError("Data source", id);
+  }
+
+  const rowCount = await computeRowCount(id);
+  const status = deriveStatus(rowCount, updatedDataSource.config);
+
+  return c.json(
+    {
+      id: updatedDataSource.id,
+      userId: updatedDataSource.userId,
+      name: updatedDataSource.name,
+      type: updatedDataSource.type,
+      config: updatedDataSource.config,
+      rowCount,
+      status,
+      createdAt: updatedDataSource.createdAt.toISOString(),
+      updatedAt: updatedDataSource.updatedAt.toISOString(),
+    },
+    200
+  );
+});
+
+// PATCH handler - reuse the same update logic as PUT
+dataSourcesApp.openapi(patchDataSourceRoute, async (c) => {
+  const { id } = c.req.valid("param");
+  const body = c.req.valid("json");
+
+  // Check if data source exists
+  const [existing] = await db
+    .select()
+    .from(dataSources)
+    .where(eq(dataSources.id, id))
+    .limit(1);
+
+  if (!existing) {
+    throw createNotFoundError("Data source", id);
+  }
+
+  // Build update object
+  const updates: Partial<{
+    name: string;
+    type: "csv" | "api" | "manual" | "google-sheets";
+    config: Record<string, unknown> | null;
+  }> = {};
+
+  if (body.name !== undefined) {
+    updates.name = body.name;
+  }
+  if (body.type !== undefined) {
+    updates.type = body.type;
+  }
+  if (body.config !== undefined) {
+    // Merge new config with existing config instead of replacing
+    // This preserves fields not included in the update (e.g., spreadsheetId when updating sheetName)
+    const existingConfig = (existing.config as Record<string, unknown>) ?? {};
+    const newConfig = body.config ?? {};
+    updates.config = { ...existingConfig, ...newConfig };
   }
 
   const [updatedDataSource] = await db
