@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi, Mock, afterEach } from "vitest";
 import { testClient } from "hono/testing";
+import type { Context } from "hono";
 
 const mockCampaignSetId = "660e8400-e29b-41d4-a716-446655440000";
 const mockCampaignId = "770e8400-e29b-41d4-a716-446655440001";
@@ -8,6 +9,14 @@ const mockDataSourceId = "550e8400-e29b-41d4-a716-446655440000";
 const mockTemplateId = "440e8400-e29b-41d4-a716-446655440000";
 const mockUserId = "330e8400-e29b-41d4-a716-446655440000";
 const mockAdAccountId = "880e8400-e29b-41d4-a716-446655440000";
+const mockTeamId = "990e8400-e29b-41d4-a716-446655440000";
+
+// Mock team data for team auth context
+const mockTeam = {
+  id: mockTeamId,
+  name: "Test Team",
+  slug: "test-team",
+};
 
 // Mock the database module
 vi.mock("../../services/db.js", () => {
@@ -69,6 +78,29 @@ vi.mock("../../services/db.js", () => {
     oauthTokens: { id: "id", adAccountId: "ad_account_id" },
   };
 });
+
+// Mock the team auth middleware
+// This bypasses actual session validation and injects team context directly
+vi.mock("../../middleware/team-auth.js", () => ({
+  requireTeamAuth: vi.fn(() => async (c: Context, next: () => Promise<void>) => {
+    // Check for X-Team-Id header to simulate auth check
+    const teamIdHeader = c.req.header("x-team-id");
+    if (!teamIdHeader) {
+      return c.json({ error: "Team ID required", code: "VALIDATION_ERROR" }, 400);
+    }
+    // Set team context for the request
+    c.set("teamContext", {
+      team: mockTeam,
+      role: "owner",
+    });
+    await next();
+  }),
+  getTeamContext: vi.fn((c: Context) => c.get("teamContext")),
+  requireTeamRole: vi.fn(() => async (c: Context, next: () => Promise<void>) => {
+    await next();
+  }),
+  hasTeamRole: vi.fn(() => true),
+}));
 
 // Mock RedditOAuthService
 vi.mock("../../services/reddit/oauth.js", () => {
@@ -158,15 +190,15 @@ async function makeRequest(
   method: string,
   path: string,
   body?: unknown,
-  options: { includeUserId?: boolean } = { includeUserId: true }
+  options: { includeTeamId?: boolean } = { includeTeamId: true }
 ): Promise<Response> {
   const headers: Record<string, string> = {};
   if (body) {
     headers["Content-Type"] = "application/json";
   }
-  // Include user ID header by default (required for authorization)
-  if (options.includeUserId !== false) {
-    headers["x-user-id"] = mockUserId;
+  // Include team ID header by default (required for team authorization)
+  if (options.includeTeamId !== false) {
+    headers["x-team-id"] = mockTeamId;
   }
 
   const request = new Request(`http://localhost${path}`, {
@@ -206,7 +238,8 @@ const sampleConfig = {
 function createMockCampaignSet(overrides: Partial<any> = {}) {
   return {
     id: mockCampaignSetId,
-    userId: mockUserId,
+    userId: mockUserId, // Legacy field, may be null in newer records
+    teamId: mockTeamId, // Team ownership
     name: "Test Campaign Set",
     description: null,
     dataSourceId: mockDataSourceId,
@@ -250,52 +283,52 @@ describe("Campaign Sets API", () => {
   });
 
   // ============================================================================
-  // Authorization Tests
+  // Authorization Tests - Team Auth
   // ============================================================================
 
-  describe("Authorization - x-user-id header", () => {
-    it("should return 401 for missing x-user-id header on list", async () => {
+  describe("Authorization - x-team-id header (Team Auth)", () => {
+    it("should return 400 for missing x-team-id header on list", async () => {
       const response = await makeRequest(
         "GET",
         "/api/v1/campaign-sets",
         undefined,
-        { includeUserId: false }
+        { includeTeamId: false }
       );
 
-      expect(response.status).toBe(401);
+      expect(response.status).toBe(400);
     });
 
-    it("should return 401 for missing x-user-id header on create", async () => {
+    it("should return 400 for missing x-team-id header on create", async () => {
       const response = await makeRequest(
         "POST",
         "/api/v1/campaign-sets",
         { name: "Test", config: sampleConfig },
-        { includeUserId: false }
+        { includeTeamId: false }
       );
 
-      expect(response.status).toBe(401);
+      expect(response.status).toBe(400);
     });
 
-    it("should return 401 for missing x-user-id header on get", async () => {
+    it("should return 400 for missing x-team-id header on get", async () => {
       const response = await makeRequest(
         "GET",
         `/api/v1/campaign-sets/${mockCampaignSetId}`,
         undefined,
-        { includeUserId: false }
+        { includeTeamId: false }
       );
 
-      expect(response.status).toBe(401);
+      expect(response.status).toBe(400);
     });
 
-    it("should return 401 for missing x-user-id header on delete", async () => {
+    it("should return 400 for missing x-team-id header on delete", async () => {
       const response = await makeRequest(
         "DELETE",
         `/api/v1/campaign-sets/${mockCampaignSetId}`,
         undefined,
-        { includeUserId: false }
+        { includeTeamId: false }
       );
 
-      expect(response.status).toBe(401);
+      expect(response.status).toBe(400);
     });
   });
 
@@ -648,28 +681,28 @@ describe("Campaign Sets API", () => {
       expect(body.error).toContain("Data source not found");
     });
 
-    it("should return 400 when data source belongs to different user", async () => {
+    it("should return 400 when data source belongs to different team", async () => {
       // Mock campaign set exists and has valid config
       const mockSet = createMockCampaignSet({
         config: { ...sampleConfig, dataSourceId: mockDataSourceId },
       });
-      // Data source exists but belongs to a different user
-      const differentUserDataSource = {
+      // Data source exists but belongs to a different team
+      const differentTeamDataSource = {
         id: mockDataSourceId,
-        userId: "different-user-id", // Different from testUserId
-        name: "Other User's Data",
+        teamId: "different-team-id", // Different from mockTeamId
+        name: "Other Team's Data",
         type: "csv",
       };
 
-      // First query returns campaign set, second returns data source with different userId
+      // First query returns campaign set, second returns data source with different teamId
       let callCount = 0;
       const mockDbLimit = vi.fn().mockImplementation(() => {
         callCount++;
         if (callCount === 1) {
           return Promise.resolve([mockSet]);
         }
-        // Data source exists but belongs to different user
-        return Promise.resolve([differentUserDataSource]);
+        // Data source exists but belongs to different team
+        return Promise.resolve([differentTeamDataSource]);
       });
       const mockDbWhere = vi.fn().mockReturnValue({ limit: mockDbLimit });
       const mockDbFrom = vi.fn().mockReturnValue({ where: mockDbWhere });
@@ -684,7 +717,8 @@ describe("Campaign Sets API", () => {
 
       expect(response.status).toBe(400);
       const body = await response.json();
-      expect(body.error).toContain("Access denied to this data source");
+      // Returns 404-style message for security (avoid leaking resource existence across teams)
+      expect(body.error).toContain("Data source not found");
     });
   });
 
@@ -856,6 +890,10 @@ describe("Campaign Sets API", () => {
     let mockDbFrom: Mock;
     let mockDbWhere: Mock;
     let mockDbLimit: Mock;
+    let mockDbUpdate: Mock;
+    let mockDbUpdateSet: Mock;
+    let mockDbUpdateWhere: Mock;
+    let mockDbUpdateReturning: Mock;
 
     beforeEach(() => {
       // Setup chainable mock for db.select().from().where().limit()
@@ -864,6 +902,13 @@ describe("Campaign Sets API", () => {
       mockDbFrom = vi.fn().mockReturnValue({ where: mockDbWhere });
       mockDbSelect = vi.fn().mockReturnValue({ from: mockDbFrom });
       (db.select as Mock) = mockDbSelect;
+
+      // Setup chainable mock for db.update().set().where().returning()
+      mockDbUpdateReturning = vi.fn().mockResolvedValue([]);
+      mockDbUpdateWhere = vi.fn().mockReturnValue({ returning: mockDbUpdateReturning });
+      mockDbUpdateSet = vi.fn().mockReturnValue({ where: mockDbUpdateWhere });
+      mockDbUpdate = vi.fn().mockReturnValue({ set: mockDbUpdateSet });
+      (db.update as Mock) = mockDbUpdate;
 
       // Reset job queue mock
       mockJobQueueSend.mockResolvedValue("job-id-123");
@@ -896,7 +941,7 @@ describe("Campaign Sets API", () => {
 
       // First call returns campaign set, second call returns ad account
       mockDbLimit.mockResolvedValueOnce([mockSet]);
-      mockDbLimit.mockResolvedValueOnce([{ id: mockAdAccountId, userId: mockUserId, platform: "reddit" }]);
+      mockDbLimit.mockResolvedValueOnce([{ id: mockAdAccountId, teamId: mockTeamId, platform: "reddit" }]);
 
       const response = await makeRequest(
         "POST",
@@ -932,32 +977,34 @@ describe("Campaign Sets API", () => {
       expect(body.error).toContain("platform");
     });
 
-    it("should return 400 when fundingInstrumentId is missing", async () => {
+    it("should accept sync request without fundingInstrumentId (optional in v3 API)", async () => {
       // Mock campaign set exists with Reddit but NO fundingInstrumentId
+      // fundingInstrumentId is optional in Reddit v3 API
       const mockSet = createMockCampaignSet({
         config: {
           ...sampleConfig,
           selectedPlatforms: ["reddit"],
           adAccountId: mockAdAccountId,
-          // fundingInstrumentId is intentionally missing
+          // fundingInstrumentId is intentionally missing - should still work in v3
         },
       });
 
       // First call returns campaign set, second call returns ad account
       mockDbLimit.mockResolvedValueOnce([mockSet]);
-      mockDbLimit.mockResolvedValueOnce([{ id: mockAdAccountId, userId: mockUserId, platform: "reddit" }]);
+      mockDbLimit.mockResolvedValueOnce([{ id: mockAdAccountId, teamId: mockTeamId, platform: "reddit" }]);
 
       const response = await makeRequest(
         "POST",
         `/api/v1/campaign-sets/${mockCampaignSetId}/sync`
       );
 
-      expect(response.status).toBe(400);
+      // Should succeed - fundingInstrumentId is optional in v3 API
+      expect(response.status).toBe(202);
       const body = await response.json();
-      expect(body.error).toContain("Funding instrument");
+      expect(body.jobId).toBe("job-id-123");
     });
 
-    it("should return 400 when ad account doesn't belong to user", async () => {
+    it("should return 400 when ad account doesn't belong to team", async () => {
       // Mock campaign set exists
       const mockSet = createMockCampaignSet({
         config: {
@@ -968,9 +1015,9 @@ describe("Campaign Sets API", () => {
         },
       });
 
-      // First call returns campaign set, second call returns empty (ad account not found for user)
+      // First call returns campaign set, second call returns empty (ad account not found for team)
       mockDbLimit.mockResolvedValueOnce([mockSet]);
-      mockDbLimit.mockResolvedValueOnce([]); // No ad account found for this user
+      mockDbLimit.mockResolvedValueOnce([]); // No ad account found for this team
 
       const response = await makeRequest(
         "POST",
@@ -1018,7 +1065,7 @@ describe("Campaign Sets API", () => {
 
       // First call returns campaign set, second call returns ad account
       mockDbLimit.mockResolvedValueOnce([mockSet]);
-      mockDbLimit.mockResolvedValueOnce([{ id: mockAdAccountId, userId: mockUserId, platform: "reddit" }]);
+      mockDbLimit.mockResolvedValueOnce([{ id: mockAdAccountId, teamId: mockTeamId, platform: "reddit" }]);
 
       // Mock job queue to return null (failed to queue)
       mockJobQueueSend.mockResolvedValue(null);
@@ -1046,7 +1093,7 @@ describe("Campaign Sets API", () => {
 
       // First call returns campaign set, second call returns ad account
       mockDbLimit.mockResolvedValueOnce([mockSet]);
-      mockDbLimit.mockResolvedValueOnce([{ id: mockAdAccountId, userId: mockUserId, platform: "reddit" }]);
+      mockDbLimit.mockResolvedValueOnce([{ id: mockAdAccountId, teamId: mockTeamId, platform: "reddit" }]);
 
       const response = await makeRequest(
         "POST",
@@ -1055,12 +1102,12 @@ describe("Campaign Sets API", () => {
 
       expect(response.status).toBe(202);
 
-      // Verify the job was queued with a singleton key
+      // Verify the job was queued with a singleton key and team ID
       expect(mockJobQueueSend).toHaveBeenCalledWith(
         "sync-campaign-set",
         expect.objectContaining({
           campaignSetId: mockCampaignSetId,
-          userId: mockUserId,
+          teamId: mockTeamId,
         }),
         expect.objectContaining({
           singletonKey: `sync-campaign-set-${mockCampaignSetId}`,
@@ -1092,16 +1139,16 @@ describe("Campaign Sets API", () => {
       mockGetJobById.mockResolvedValue(null);
     });
 
-    it("should return 401 without auth header", async () => {
-      const mockJobId = "990e8400-e29b-41d4-a716-446655440000";
+    it("should return 400 without auth header", async () => {
+      const mockJobId = "aa0e8400-e29b-41d4-a716-446655440000";
       const response = await makeRequest(
         "GET",
         `/api/v1/campaign-sets/${mockCampaignSetId}/sync-stream?jobId=${mockJobId}`,
         undefined,
-        { includeUserId: false }
+        { includeTeamId: false }
       );
 
-      expect(response.status).toBe(401);
+      expect(response.status).toBe(400);
     });
 
     it("should return 400 without jobId query parameter", async () => {
@@ -1149,10 +1196,10 @@ describe("Campaign Sets API", () => {
       const mockSet = createMockCampaignSet();
       mockDbLimit.mockResolvedValue([mockSet]);
 
-      // Mock job exists and belongs to campaign set
+      // Mock job exists and belongs to campaign set and team
       mockGetJobById.mockResolvedValue({
         id: mockJobId,
-        data: { campaignSetId: mockCampaignSetId, userId: mockUserId },
+        data: { campaignSetId: mockCampaignSetId, teamId: mockTeamId },
         state: "active",
       });
 
@@ -1172,10 +1219,10 @@ describe("Campaign Sets API", () => {
       const mockSet = createMockCampaignSet();
       mockDbLimit.mockResolvedValue([mockSet]);
 
-      // Mock job exists and belongs to campaign set
+      // Mock job exists and belongs to campaign set and team
       mockGetJobById.mockResolvedValue({
         id: mockJobId,
-        data: { campaignSetId: mockCampaignSetId, userId: mockUserId },
+        data: { campaignSetId: mockCampaignSetId, teamId: mockTeamId },
         state: "active",
       });
 
@@ -1216,7 +1263,7 @@ describe("Campaign Sets API", () => {
       // Mock job exists but belongs to a different campaign set
       mockGetJobById.mockResolvedValue({
         id: mockJobId,
-        data: { campaignSetId: differentCampaignSetId, userId: mockUserId },
+        data: { campaignSetId: differentCampaignSetId, teamId: mockTeamId },
         state: "active",
       });
 
@@ -1230,16 +1277,16 @@ describe("Campaign Sets API", () => {
       expect(body.error).toContain("denied");
     });
 
-    it("should return 403 when job belongs to different user", async () => {
+    it("should return 403 when job belongs to different team", async () => {
       const mockJobId = "990e8400-e29b-41d4-a716-446655440000";
-      const differentUserId = "550e8400-e29b-41d4-a716-446655440999";
+      const differentTeamId = "550e8400-e29b-41d4-a716-446655440999";
       const mockSet = createMockCampaignSet();
       mockDbLimit.mockResolvedValue([mockSet]);
 
-      // Mock job exists but belongs to a different user
+      // Mock job exists but belongs to a different team
       mockGetJobById.mockResolvedValue({
         id: mockJobId,
-        data: { campaignSetId: mockCampaignSetId, userId: differentUserId },
+        data: { campaignSetId: mockCampaignSetId, teamId: differentTeamId },
         state: "active",
       });
 
@@ -1258,10 +1305,10 @@ describe("Campaign Sets API", () => {
       const mockSet = createMockCampaignSet();
       mockDbLimit.mockResolvedValue([mockSet]);
 
-      // Mock job exists, is active, and belongs to this campaign set
+      // Mock job exists, is active, and belongs to this campaign set and team
       mockGetJobById.mockResolvedValue({
         id: mockJobId,
-        data: { campaignSetId: mockCampaignSetId, userId: mockUserId },
+        data: { campaignSetId: mockCampaignSetId, teamId: mockTeamId },
         state: "active",
       });
 
@@ -1293,7 +1340,7 @@ describe("Campaign Sets API", () => {
       // Mock job exists and is already completed
       mockGetJobById.mockResolvedValue({
         id: mockJobId,
-        data: { campaignSetId: mockCampaignSetId, userId: mockUserId },
+        data: { campaignSetId: mockCampaignSetId, teamId: mockTeamId },
         state: "completed",
         output: { synced: 5, failed: 0, total: 5 },
       });
@@ -1325,7 +1372,7 @@ describe("Campaign Sets API", () => {
       // Mock job exists and is already failed
       mockGetJobById.mockResolvedValue({
         id: mockJobId,
-        data: { campaignSetId: mockCampaignSetId, userId: mockUserId },
+        data: { campaignSetId: mockCampaignSetId, teamId: mockTeamId },
         state: "failed",
       });
 
@@ -1346,6 +1393,258 @@ describe("Campaign Sets API", () => {
         expect(text).toContain("event: error");
         reader.cancel();
       }
+    });
+  });
+
+  // ============================================================================
+  // adAccountId Persistence Tests
+  // ============================================================================
+
+  describe("adAccountId persistence in config", () => {
+    let mockDbSelect: Mock;
+    let mockDbFrom: Mock;
+    let mockDbWhere: Mock;
+    let mockDbLimit: Mock;
+    let mockDbInsert: Mock;
+    let mockDbValues: Mock;
+    let mockDbReturning: Mock;
+    let mockDbUpdate: Mock;
+    let mockDbUpdateSet: Mock;
+    let mockDbUpdateWhere: Mock;
+    let mockDbUpdateReturning: Mock;
+
+    beforeEach(() => {
+      // Setup chainable mock for db.select().from().where().limit()
+      mockDbLimit = vi.fn().mockResolvedValue([]);
+      mockDbWhere = vi.fn().mockReturnValue({ limit: mockDbLimit });
+      mockDbFrom = vi.fn().mockReturnValue({ where: mockDbWhere });
+      mockDbSelect = vi.fn().mockReturnValue({ from: mockDbFrom });
+      (db.select as Mock) = mockDbSelect;
+
+      // Setup chainable mock for db.insert().values().returning()
+      mockDbReturning = vi.fn().mockResolvedValue([]);
+      mockDbValues = vi.fn().mockReturnValue({ returning: mockDbReturning });
+      mockDbInsert = vi.fn().mockReturnValue({ values: mockDbValues });
+      (db.insert as Mock) = mockDbInsert;
+
+      // Setup chainable mock for db.update().set().where().returning()
+      mockDbUpdateReturning = vi.fn().mockResolvedValue([]);
+      mockDbUpdateWhere = vi.fn().mockReturnValue({ returning: mockDbUpdateReturning });
+      mockDbUpdateSet = vi.fn().mockReturnValue({ where: mockDbUpdateWhere });
+      mockDbUpdate = vi.fn().mockReturnValue({ set: mockDbUpdateSet });
+      (db.update as Mock) = mockDbUpdate;
+    });
+
+    it("should accept adAccountId in config when creating campaign set with Reddit platform", async () => {
+      // Create config with adAccountId for Reddit platform
+      const configWithAdAccountId = {
+        ...sampleConfig,
+        selectedPlatforms: ["reddit"],
+        adAccountId: mockAdAccountId,
+      };
+
+      // Mock successful insert returning the created campaign set
+      const createdSet = createMockCampaignSet({
+        config: configWithAdAccountId,
+      });
+      mockDbReturning.mockResolvedValue([createdSet]);
+
+      const response = await makeRequest("POST", "/api/v1/campaign-sets", {
+        name: "Test Campaign Set with Ad Account",
+        config: configWithAdAccountId,
+      });
+
+      // Should succeed with 201 Created
+      expect(response.status).toBe(201);
+
+      // Verify response body contains the adAccountId
+      const body = await response.json();
+      expect(body.config).toBeDefined();
+      expect(body.config.adAccountId).toBe(mockAdAccountId);
+
+      // Verify the insert was called with config containing adAccountId
+      expect(mockDbInsert).toHaveBeenCalled();
+      expect(mockDbValues).toHaveBeenCalledWith(
+        expect.objectContaining({
+          config: expect.objectContaining({
+            adAccountId: mockAdAccountId,
+          }),
+        })
+      );
+    });
+
+    it("should return adAccountId in config when getting campaign set", async () => {
+      // Mock campaign set with adAccountId in config
+      const mockSet = createMockCampaignSet({
+        config: {
+          ...sampleConfig,
+          selectedPlatforms: ["reddit"],
+          adAccountId: mockAdAccountId,
+        },
+      });
+      mockDbLimit.mockResolvedValue([mockSet]);
+
+      // Mock db.query for campaigns (with full orderBy chain)
+      const mockOrderBy = vi.fn().mockResolvedValue([]);
+      const mockCampaignsWhere = vi.fn().mockReturnValue({ orderBy: mockOrderBy });
+      const mockCampaignsFrom = vi.fn().mockReturnValue({ where: mockCampaignsWhere });
+      mockDbFrom.mockReturnValue({ where: mockDbWhere, orderBy: mockOrderBy });
+      mockDbWhere.mockReturnValue({ limit: mockDbLimit, orderBy: mockOrderBy });
+
+      const response = await makeRequest(
+        "GET",
+        `/api/v1/campaign-sets/${mockCampaignSetId}`
+      );
+
+      expect(response.status).toBe(200);
+      const body = await response.json();
+
+      // Verify adAccountId is preserved in the response
+      expect(body.config).toBeDefined();
+      expect(body.config.adAccountId).toBe(mockAdAccountId);
+    });
+
+    it("should preserve adAccountId when updating campaign set config", async () => {
+      // Mock existing campaign set with adAccountId
+      const existingConfig = {
+        ...sampleConfig,
+        selectedPlatforms: ["reddit"],
+        adAccountId: mockAdAccountId,
+      };
+      const existingSet = createMockCampaignSet({ config: existingConfig });
+      mockDbLimit.mockResolvedValue([existingSet]);
+
+      // Mock successful update returning the updated campaign set
+      const updatedSet = {
+        ...existingSet,
+        name: "Updated Name",
+        config: existingConfig, // adAccountId should still be there
+      };
+      mockDbUpdateReturning.mockResolvedValue([updatedSet]);
+
+      const response = await makeRequest(
+        "PUT",
+        `/api/v1/campaign-sets/${mockCampaignSetId}`,
+        {
+          name: "Updated Name",
+          config: existingConfig, // Include adAccountId in update
+        }
+      );
+
+      // Should succeed with 200 OK
+      expect(response.status).toBe(200);
+
+      // Verify response body preserves adAccountId
+      const body = await response.json();
+      expect(body.config).toBeDefined();
+      expect(body.config.adAccountId).toBe(mockAdAccountId);
+
+      // Verify update was called with config preserving adAccountId
+      expect(mockDbUpdate).toHaveBeenCalled();
+      expect(mockDbUpdateSet).toHaveBeenCalledWith(
+        expect.objectContaining({
+          config: expect.objectContaining({
+            adAccountId: mockAdAccountId,
+          }),
+        })
+      );
+    });
+
+    it("should not require adAccountId for non-Reddit platforms", async () => {
+      // Config without adAccountId for Google platform
+      const googleConfig = {
+        ...sampleConfig,
+        selectedPlatforms: ["google"],
+        // No adAccountId - should be fine for Google
+      };
+
+      // Mock successful insert
+      const createdSet = createMockCampaignSet({
+        config: googleConfig,
+      });
+      mockDbReturning.mockResolvedValue([createdSet]);
+
+      const response = await makeRequest("POST", "/api/v1/campaign-sets", {
+        name: "Google Campaign Set",
+        config: googleConfig,
+      });
+
+      // Should succeed with 201 Created without adAccountId for Google
+      expect(response.status).toBe(201);
+
+      // Verify response body
+      const body = await response.json();
+      expect(body.config).toBeDefined();
+      expect(body.config.adAccountId).toBeUndefined();
+    });
+
+    it("should accept fundingInstrumentId alongside adAccountId", async () => {
+      // Config with both adAccountId and fundingInstrumentId for Reddit
+      const redditConfig = {
+        ...sampleConfig,
+        selectedPlatforms: ["reddit"],
+        adAccountId: mockAdAccountId,
+        fundingInstrumentId: "funding-instrument-123",
+      };
+
+      // Mock successful insert
+      const createdSet = createMockCampaignSet({
+        config: redditConfig,
+      });
+      mockDbReturning.mockResolvedValue([createdSet]);
+
+      const response = await makeRequest("POST", "/api/v1/campaign-sets", {
+        name: "Reddit Campaign Set with Funding",
+        config: redditConfig,
+      });
+
+      // Should succeed with 201 Created
+      expect(response.status).toBe(201);
+
+      // Verify response body contains both fields
+      const body = await response.json();
+      expect(body.config).toBeDefined();
+      expect(body.config.adAccountId).toBe(mockAdAccountId);
+      expect(body.config.fundingInstrumentId).toBe("funding-instrument-123");
+
+      // Verify both fields are preserved in the insert call
+      expect(mockDbValues).toHaveBeenCalledWith(
+        expect.objectContaining({
+          config: expect.objectContaining({
+            adAccountId: mockAdAccountId,
+            fundingInstrumentId: "funding-instrument-123",
+          }),
+        })
+      );
+    });
+
+    it("should handle empty adAccountId string appropriately", async () => {
+      // Config with empty string adAccountId - should be rejected as invalid
+      const configWithEmptyAdAccountId = {
+        ...sampleConfig,
+        selectedPlatforms: ["reddit"],
+        adAccountId: "",
+      };
+
+      // Mock successful insert (in case validation passes)
+      const createdSet = createMockCampaignSet({
+        config: configWithEmptyAdAccountId,
+      });
+      mockDbReturning.mockResolvedValue([createdSet]);
+
+      const response = await makeRequest("POST", "/api/v1/campaign-sets", {
+        name: "Campaign Set with Empty Ad Account",
+        config: configWithEmptyAdAccountId,
+      });
+
+      // Empty string should be accepted at creation time (validation happens at sync time)
+      // This is because adAccountId may be set later before syncing
+      expect(response.status).toBe(201);
+
+      // Verify the empty string is preserved (not stripped)
+      const body = await response.json();
+      expect(body.config).toBeDefined();
+      expect(body.config.adAccountId).toBe("");
     });
   });
 

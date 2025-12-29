@@ -358,6 +358,12 @@ export const campaignSetConfigSchema = z.object({
 
   // Thread config (for Reddit)
   threadConfig: threadConfigSchema.optional(), // NEW: Reddit thread configuration
+
+  // Platform-specific account fields (for syncing to ad platforms)
+  /** Reddit Ad Account ID - required for syncing to Reddit Ads platform */
+  adAccountId: z.string().optional(),
+  /** Reddit Funding Instrument ID - optional for Reddit v3 API */
+  fundingInstrumentId: z.string().optional(),
 });
 export type CampaignSetConfig = z.infer<typeof campaignSetConfigSchema>;
 
@@ -524,6 +530,7 @@ export type Campaign = z.infer<typeof campaignSchema>;
 export const campaignSetSchema = z.object({
   id: uuidSchema,
   userId: uuidSchema.nullable(),
+  teamId: uuidSchema.nullable(),
   name: z.string().min(1).max(255),
   description: z.string().nullable().optional(),
   dataSourceId: uuidSchema.nullable().optional(),
@@ -544,6 +551,7 @@ export type CampaignSet = z.infer<typeof campaignSetSchema>;
  */
 export const campaignSetSummarySchema = z.object({
   id: uuidSchema,
+  teamId: uuidSchema.nullable(),
   name: z.string(),
   description: z.string().nullable().optional(),
   status: campaignSetStatusSchema,
