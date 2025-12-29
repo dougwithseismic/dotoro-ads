@@ -18,9 +18,13 @@ export {
 export {
   jobEvents,
   emitSyncProgress,
+  emitGenerationProgress,
   type SyncProgressEvent,
   type SyncProgressEventType,
   type SyncProgressData,
+  type GenerationProgressEvent,
+  type GenerationProgressEventType,
+  type GenerationProgressData,
 } from "./events.js";
 
 // Types
@@ -31,6 +35,10 @@ export type {
   Platform,
   SyncResult,
   QueuedJobResponse,
+  GenerateCreativesJob,
+  GenerateCreativesResult,
+  AspectRatioSpec,
+  RowFilter,
 } from "./types.js";
 
 // Job handlers
@@ -80,3 +88,10 @@ export {
   type SyncGoogleSheetsJob,
   type SyncGoogleSheetsResult,
 } from "./handlers/sync-google-sheets.js";
+
+// Generate Creatives job handler
+export {
+  GENERATE_CREATIVES_JOB,
+  createGenerateCreativesHandler,
+  registerGenerateCreativesHandler,
+} from "./handlers/generate-creatives.js";

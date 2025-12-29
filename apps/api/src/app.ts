@@ -25,6 +25,8 @@ import { dashboardApp } from "./routes/dashboard.js";
 import { syncApp } from "./routes/sync.js";
 import { usersApp } from "./routes/users.js";
 import { assetsApp } from "./routes/assets.js";
+import { designTemplatesApp } from "./routes/design-templates.js";
+import { generateApp } from "./routes/generate.js";
 import { registerOpenAPIEndpoints, openApiConfig } from "./lib/openapi.js";
 import { ApiException, ErrorCode } from "./lib/errors.js";
 
@@ -129,6 +131,8 @@ app.route("/", dashboardApp);
 app.route("/", syncApp);
 app.route("/", usersApp);
 app.route("/", assetsApp);
+app.route("/", designTemplatesApp);
+app.route("/", generateApp);
 
 // ============================================================================
 // OpenAPI Documentation

@@ -21,14 +21,14 @@ export interface SyncCampaignSetJob {
   /** The campaign set ID to sync */
   campaignSetId: string;
 
-  /** The user who initiated the sync */
-  userId: string;
+  /** The team who owns this campaign set */
+  teamId: string;
 
   /** The ad account ID to use for the sync */
   adAccountId: string;
 
-  /** The funding instrument ID for the platform */
-  fundingInstrumentId: string;
+  /** The funding instrument ID for the platform (optional in Reddit v3 API) */
+  fundingInstrumentId?: string;
 
   /** The platform to sync to */
   platform: Platform;
@@ -140,5 +140,80 @@ export interface SyncFromPlatformResult {
   errorMessages: Array<{
     campaignId: string;
     message: string;
+  }>;
+}
+
+// ============================================================================
+// Creative Generation Jobs
+// ============================================================================
+
+/**
+ * Aspect ratio specification for generation.
+ */
+export interface AspectRatioSpec {
+  width: number;
+  height: number;
+}
+
+/**
+ * Row filter for selective generation.
+ */
+export interface RowFilter {
+  includeIds?: string[];
+  excludeIds?: string[];
+  indexRange?: {
+    start: number;
+    end: number;
+  };
+}
+
+/**
+ * Data payload for generate creatives jobs.
+ */
+export interface GenerateCreativesJob {
+  /** The generation job ID (from generation_jobs table) */
+  jobId: string;
+
+  /** The team who owns this job */
+  teamId: string;
+
+  /** The design template ID to use */
+  templateId: string;
+
+  /** The data source ID containing rows */
+  dataSourceId: string;
+
+  /** Aspect ratios to generate for each row */
+  aspectRatios: AspectRatioSpec[];
+
+  /** Optional filter for which rows to include */
+  rowFilter?: RowFilter;
+
+  /** Output format */
+  format: "png" | "jpeg";
+
+  /** JPEG quality (1-100) */
+  quality: number;
+}
+
+/**
+ * Result of a generate creatives operation.
+ */
+export interface GenerateCreativesResult {
+  /** Number of images successfully generated */
+  processed: number;
+
+  /** Number of images that failed to generate */
+  failed: number;
+
+  /** IDs of successfully generated creatives */
+  creativeIds: string[];
+
+  /** Error log for failed items */
+  errors: Array<{
+    rowId: string;
+    aspectRatio: AspectRatioSpec;
+    error: string;
+    timestamp: string;
   }>;
 }

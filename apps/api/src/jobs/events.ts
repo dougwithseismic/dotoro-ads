@@ -76,3 +76,66 @@ export function emitSyncProgress(event: SyncProgressEvent): void {
     jobEvents.emit(`sync:${event.jobId}:done`);
   }
 }
+
+// ============================================================================
+// Generation Progress Events
+// ============================================================================
+
+/**
+ * Event types for generation progress updates.
+ */
+export type GenerationProgressEventType =
+  | "started"
+  | "progress"
+  | "completed"
+  | "error";
+
+/**
+ * Data payload for generation progress events.
+ */
+export interface GenerationProgressData {
+  /** Number of images processed so far */
+  processed?: number;
+  /** Number of images that failed */
+  failed?: number;
+  /** Total number of images to generate */
+  total?: number;
+  /** Latest generated creative ID */
+  latestCreativeId?: string;
+  /** All generated creative IDs (for completed) */
+  creativeIds?: string[];
+  /** Error message (for error type) */
+  error?: string;
+}
+
+/**
+ * Generation progress event structure.
+ */
+export interface GenerationProgressEvent {
+  /** The generation job ID */
+  jobId: string;
+  /** Event type */
+  type: GenerationProgressEventType;
+  /** Event data payload */
+  data: GenerationProgressData;
+  /** ISO timestamp of the event */
+  timestamp: string;
+}
+
+/**
+ * Emits a typed generation progress event.
+ *
+ * Events are emitted on the pattern `generation:{jobId}` for progress listeners.
+ * For terminal events (completed, error), also emits `generation:{jobId}:done`.
+ *
+ * @param event - The generation progress event to emit
+ */
+export function emitGenerationProgress(event: GenerationProgressEvent): void {
+  // Emit to the main generation event channel
+  jobEvents.emit(`generation:${event.jobId}`, event);
+
+  // For terminal events, also emit done signal
+  if (event.type === "completed" || event.type === "error") {
+    jobEvents.emit(`generation:${event.jobId}:done`);
+  }
+}

@@ -225,3 +225,50 @@ export type {
   Verification,
   NewVerification,
 } from "./auth.js";
+
+// Design Templates (Fabric.js canvas editor templates)
+export {
+  designTemplates,
+  templateVariants,
+  designTemplatesRelations,
+  templateVariantsRelations,
+  designTemplateStatusEnum,
+} from "./design-templates.js";
+export type {
+  DesignTemplate,
+  NewDesignTemplate,
+  TemplateVariant,
+  NewTemplateVariant,
+  FabricCanvasJSON,
+  FabricObject,
+  FabricTextObject,
+  FabricImageObject,
+  TemplateVariable,
+  SafeZone,
+} from "./design-templates.js";
+
+// Generated Creatives (server-side rendered images)
+export {
+  generatedCreatives,
+  generatedCreativesRelations,
+  generatedCreativeStatusEnum,
+} from "./generated-creatives.js";
+export type {
+  GeneratedCreative,
+  NewGeneratedCreative,
+  VariableValuesSnapshot,
+} from "./generated-creatives.js";
+
+// Generation Jobs (batch image generation tracking)
+export {
+  generationJobs,
+  generationJobsRelations,
+  generationJobStatusEnum,
+} from "./generation-jobs.js";
+export type {
+  GenerationJob,
+  NewGenerationJob,
+  AspectRatioSpec,
+  RowFilter,
+  GenerationError,
+} from "./generation-jobs.js";

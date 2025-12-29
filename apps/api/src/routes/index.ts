@@ -14,3 +14,5 @@ export { dashboardApp } from "./dashboard.js";
 export { syncApp } from "./sync.js";
 export { usersApp } from "./users.js";
 export { assetsApp } from "./assets.js";
+export { designTemplatesApp } from "./design-templates.js";
+export { generateApp } from "./generate.js";

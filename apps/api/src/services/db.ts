@@ -36,6 +36,16 @@ export {
   // Asset Folders
   assetFolders,
 
+  // Design Templates
+  designTemplates,
+  templateVariants,
+
+  // Generated Creatives
+  generatedCreatives,
+
+  // Generation Jobs
+  generationJobs,
+
   // Creatives
   creatives,
   creativeTags,
@@ -116,6 +126,28 @@ export type {
   // Asset Folders
   AssetFolder,
   NewAssetFolder,
+
+  // Design Templates
+  DesignTemplate,
+  NewDesignTemplate,
+  TemplateVariant,
+  NewTemplateVariant,
+  FabricCanvasJSON,
+  FabricObject,
+  TemplateVariable,
+  SafeZone,
+
+  // Generated Creatives
+  GeneratedCreative,
+  NewGeneratedCreative,
+  VariableValuesSnapshot,
+
+  // Generation Jobs
+  GenerationJob,
+  NewGenerationJob,
+  AspectRatioSpec,
+  RowFilter,
+  GenerationError,
 
   // Creatives
   Creative,
