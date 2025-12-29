@@ -1,0 +1,100 @@
+.container {
+  --gray-rgb: 0, 0, 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .container {
+    --gray-rgb: 255, 255, 255;
+  }
+}
+
+.breadcrumbList {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+/* Separator */
+.separator {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  margin: 0 4px;
+  color: rgba(var(--gray-rgb), 0.3);
+}
+
+/* Home icon */
+.homeIcon {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  margin-right: 4px;
+}
+
+/* Link button */
+.link {
+  display: inline-flex;
+  align-items: center;
+  max-width: 200px;
+  padding: 4px 6px;
+  margin: -4px -6px;
+  font: inherit;
+  color: rgba(var(--gray-rgb), 0.6);
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.15s, background 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.link:hover {
+  color: var(--foreground);
+  background: rgba(var(--gray-rgb), 0.05);
+}
+
+.link:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 1px;
+}
+
+/* Current (non-clickable) */
+.current {
+  display: inline-flex;
+  align-items: center;
+  max-width: 200px;
+  padding: 4px 6px;
+  margin: -4px -6px;
+  font-weight: 500;
+  color: var(--foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Responsive: truncate earlier on mobile */
+@media (max-width: 640px) {
+  .link,
+  .current {
+    max-width: 120px;
+  }
+
+  .breadcrumbList {
+    font-size: 12px;
+  }
+}

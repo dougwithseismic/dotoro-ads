@@ -1,0 +1,334 @@
+.overlay {
+  --gray-rgb: 0, 0, 0;
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.9);
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Close button */
+.closeButton {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s;
+  z-index: 10;
+}
+
+.closeButton:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Navigation buttons */
+.navButton {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 50%;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.15s;
+  z-index: 10;
+}
+
+.navButton:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-50%) scale(1.05);
+}
+
+.prevButton {
+  left: 16px;
+}
+
+.nextButton {
+  right: 16px;
+}
+
+/* Main content */
+.content {
+  display: flex;
+  width: 100%;
+  max-width: 1400px;
+  max-height: 90vh;
+  margin: 0 80px;
+  background: var(--background, #fff);
+  border-radius: 12px;
+  overflow: hidden;
+  animation: slideUp 0.25s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Preview area */
+.previewArea {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  background: #000;
+  position: relative;
+}
+
+.imageContainer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
+}
+
+.image {
+  object-fit: contain;
+}
+
+.video {
+  max-width: 100%;
+  max-height: 80vh;
+  outline: none;
+}
+
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 48px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.placeholder p {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  margin: 0;
+}
+
+/* Sidebar */
+.sidebar {
+  flex-shrink: 0;
+  width: 300px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 24px;
+  background: var(--background, #fff);
+  border-left: 1px solid rgba(var(--gray-rgb), 0.1);
+}
+
+.assetName {
+  font-family: var(--font-geist-sans);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--foreground);
+  margin: 0 0 20px;
+  word-break: break-word;
+}
+
+/* Metadata list */
+.metadataList {
+  margin: 0;
+  padding: 0;
+}
+
+.metadataItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(var(--gray-rgb), 0.08);
+}
+
+.metadataItem:first-of-type {
+  padding-top: 0;
+}
+
+.metadataItem dt {
+  font-family: var(--font-geist-sans);
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(var(--gray-rgb), 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.metadataItem dd {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  color: var(--foreground);
+  margin: 0;
+}
+
+/* Badge */
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background: rgba(var(--gray-rgb), 0.08);
+  border-radius: 4px;
+}
+
+/* Status badge */
+.statusBadge {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-radius: 4px;
+}
+
+.statusBadge.pending {
+  color: #b45309;
+  background: rgba(251, 191, 36, 0.15);
+}
+
+.statusBadge.processing {
+  color: #1d4ed8;
+  background: rgba(59, 130, 246, 0.15);
+}
+
+.statusBadge.ready {
+  color: #15803d;
+  background: rgba(34, 197, 94, 0.15);
+}
+
+.statusBadge.failed {
+  color: #dc2626;
+  background: rgba(239, 68, 68, 0.15);
+}
+
+/* Tag list */
+.tagList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag {
+  display: inline-block;
+  padding: 3px 8px;
+  font-size: 12px;
+  color: rgba(var(--gray-rgb), 0.7);
+  background: rgba(var(--gray-rgb), 0.06);
+  border-radius: 4px;
+}
+
+/* Actions */
+.actions {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(var(--gray-rgb), 0.1);
+}
+
+.downloadButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  font-weight: 500;
+  color: #fff;
+  background: var(--foreground);
+  border: none;
+  border-radius: 8px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.downloadButton:hover {
+  opacity: 0.9;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .overlay {
+    --gray-rgb: 255, 255, 255;
+  }
+
+  .statusBadge.pending {
+    color: #fbbf24;
+  }
+
+  .statusBadge.processing {
+    color: #60a5fa;
+  }
+
+  .statusBadge.ready {
+    color: #4ade80;
+  }
+
+  .statusBadge.failed {
+    color: #f87171;
+  }
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .content {
+    flex-direction: column;
+    max-height: 95vh;
+    margin: 0 16px;
+  }
+
+  .previewArea {
+    flex: none;
+    height: 50vh;
+  }
+
+  .sidebar {
+    width: 100%;
+    max-height: none;
+    border-left: none;
+    border-top: 1px solid rgba(var(--gray-rgb), 0.1);
+  }
+
+  .navButton {
+    display: none;
+  }
+}

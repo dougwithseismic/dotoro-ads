@@ -32,3 +32,9 @@ export type {
 } from "./useCampaignHealth";
 export { useUpdateProfile } from "./useUpdateProfile";
 export { useDeletionPreview, useDeleteAccount } from "./useAccountDeletion";
+export { useAssetFolders } from "./useAssetFolders";
+export type { UseAssetFoldersReturn } from "./useAssetFolders";
+export { useAssets } from "./useAssets";
+export type { UseAssetsReturn } from "./useAssets";
+export { useAssetUpload } from "./useAssetUpload";
+export type { UseAssetUploadOptions, UseAssetUploadReturn } from "./useAssetUpload";
