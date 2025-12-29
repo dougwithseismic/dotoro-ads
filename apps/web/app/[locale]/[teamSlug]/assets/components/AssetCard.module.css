@@ -1,0 +1,240 @@
+.card {
+  --gray-rgb: 0, 0, 0;
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(var(--gray-rgb), 0.03);
+  border: 1px solid rgba(var(--gray-rgb), 0.1);
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+
+@media (prefers-color-scheme: dark) {
+  .card {
+    --gray-rgb: 255, 255, 255;
+  }
+}
+
+.card:hover {
+  border-color: rgba(var(--gray-rgb), 0.25);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.card.selected {
+  border-color: var(--foreground);
+  box-shadow: 0 0 0 2px var(--foreground);
+}
+
+/* Thumbnail container */
+.thumbnailContainer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(var(--gray-rgb), 0.03);
+}
+
+.thumbnail {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.placeholderIcon {
+  width: 40px;
+  height: 40px;
+  color: rgba(var(--gray-rgb), 0.2);
+}
+
+/* Type badge */
+.typeBadge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 4px;
+  color: #fff;
+  backdrop-filter: blur(4px);
+}
+
+.typeBadge svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Duration badge (for videos) */
+.durationBadge {
+  position: absolute;
+  bottom: 32px;
+  right: 8px;
+  padding: 2px 6px;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 4px;
+  font-family: var(--font-geist-mono);
+  font-size: 11px;
+  color: #fff;
+  backdrop-filter: blur(4px);
+}
+
+/* Selection checkbox */
+.checkbox {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 20px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid rgba(var(--gray-rgb), 0.3);
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.15s, border-color 0.15s, background-color 0.15s;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card:hover .checkbox,
+.card.selected .checkbox {
+  opacity: 1;
+}
+
+.checkbox.checked {
+  background: var(--foreground);
+  border-color: var(--foreground);
+  opacity: 1;
+}
+
+.checkbox.checked svg {
+  color: var(--background);
+}
+
+.checkbox svg {
+  width: 12px;
+  height: 12px;
+  color: transparent;
+}
+
+/* Info bar at bottom */
+.infoBar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 8px 10px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.5));
+}
+
+.name {
+  font-family: var(--font-geist-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  margin: 0;
+}
+
+/* Hover overlay */
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.card:hover .overlay {
+  opacity: 1;
+}
+
+.overlayButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.95);
+  border: none;
+  border-radius: 50%;
+  color: var(--foreground);
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+
+.overlayButton:hover {
+  transform: scale(1.1);
+}
+
+.overlayButton svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Status indicator */
+.statusIndicator {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 4px;
+  backdrop-filter: blur(4px);
+}
+
+.statusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.statusDot.pending {
+  background: #fbbf24;
+}
+
+.statusDot.processing {
+  background: #3b82f6;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.statusDot.ready {
+  background: #22c55e;
+}
+
+.statusDot.failed {
+  background: #ef4444;
+}
+
+.statusText {
+  font-family: var(--font-geist-sans);
+  font-size: 10px;
+  font-weight: 500;
+  color: #fff;
+  text-transform: uppercase;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
