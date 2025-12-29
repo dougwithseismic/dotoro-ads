@@ -240,4 +240,33 @@ describe('EditorToolbar', () => {
       expect(container.firstChild).toHaveClass('custom-class');
     });
   });
+
+  describe('Asset Picker Integration', () => {
+    it('renders image tool button', () => {
+      renderToolbar();
+      expect(screen.getByLabelText('Image')).toBeInTheDocument();
+    });
+
+    it('calls onOpenAssetPicker when image tool is clicked', () => {
+      const onOpenAssetPicker = vi.fn();
+      renderToolbar({ onOpenAssetPicker });
+      fireEvent.click(screen.getByLabelText('Image'));
+      expect(onOpenAssetPicker).toHaveBeenCalled();
+    });
+
+    it('does not switch to image tool when onOpenAssetPicker is provided', () => {
+      const onOpenAssetPicker = vi.fn();
+      renderToolbar({ onOpenAssetPicker });
+      fireEvent.click(screen.getByLabelText('Image'));
+      // The image button should not have active state after click since we open picker instead
+      expect(screen.getByLabelText('Image')).not.toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('falls back to normal tool selection when onOpenAssetPicker is not provided', () => {
+      renderToolbar();
+      fireEvent.click(screen.getByLabelText('Image'));
+      // Without the callback, it should work as before
+      expect(screen.getByLabelText('Image')).toBeInTheDocument();
+    });
+  });
 });

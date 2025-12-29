@@ -24,6 +24,7 @@ import { useFabricCanvas } from './hooks/useFabricCanvas';
 import { useCanvasHistory } from './hooks/useCanvasHistory';
 import type { EditorTool } from './types';
 import { ZOOM_CONSTRAINTS } from './types';
+import type { SelectedAsset } from './AssetPickerModal';
 import styles from './EditorToolbar.module.css';
 
 /**
@@ -62,6 +63,10 @@ export interface EditorToolbarProps {
   isSaving?: boolean;
   /** Whether save button is disabled */
   saveDisabled?: boolean;
+  /** Callback when image tool requests asset picker */
+  onOpenAssetPicker?: () => void;
+  /** Callback when an asset is selected from the picker */
+  onAssetSelect?: (asset: SelectedAsset) => void;
   /** Additional CSS class name */
   className?: string;
 }
@@ -80,6 +85,8 @@ export function EditorToolbar({
   onPreview,
   isSaving = false,
   saveDisabled = false,
+  onOpenAssetPicker,
+  onAssetSelect,
   className,
 }: EditorToolbarProps) {
   const { activeTool, setTool, selectedObjects, canvas } = useCanvas();
@@ -94,6 +101,12 @@ export function EditorToolbar({
    * Handle tool selection
    */
   const handleToolSelect = useCallback((tool: EditorTool) => {
+    // Special handling for image tool - open asset picker instead of switching tool
+    if (tool === 'image' && onOpenAssetPicker) {
+      onOpenAssetPicker();
+      return;
+    }
+
     setTool(tool);
 
     // Add object when tool is selected (except select tool)
@@ -101,7 +114,7 @@ export function EditorToolbar({
 
     // For now, just switch the tool - actual object creation can happen on canvas click
     // This is a common pattern where selecting a tool prepares for object creation
-  }, [setTool, canvas]);
+  }, [setTool, canvas, onOpenAssetPicker]);
 
   /**
    * Handle zoom slider change

@@ -47,6 +47,15 @@ export {
   type SafeZoneOverlayProps,
   type SafeZonePresetKey,
 } from './SafeZoneOverlay';
+export {
+  AssetPickerModal,
+  type AssetPickerModalProps,
+  type SelectedAsset,
+} from './AssetPickerModal';
+export {
+  ImageVariableBinding,
+  type ImageVariableBindingProps,
+} from './ImageVariableBinding';
 
 // Hooks
 export { useFabricCanvas, type UseFabricCanvasReturn } from './hooks/useFabricCanvas';
