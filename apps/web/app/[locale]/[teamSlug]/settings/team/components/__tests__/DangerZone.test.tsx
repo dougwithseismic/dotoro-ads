@@ -222,4 +222,137 @@ describe("DangerZone", () => {
       expect(confirmButton).toBeDisabled();
     });
   });
+
+  describe("accessibility - focus trap", () => {
+    it("should have proper dialog role and aria attributes", async () => {
+      const user = userEvent.setup();
+      render(<DangerZone {...defaultProps} />);
+
+      const deleteButton = screen.getByRole("button", { name: /delete team/i });
+      await user.click(deleteButton);
+
+      const dialog = screen.getByRole("dialog");
+      expect(dialog).toHaveAttribute("aria-modal", "true");
+      expect(dialog).toHaveAttribute("aria-labelledby");
+    });
+
+    it("should close dialog on Escape key", async () => {
+      const user = userEvent.setup();
+      render(<DangerZone {...defaultProps} />);
+
+      const deleteButton = screen.getByRole("button", { name: /delete team/i });
+      await user.click(deleteButton);
+
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+      await user.keyboard("{Escape}");
+
+      await waitFor(() => {
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      });
+    });
+
+    it("should focus input when dialog opens", async () => {
+      const user = userEvent.setup();
+      render(<DangerZone {...defaultProps} />);
+
+      const deleteButton = screen.getByRole("button", { name: /delete team/i });
+      await user.click(deleteButton);
+
+      await waitFor(() => {
+        expect(screen.getByRole("textbox", { name: /type.*to confirm/i })).toHaveFocus();
+      });
+    });
+
+    it("should trap focus within dialog on Tab", async () => {
+      const user = userEvent.setup();
+      render(<DangerZone {...defaultProps} />);
+
+      const deleteButton = screen.getByRole("button", { name: /delete team/i });
+      await user.click(deleteButton);
+
+      const input = screen.getByRole("textbox", { name: /type.*to confirm/i });
+      const cancelButton = screen.getByRole("button", { name: /cancel/i });
+
+      // Type team name to enable confirm button
+      await user.type(input, "Test Team");
+      const confirmButton = screen.getByTestId("confirm-delete-button");
+
+      // Start at input
+      input.focus();
+      expect(document.activeElement).toBe(input);
+
+      // Tab to cancel
+      await user.tab();
+      expect(document.activeElement).toBe(cancelButton);
+
+      // Tab to confirm (now enabled)
+      await user.tab();
+      expect(document.activeElement).toBe(confirmButton);
+
+      // Tab should wrap back to input (focus trap)
+      await user.tab();
+      expect(document.activeElement).toBe(input);
+    });
+
+    it("should trap focus within dialog on Shift+Tab", async () => {
+      const user = userEvent.setup();
+      render(<DangerZone {...defaultProps} />);
+
+      const deleteButton = screen.getByRole("button", { name: /delete team/i });
+      await user.click(deleteButton);
+
+      const input = screen.getByRole("textbox", { name: /type.*to confirm/i });
+
+      // Type team name to enable confirm button
+      await user.type(input, "Test Team");
+      const confirmButton = screen.getByTestId("confirm-delete-button");
+
+      // Start at input
+      input.focus();
+      expect(document.activeElement).toBe(input);
+
+      // Shift+Tab should wrap to last element (focus trap)
+      await user.tab({ shift: true });
+      expect(document.activeElement).toBe(confirmButton);
+    });
+
+    it("should close dialog when clicking overlay", async () => {
+      const user = userEvent.setup();
+      render(<DangerZone {...defaultProps} />);
+
+      const deleteButton = screen.getByRole("button", { name: /delete team/i });
+      await user.click(deleteButton);
+
+      const overlay = screen.getByTestId("delete-dialog-overlay");
+      await user.click(overlay);
+
+      await waitFor(() => {
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      });
+    });
+
+    it("should not close dialog on Escape during deletion", async () => {
+      const user = userEvent.setup();
+      const onDelete = vi.fn().mockImplementation(
+        () => new Promise((resolve) => setTimeout(resolve, 100))
+      );
+      render(<DangerZone {...defaultProps} onDelete={onDelete} />);
+
+      const deleteButton = screen.getByRole("button", { name: /delete team/i });
+      await user.click(deleteButton);
+
+      const input = screen.getByRole("textbox", { name: /type.*to confirm/i });
+      await user.type(input, "Test Team");
+
+      const confirmButton = screen.getByTestId("confirm-delete-button");
+      await user.click(confirmButton);
+
+      // During deletion, Escape should not close the dialog
+      await user.keyboard("{Escape}");
+
+      // Dialog should still be open
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+    });
+  });
 });

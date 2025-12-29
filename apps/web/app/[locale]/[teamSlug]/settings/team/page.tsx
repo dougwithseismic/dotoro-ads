@@ -22,6 +22,11 @@ import {
   type TeamRole,
   type ResendInvitationResponse,
 } from "@/lib/teams";
+import { showError, showSuccess, showInfo, getErrorMessage } from "@/lib/toast";
+import {
+  canManageTeam as checkCanManageTeam,
+  isOwner as checkIsOwner,
+} from "@/lib/teams/permissions";
 import { CreateTeamDialog } from "@/components/teams/CreateTeamDialog";
 import { Users, Mail, Settings, X, Check, ChevronDown, Plus, Shield, RefreshCw, Copy, AlertCircle, CreditCard, Sliders } from "lucide-react";
 import { PermissionsTab } from "./components/PermissionsTab";
@@ -789,7 +794,7 @@ export default function TeamSettingsPage() {
   // Leave team dialog state
   const [leaveTeamTarget, setLeaveTeamTarget] = useState<Team | null>(null);
 
-  const canManage = team?.role === "owner" || team?.role === "admin";
+  const canManage = checkCanManageTeam(team?.role);
   const canEdit = canManage;
 
   // Load team data
@@ -806,7 +811,7 @@ export default function TeamSettingsPage() {
         const membersData = await getTeamMembers(teamId);
         setMembers(membersData.data);
 
-        if (teamData.role === "owner" || teamData.role === "admin") {
+        if (checkCanManageTeam(teamData.role)) {
           const invitationsData = await getTeamInvitations(teamId);
           setInvitations(invitationsData.data);
         }
@@ -839,25 +844,45 @@ export default function TeamSettingsPage() {
     }
   };
 
-  // Handle update member role
+  // Handle update member role with optimistic update and rollback
   const handleUpdateMemberRole = async (userId: string, role: TeamRole) => {
+    // Store previous state for rollback
+    const previousMembers = [...members];
+    const previousRole = members.find((m) => m.userId === userId)?.role;
+
+    // Optimistic update
+    setMembers((prev) =>
+      prev.map((m) => (m.userId === userId ? { ...m, role } : m))
+    );
+
     try {
       await updateMemberRole(teamId, userId, role);
-      setMembers((prev) =>
-        prev.map((m) => (m.userId === userId ? { ...m, role } : m))
-      );
+      showSuccess("Member role updated");
     } catch (err) {
       console.error("Failed to update member role:", err);
+      // Rollback on error
+      setMembers(previousMembers);
+      showError("Failed to update member role", getErrorMessage(err, "Please try again"));
     }
   };
 
-  // Handle remove member
+  // Handle remove member with optimistic update and rollback
   const handleRemoveMember = async (userId: string) => {
+    // Store previous state for rollback
+    const previousMembers = [...members];
+    const removedMember = members.find((m) => m.userId === userId);
+
+    // Optimistic update
+    setMembers((prev) => prev.filter((m) => m.userId !== userId));
+
     try {
       await removeMember(teamId, userId);
-      setMembers((prev) => prev.filter((m) => m.userId !== userId));
+      showSuccess("Member removed from team");
     } catch (err) {
       console.error("Failed to remove member:", err);
+      // Rollback on error
+      setMembers(previousMembers);
+      showError("Failed to remove member", getErrorMessage(err, "Please try again"));
     }
   };
 
@@ -879,14 +904,18 @@ export default function TeamSettingsPage() {
           message: "Email failed to send",
           inviteLink: invite.inviteLink,
         });
+        // Also show toast for visibility
+        showError("Email failed to send", "You can copy the invitation link to share manually");
       } else {
         setSendFeedback({
           type: "success",
           message: "Invitation sent successfully",
         });
+        showSuccess("Invitation sent", `Invitation email sent to ${email}`);
       }
     } catch (err) {
       console.error("Failed to send invitation:", err);
+      showError("Failed to send invitation", getErrorMessage(err, "Please try again"));
     } finally {
       setIsSendingInvite(false);
     }
@@ -897,13 +926,23 @@ export default function TeamSettingsPage() {
     setSendFeedback(null);
   };
 
-  // Handle revoke invitation
+  // Handle revoke invitation with optimistic update and rollback
   const handleRevokeInvitation = async (invitationId: string) => {
+    // Store previous state for rollback
+    const previousInvitations = [...invitations];
+    const revokedInvitation = invitations.find((i) => i.id === invitationId);
+
+    // Optimistic update
+    setInvitations((prev) => prev.filter((i) => i.id !== invitationId));
+
     try {
       await revokeInvitation(teamId, invitationId);
-      setInvitations((prev) => prev.filter((i) => i.id !== invitationId));
+      showSuccess("Invitation revoked");
     } catch (err) {
       console.error("Failed to revoke invitation:", err);
+      // Rollback on error
+      setInvitations(previousInvitations);
+      showError("Failed to revoke invitation", getErrorMessage(err, "Please try again"));
     }
   };
 
@@ -916,18 +955,26 @@ export default function TeamSettingsPage() {
   const handleLeaveTeamConfirm = async () => {
     if (!leaveTeamTarget) return;
 
-    await leaveTeam(leaveTeamTarget.id);
+    try {
+      await leaveTeam(leaveTeamTarget.id);
 
-    // Refetch teams to update the list
-    await refetchTeams();
+      // Refetch teams to update the list
+      await refetchTeams();
 
-    // Close the dialog
-    setLeaveTeamTarget(null);
+      showSuccess("Left team successfully", `You have left ${leaveTeamTarget.name}`);
 
-    // If we left the currently selected team, the context will auto-select another
-    // and we should refresh the page data
-    if (leaveTeamTarget.id === teamId) {
-      router.push(`/${locale}/settings/team`);
+      // Close the dialog
+      setLeaveTeamTarget(null);
+
+      // If we left the currently selected team, the context will auto-select another
+      // and we should refresh the page data
+      if (leaveTeamTarget.id === teamId) {
+        router.push(`/${locale}/settings/team`);
+      }
+    } catch (err) {
+      console.error("Failed to leave team:", err);
+      showError("Failed to leave team", getErrorMessage(err, "Please try again"));
+      // Keep dialog open on error so user can retry or cancel
     }
   };
 
@@ -968,8 +1015,8 @@ export default function TeamSettingsPage() {
 
   if (!team) return null;
 
-  const isOwner = team?.role === "owner";
-  const isAdminOrOwner = team?.role === "owner" || team?.role === "admin";
+  const isOwner = checkIsOwner(team?.role);
+  const isAdminOrOwner = checkCanManageTeam(team?.role);
 
   const tabs: { id: TabId; label: string; icon: React.ReactNode; show: boolean }[] = [
     { id: "general", label: "General", icon: <Settings className="w-4 h-4" />, show: true },
@@ -1056,8 +1103,8 @@ export default function TeamSettingsPage() {
             onSave={handleSaveTeam}
             onAvatarUpload={async (file: File) => {
               // TODO: Implement actual file upload to storage
-              // For now, we'll just log it - in production, upload to S3/R2 and update team
-              console.log("Avatar upload:", file.name);
+              // For now, show info toast - in production, upload to S3/R2 and update team
+              showInfo("Avatar upload coming soon", "This feature is under development");
               // const url = await uploadFile(file);
               // await updateTeam(teamId, { avatarUrl: url });
             }}
@@ -1093,7 +1140,7 @@ export default function TeamSettingsPage() {
         {activeTab === "permissions" && (
           <PermissionsTab
             currentRole={team.role}
-            isOwner={team.role === "owner"}
+            isOwner={checkIsOwner(team.role)}
           />
         )}
 
@@ -1101,8 +1148,15 @@ export default function TeamSettingsPage() {
           <BillingTab
             team={team}
             onUpdateBillingEmail={async (email) => {
-              const updated = await updateTeam(teamId, { billingEmail: email || null });
-              setTeam(updated);
+              try {
+                const updated = await updateTeam(teamId, { billingEmail: email || null });
+                setTeam(updated);
+                showSuccess("Billing email updated");
+              } catch (err) {
+                console.error("Failed to update billing email:", err);
+                showError("Failed to update billing email", getErrorMessage(err, "Please try again"));
+                throw err; // Re-throw to allow BillingTab to handle error state
+              }
             }}
           />
         )}
@@ -1111,12 +1165,19 @@ export default function TeamSettingsPage() {
           <AdvancedTab
             team={team}
             onUpdateSettings={async (settings) => {
-              const updatedSettings = {
-                ...(team.settings as Record<string, unknown> || {}),
-                ...settings,
-              };
-              const updated = await updateTeam(teamId, { settings: updatedSettings });
-              setTeam(updated);
+              try {
+                const updatedSettings = {
+                  ...(team.settings as Record<string, unknown> || {}),
+                  ...settings,
+                };
+                const updated = await updateTeam(teamId, { settings: updatedSettings });
+                setTeam(updated);
+                showSuccess("Settings saved");
+              } catch (err) {
+                console.error("Failed to save settings:", err);
+                showError("Failed to save settings", getErrorMessage(err, "Please try again"));
+                throw err; // Re-throw to allow AdvancedTab to handle error state
+              }
             }}
           />
         )}

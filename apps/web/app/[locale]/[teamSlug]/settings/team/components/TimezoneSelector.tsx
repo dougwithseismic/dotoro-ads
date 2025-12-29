@@ -9,28 +9,39 @@
 
 import { useState, useRef, useEffect, useId, useMemo } from "react";
 import { ChevronDown, Search, Globe } from "lucide-react";
+import { showWarning } from "@/lib/toast";
+
+// Flag to track if warning has been shown (per session)
+let hasShownBrowserWarning = false;
 
 // Get all available timezones from Intl API
-function getTimezones(): string[] {
+function getTimezones(): { timezones: string[]; isLimited: boolean } {
   try {
-    return Intl.supportedValuesOf("timeZone");
+    return { timezones: Intl.supportedValuesOf("timeZone"), isLimited: false };
   } catch {
-    // Fallback for older browsers
-    return [
-      "America/New_York",
-      "America/Chicago",
-      "America/Denver",
-      "America/Los_Angeles",
-      "America/Sao_Paulo",
-      "Europe/London",
-      "Europe/Paris",
-      "Europe/Berlin",
-      "Asia/Tokyo",
-      "Asia/Shanghai",
-      "Asia/Dubai",
-      "Australia/Sydney",
-      "Pacific/Auckland",
-    ];
+    // Fallback for older browsers - show warning once per session
+    if (!hasShownBrowserWarning) {
+      hasShownBrowserWarning = true;
+      // We'll show warning in the component when it mounts with limited timezones
+    }
+    return {
+      timezones: [
+        "America/New_York",
+        "America/Chicago",
+        "America/Denver",
+        "America/Los_Angeles",
+        "America/Sao_Paulo",
+        "Europe/London",
+        "Europe/Paris",
+        "Europe/Berlin",
+        "Asia/Tokyo",
+        "Asia/Shanghai",
+        "Asia/Dubai",
+        "Australia/Sydney",
+        "Pacific/Auckland",
+      ],
+      isLimited: true,
+    };
   }
 }
 
@@ -112,9 +123,20 @@ export function TimezoneSelector({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const labelId = useId();
 
-  const allTimezones = useMemo(() => getTimezones(), []);
+  const { timezones: allTimezones, isLimited } = useMemo(() => getTimezones(), []);
   const browserTimezone = useMemo(() => getBrowserTimezone(), []);
   const displayTimezone = currentTimezone || browserTimezone;
+
+  // Show warning once if browser has limited timezone support
+  useEffect(() => {
+    if (isLimited && !hasShownBrowserWarning) {
+      hasShownBrowserWarning = true;
+      showWarning(
+        "Limited timezone options",
+        "Your browser doesn't support the full timezone list"
+      );
+    }
+  }, [isLimited]);
 
   // Update current time every minute
   useEffect(() => {

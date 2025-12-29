@@ -28,6 +28,18 @@ vi.mock("@/lib/teams", () => ({
   createTeam: vi.fn(),
 }));
 
+// Mock toast module
+const mockShowError = vi.fn();
+const mockShowSuccess = vi.fn();
+vi.mock("@/lib/toast", () => ({
+  showError: (message: string, description?: string) => mockShowError(message, description),
+  showSuccess: (message: string, description?: string) => mockShowSuccess(message, description),
+  getErrorMessage: (err: unknown, fallback?: string) => {
+    if (err instanceof Error) return err.message;
+    return fallback || "An error occurred";
+  },
+}));
+
 // Import after mocks
 import { TeamSwitcher } from "../TeamSwitcher";
 import { useTeam, createTeam } from "@/lib/teams";
@@ -92,6 +104,9 @@ describe("TeamSwitcher", () => {
       error: null,
       refetchTeams: mockRefetchTeams,
     });
+    // Clear toast mocks
+    mockShowError.mockClear();
+    mockShowSuccess.mockClear();
   });
 
   it("should render loading state initially", async () => {
@@ -579,6 +594,205 @@ describe("TeamSwitcher", () => {
       const dropdown = screen.getByRole("listbox");
       const teamNameInDropdown = dropdown.querySelector('[data-testid="dropdown-current-team"]');
       expect(teamNameInDropdown).toBeInTheDocument();
+    });
+  });
+
+  describe("Create Team Dialog Accessibility", () => {
+    it("should have dialog role and aria attributes when open", async () => {
+      render(<TeamSwitcher />);
+
+      const trigger = screen.getByRole("button", { name: /switch team/i });
+      await user.click(trigger);
+
+      const createOption = screen.getByRole("option", { name: /create new team/i });
+      await user.click(createOption);
+
+      const dialog = screen.getByRole("dialog");
+      expect(dialog).toHaveAttribute("aria-modal", "true");
+      expect(dialog).toHaveAttribute("aria-labelledby");
+    });
+
+    it("should close create team dialog on Escape key", async () => {
+      render(<TeamSwitcher />);
+
+      const trigger = screen.getByRole("button", { name: /switch team/i });
+      await user.click(trigger);
+
+      const createOption = screen.getByRole("option", { name: /create new team/i });
+      await user.click(createOption);
+
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+      await user.keyboard("{Escape}");
+
+      await waitFor(() => {
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      });
+    });
+
+    it("should focus input when create team dialog opens", async () => {
+      render(<TeamSwitcher />);
+
+      const trigger = screen.getByRole("button", { name: /switch team/i });
+      await user.click(trigger);
+
+      const createOption = screen.getByRole("option", { name: /create new team/i });
+      await user.click(createOption);
+
+      await waitFor(() => {
+        expect(screen.getByLabelText(/team name/i)).toHaveFocus();
+      });
+    });
+
+    it("should trap focus within create team dialog on Tab", async () => {
+      render(<TeamSwitcher />);
+
+      const trigger = screen.getByRole("button", { name: /switch team/i });
+      await user.click(trigger);
+
+      const createOption = screen.getByRole("option", { name: /create new team/i });
+      await user.click(createOption);
+
+      const input = screen.getByLabelText(/team name/i);
+      const cancelButton = screen.getByRole("button", { name: /cancel/i });
+
+      // Type to enable create button
+      await user.type(input, "New Team");
+      const createButton = screen.getByRole("button", { name: /^create$/i });
+
+      // Start at input
+      input.focus();
+      expect(document.activeElement).toBe(input);
+
+      // Tab to cancel
+      await user.tab();
+      expect(document.activeElement).toBe(cancelButton);
+
+      // Tab to create (now enabled)
+      await user.tab();
+      expect(document.activeElement).toBe(createButton);
+
+      // Tab should wrap back to input (focus trap)
+      await user.tab();
+      expect(document.activeElement).toBe(input);
+    });
+
+    it("should trap focus within create team dialog on Shift+Tab", async () => {
+      render(<TeamSwitcher />);
+
+      const trigger = screen.getByRole("button", { name: /switch team/i });
+      await user.click(trigger);
+
+      const createOption = screen.getByRole("option", { name: /create new team/i });
+      await user.click(createOption);
+
+      const input = screen.getByLabelText(/team name/i);
+
+      // Type to enable create button
+      await user.type(input, "New Team");
+      const createButton = screen.getByRole("button", { name: /^create$/i });
+
+      // Start at input
+      input.focus();
+      expect(document.activeElement).toBe(input);
+
+      // Shift+Tab should wrap to last element (focus trap)
+      await user.tab({ shift: true });
+      expect(document.activeElement).toBe(createButton);
+    });
+
+    it("should close create team dialog when clicking overlay", async () => {
+      render(<TeamSwitcher />);
+
+      const trigger = screen.getByRole("button", { name: /switch team/i });
+      await user.click(trigger);
+
+      const createOption = screen.getByRole("option", { name: /create new team/i });
+      await user.click(createOption);
+
+      const overlay = screen.getByTestId("create-team-dialog-overlay");
+      await user.click(overlay);
+
+      await waitFor(() => {
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      });
+    });
+  });
+
+  describe("Error Feedback (Toast Notifications)", () => {
+    it("should show success toast when team is created successfully", async () => {
+      const newTeam = {
+        id: "team-4",
+        name: "New Team",
+        slug: "new-team",
+        description: null,
+        avatarUrl: null,
+        plan: "free" as const,
+        memberCount: 1,
+        role: "owner" as const,
+        settings: null,
+        billingEmail: null,
+        createdAt: "2024-01-04T00:00:00Z",
+        updatedAt: "2024-01-04T00:00:00Z",
+      };
+      (createTeam as ReturnType<typeof vi.fn>).mockResolvedValue(newTeam);
+      mockRefetchTeams.mockResolvedValue(undefined);
+
+      render(<TeamSwitcher />);
+
+      // Open dropdown and click create
+      const trigger = screen.getByRole("button", { name: /switch team/i });
+      await user.click(trigger);
+
+      const createOption = screen.getByRole("option", { name: /create new team/i });
+      await user.click(createOption);
+
+      // Fill in the dialog
+      const nameInput = screen.getByLabelText(/team name/i);
+      await user.type(nameInput, "New Team");
+
+      const createButton = screen.getByRole("button", { name: /^create$/i });
+      await user.click(createButton);
+
+      await waitFor(() => {
+        expect(mockShowSuccess).toHaveBeenCalled();
+        expect(mockShowSuccess.mock.calls[0][0]).toBe("Team created successfully");
+      });
+    });
+
+    it("should show error toast when team creation fails", async () => {
+      const error = new Error("Network error");
+      (createTeam as ReturnType<typeof vi.fn>).mockRejectedValue(error);
+
+      render(<TeamSwitcher />);
+
+      // Open dropdown and click create
+      const trigger = screen.getByRole("button", { name: /switch team/i });
+      await user.click(trigger);
+
+      const createOption = screen.getByRole("option", { name: /create new team/i });
+      await user.click(createOption);
+
+      // Fill in the dialog
+      const nameInput = screen.getByLabelText(/team name/i);
+      await user.type(nameInput, "New Team");
+
+      const createButton = screen.getByRole("button", { name: /^create$/i });
+      await user.click(createButton);
+
+      // Wait for the error handling to complete
+      await waitFor(() => {
+        expect(mockShowError).toHaveBeenCalled();
+        expect(mockShowError.mock.calls[0][0]).toBe("Failed to create team");
+        expect(mockShowError.mock.calls[0][1]).toBe("Network error");
+      });
+
+      // The dialog remains open because the onCreate throws and is caught in handleSubmit
+      // But the finally block still runs, setting isSubmitting back to false
+      await waitFor(() => {
+        // Dialog should still be present for retry
+        expect(screen.getByRole("dialog")).toBeInTheDocument();
+      });
     });
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, useId } from "react";
 import { ChevronDown, Check, Plus, Users, Search, X } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import {
@@ -8,6 +8,7 @@ import {
   createTeam,
   type Team,
 } from "@/lib/teams";
+import { showError, showSuccess, getErrorMessage } from "@/lib/toast";
 
 interface TeamSwitcherProps {
   /**
@@ -52,6 +53,12 @@ function RoleBadge({ role }: { role: Team["role"] }) {
 
 /**
  * Create Team Dialog
+ *
+ * Accessible dialog for creating a new team with:
+ * - Focus trap (Tab/Shift+Tab cycle within dialog)
+ * - Escape key to close
+ * - Body scroll prevention
+ * - Focus restoration on close
  */
 function CreateTeamDialog({
   isOpen,
@@ -62,16 +69,67 @@ function CreateTeamDialog({
   onClose: () => void;
   onCreate: (name: string) => void;
 }) {
+  const titleId = useId();
   const [name, setName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
+  // Focus first input when dialog opens
   useEffect(() => {
     if (isOpen) {
       setName("");
       setTimeout(() => inputRef.current?.focus(), 0);
     }
   }, [isOpen]);
+
+  // Focus trap - keep Tab/Shift+Tab cycling within the dialog
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleFocusTrap = (event: KeyboardEvent) => {
+      if (event.key !== "Tab" || !dialogRef.current) return;
+
+      const focusableElements = dialogRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+
+      if (focusableElements.length === 0) return;
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleFocusTrap);
+    return () => document.removeEventListener("keydown", handleFocusTrap);
+  }, [isOpen]);
+
+  // Handle escape key and body scroll
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && isOpen && !isSubmitting) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "hidden";
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [isOpen, isSubmitting, onClose]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,8 +139,16 @@ function CreateTeamDialog({
     try {
       await onCreate(name.trim());
       onClose();
+    } catch {
+      // Error is handled by onCreate (shows toast), dialog stays open for retry
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleOverlayClick = (event: React.MouseEvent) => {
+    if (event.target === event.currentTarget && !isSubmitting) {
+      onClose();
     }
   };
 
@@ -91,17 +157,19 @@ function CreateTeamDialog({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="create-team-title"
+      data-testid="create-team-dialog-overlay"
+      onClick={handleOverlayClick}
     >
       <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
         className="bg-white dark:bg-zinc-900 rounded-lg shadow-xl p-6 w-full max-w-md"
         onClick={(e) => e.stopPropagation()}
       >
         <h2
-          id="create-team-title"
+          id={titleId}
           className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-4"
         >
           Create a new team
@@ -306,9 +374,14 @@ export function TeamSwitcher({ currentTeamId, onTeamChange }: TeamSwitcherProps)
         teamContext.setCurrentTeam(newTeam);
       }
       onTeamChange?.(newTeam);
+
+      // Show success notification
+      showSuccess("Team created successfully");
     } catch (err) {
       console.error("Failed to create team:", err);
-      throw err;
+      // Show error notification to user
+      showError("Failed to create team", getErrorMessage(err, "Please try again"));
+      throw err; // Re-throw to keep dialog open for retry
     }
   };
 

@@ -7,27 +7,20 @@
 
 "use client";
 
-import type { TeamDetail } from "@/lib/teams";
+import { useState } from "react";
+import type { TeamDetail, TeamSettings } from "@/lib/teams";
+import { canManageTeam } from "@/lib/teams/permissions";
 import { SettingsSection } from "../../components/SettingsSection";
 import { DefaultRoleSelector } from "./DefaultRoleSelector";
 import { TimezoneSelector } from "./TimezoneSelector";
 import { NotificationPreferences } from "./NotificationPreferences";
-
-// Type for team settings
-interface TeamSettings {
-  timezone?: string;
-  defaultMemberRole?: "viewer" | "editor" | "admin";
-  notifications?: {
-    emailDigest?: boolean;
-    slackWebhook?: string;
-  };
-}
+import { showError, showSuccess, getErrorMessage } from "@/lib/toast";
 
 interface AdvancedTabProps {
   /** The team details including settings */
   team: TeamDetail;
   /** Callback when settings are updated */
-  onUpdateSettings: (settings: TeamSettings) => Promise<void>;
+  onUpdateSettings: (settings: Partial<TeamSettings>) => Promise<void>;
   /** Additional CSS classes */
   className?: string;
 }
@@ -55,41 +48,65 @@ export function AdvancedTab({
   onUpdateSettings,
   className = "",
 }: AdvancedTabProps) {
-  const canEdit = team.role === "owner" || team.role === "admin";
+  const canEdit = canManageTeam(team.role);
 
-  // Parse settings with defaults
-  const settings = (team.settings as TeamSettings) || {};
+  // Parse settings with defaults (team.settings is now properly typed)
+  const settings = team.settings || {};
   const timezone = settings.timezone || "";
   const defaultMemberRole = settings.defaultMemberRole || "viewer";
   const notifications = settings.notifications || {};
   const emailDigest = notifications.emailDigest || false;
   const slackWebhook = notifications.slackWebhook || "";
 
-  // Handlers for each setting
+  // Handlers for each setting with error handling
   const handleRoleChange = async (role: "viewer" | "editor" | "admin") => {
-    await onUpdateSettings({ defaultMemberRole: role });
+    try {
+      await onUpdateSettings({ defaultMemberRole: role });
+      showSuccess("Default role updated");
+    } catch (err) {
+      console.error("Failed to update default role:", err);
+      showError("Failed to update default role", getErrorMessage(err, "Please try again"));
+    }
   };
 
   const handleTimezoneChange = async (tz: string) => {
-    await onUpdateSettings({ timezone: tz });
+    try {
+      await onUpdateSettings({ timezone: tz });
+      showSuccess("Timezone updated");
+    } catch (err) {
+      console.error("Failed to update timezone:", err);
+      showError("Failed to update timezone", getErrorMessage(err, "Please try again"));
+    }
   };
 
   const handleEmailDigestChange = async (enabled: boolean) => {
-    await onUpdateSettings({
-      notifications: {
-        ...notifications,
-        emailDigest: enabled,
-      },
-    });
+    try {
+      await onUpdateSettings({
+        notifications: {
+          ...notifications,
+          emailDigest: enabled,
+        },
+      });
+      showSuccess(enabled ? "Email digest enabled" : "Email digest disabled");
+    } catch (err) {
+      console.error("Failed to update email digest setting:", err);
+      showError("Failed to update email digest", getErrorMessage(err, "Please try again"));
+    }
   };
 
   const handleSlackWebhookChange = async (url: string) => {
-    await onUpdateSettings({
-      notifications: {
-        ...notifications,
-        slackWebhook: url,
-      },
-    });
+    try {
+      await onUpdateSettings({
+        notifications: {
+          ...notifications,
+          slackWebhook: url,
+        },
+      });
+      showSuccess(url ? "Slack webhook saved" : "Slack webhook removed");
+    } catch (err) {
+      console.error("Failed to update Slack webhook:", err);
+      showError("Failed to update Slack webhook", getErrorMessage(err, "Please try again"));
+    }
   };
 
   return (

@@ -13,6 +13,43 @@ export type TeamRole = "owner" | "admin" | "editor" | "viewer";
 export type TeamPlan = "free" | "pro" | "enterprise";
 
 /**
+ * Team settings notification preferences
+ */
+export interface TeamNotificationSettings {
+  /** Whether to send daily/weekly email digest */
+  emailDigest?: boolean;
+  /** Slack webhook URL for notifications */
+  slackWebhook?: string;
+}
+
+/**
+ * Team settings feature flags
+ */
+export interface TeamFeatureSettings {
+  /** Enable advanced analytics dashboard */
+  advancedAnalytics?: boolean;
+  /** Enable custom branding options */
+  customBranding?: boolean;
+}
+
+/**
+ * Typed team settings schema
+ *
+ * Replaces Record<string, unknown> with properly typed interface
+ * to enable compile-time type checking and better IDE support.
+ */
+export interface TeamSettings {
+  /** Default role for new team members (cannot be 'owner') */
+  defaultMemberRole?: Exclude<TeamRole, "owner">;
+  /** Team's timezone for scheduling and reporting */
+  timezone?: string;
+  /** Notification preferences */
+  notifications?: TeamNotificationSettings;
+  /** Feature flags */
+  features?: TeamFeatureSettings;
+}
+
+/**
  * Team object returned from the API
  */
 export interface Team {
@@ -32,7 +69,7 @@ export interface Team {
  * Team detail with settings
  */
 export interface TeamDetail extends Team {
-  settings: Record<string, unknown> | null;
+  settings: TeamSettings | null;
   billingEmail: string | null;
 }
 
@@ -50,20 +87,51 @@ export interface TeamMember {
 }
 
 /**
- * Pending invitation object
+ * Email status discriminated union for invitations
+ *
+ * Uses discriminated union pattern to prevent invalid state combinations:
+ * - If sent is true, no error or inviteLink fields exist
+ * - If sent is false, error is optional and inviteLink is required
  */
-export interface Invitation {
+export type InvitationEmailStatus =
+  | { sent: true }
+  | { sent: false; error?: string; inviteLink: string };
+
+/**
+ * Base invitation fields (always present)
+ */
+export interface InvitationBase {
   id: string;
   email: string;
   role: TeamRole;
   inviterEmail: string;
   expiresAt: string;
   createdAt: string;
-  /** Whether the invitation email was sent successfully (only present on create/resend) */
+}
+
+/**
+ * Pending invitation object
+ *
+ * The emailStatus field is only present on create/resend operations.
+ * When listing invitations, emailStatus may be undefined.
+ */
+export interface Invitation extends InvitationBase {
+  /** Email delivery status - only present on create/resend response */
+  emailStatus?: InvitationEmailStatus;
+  /**
+   * @deprecated Use emailStatus?.sent instead. Kept for backward compatibility.
+   * Whether the invitation email was sent successfully (only present on create/resend)
+   */
   emailSent?: boolean;
-  /** Error message if email sending failed (only present when emailSent is false) */
+  /**
+   * @deprecated Use emailStatus?.error instead. Kept for backward compatibility.
+   * Error message if email sending failed (only present when emailSent is false)
+   */
   emailError?: string;
-  /** Manual invite link to share if email failed (only present when emailSent is false) */
+  /**
+   * @deprecated Use emailStatus?.inviteLink instead. Kept for backward compatibility.
+   * Manual invite link to share if email failed (only present when emailSent is false)
+   */
   inviteLink?: string;
 }
 
@@ -136,7 +204,7 @@ export interface UpdateTeamInput {
   name?: string;
   description?: string | null;
   avatarUrl?: string | null;
-  settings?: Record<string, unknown>;
+  settings?: Partial<TeamSettings>;
   billingEmail?: string | null;
 }
 

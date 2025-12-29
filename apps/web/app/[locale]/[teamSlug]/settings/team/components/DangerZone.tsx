@@ -7,7 +7,7 @@
 
 "use client";
 
-import { useState, useId } from "react";
+import { useState, useId, useRef, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Trash2, AlertTriangle } from "lucide-react";
 import { SettingsSection } from "../../components/SettingsSection";
@@ -63,7 +63,64 @@ export function DangerZone({
   const [error, setError] = useState<string | null>(null);
 
   const titleId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const isConfirmed = confirmText === teamName;
+
+  // Focus input when dialog opens
+  useEffect(() => {
+    if (showDialog) {
+      setTimeout(() => inputRef.current?.focus(), 0);
+    }
+  }, [showDialog]);
+
+  // Focus trap - keep Tab/Shift+Tab cycling within the dialog
+  useEffect(() => {
+    if (!showDialog) return;
+
+    const handleFocusTrap = (event: KeyboardEvent) => {
+      if (event.key !== "Tab" || !dialogRef.current) return;
+
+      const focusableElements = dialogRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+
+      if (focusableElements.length === 0) return;
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleFocusTrap);
+    return () => document.removeEventListener("keydown", handleFocusTrap);
+  }, [showDialog]);
+
+  // Handle escape key and body scroll
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && showDialog && !isDeleting) {
+        handleCloseDialog();
+      }
+    };
+
+    if (showDialog) {
+      document.addEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "hidden";
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [showDialog, isDeleting]);
 
   // Don't render if not owner
   if (!isOwner) {
@@ -132,9 +189,15 @@ export function DangerZone({
       {showDialog && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          onClick={handleCloseDialog}
+          data-testid="delete-dialog-overlay"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isDeleting) {
+              handleCloseDialog();
+            }
+          }}
         >
           <div
+            ref={dialogRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby={titleId}
@@ -179,6 +242,7 @@ export function DangerZone({
                 Type <strong>{teamName}</strong> to confirm
               </label>
               <input
+                ref={inputRef}
                 id="confirm-team-name"
                 type="text"
                 value={confirmText}

@@ -9,6 +9,7 @@
 
 import { Sparkles, Crown, Clock } from "lucide-react";
 import type { TeamDetail } from "@/lib/teams";
+import { isOwner as checkIsOwner } from "@/lib/teams/permissions";
 import { SettingsSection } from "../../components/SettingsSection";
 import { PlanBadge } from "./PlanBadge";
 import { PlanComparisonTable } from "./PlanComparisonTable";
@@ -47,7 +48,7 @@ export function BillingTab({
   onUpdateBillingEmail,
   className = "",
 }: BillingTabProps) {
-  const isOwner = team.role === "owner";
+  const isOwner = checkIsOwner(team.role);
   const showUpgrade = team.plan !== "enterprise";
 
   const handleUpgradeClick = () => {

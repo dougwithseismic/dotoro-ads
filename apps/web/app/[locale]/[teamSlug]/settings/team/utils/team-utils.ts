@@ -1,4 +1,5 @@
 import type { Team } from "@/lib/teams/types";
+import { isOwner } from "@/lib/teams/permissions";
 
 /**
  * Determines if a team is a personal team.
@@ -25,7 +26,7 @@ export function isPersonalTeam(team: Team): boolean {
   }
 
   // Check if single-member owned team
-  if (team.memberCount === 1 && team.role === "owner") {
+  if (team.memberCount === 1 && isOwner(team.role)) {
     return true;
   }
 
