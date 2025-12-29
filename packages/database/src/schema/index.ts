@@ -96,6 +96,13 @@ export type {
   NewOAuthToken,
 } from "./ad-accounts.js";
 
+// Asset Folders (folder-based organization for creatives)
+export {
+  assetFolders,
+  assetFolderRelations,
+} from "./asset-folders.js";
+export type { AssetFolder, NewAssetFolder } from "./asset-folders.js";
+
 // Creatives
 export {
   creatives,

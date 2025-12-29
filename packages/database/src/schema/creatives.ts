@@ -12,6 +12,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { teams } from "./teams.js";
+import { assetFolders } from "./asset-folders.js";
 
 /**
  * Creative Type Enum
@@ -73,6 +74,9 @@ export const creatives = pgTable(
     thumbnailKey: varchar("thumbnail_key", { length: 512 }),
     status: creativeStatusEnum("status").notNull().default("PENDING"),
     metadata: jsonb("metadata").$type<CreativeMetadata>(),
+    folderId: uuid("folder_id").references(() => assetFolders.id, {
+      onDelete: "set null",
+    }), // NULL means asset is at root level (not in any folder)
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -89,6 +93,7 @@ export const creatives = pgTable(
     index("creatives_account_type_idx").on(table.accountId, table.type),
     index("creatives_created_at_idx").on(table.createdAt),
     uniqueIndex("creatives_storage_key_idx").on(table.storageKey),
+    index("creatives_folder_idx").on(table.folderId),
   ]
 );
 
@@ -170,9 +175,13 @@ export interface CreativeSelectionCondition {
 }
 
 // Relations
-export const creativesRelations = relations(creatives, ({ many }) => ({
+export const creativesRelations = relations(creatives, ({ one, many }) => ({
   tags: many(creativeTags),
   templateLinks: many(creativeTemplateLinks),
+  folder: one(assetFolders, {
+    fields: [creatives.folderId],
+    references: [assetFolders.id],
+  }),
 }));
 
 export const creativeTagsRelations = relations(creativeTags, ({ one }) => ({
