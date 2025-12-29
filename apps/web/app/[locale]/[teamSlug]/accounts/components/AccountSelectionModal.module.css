@@ -347,3 +347,108 @@
   opacity: 0.7;
   cursor: not-allowed;
 }
+
+/* Search Input */
+.searchWrapper {
+  margin-bottom: 16px;
+  position: sticky;
+  top: 0;
+  background: var(--background);
+  padding-top: 4px;
+  z-index: 10;
+}
+
+.searchInputContainer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(var(--gray-rgb), 0.03);
+  border: 1px solid rgba(var(--gray-rgb), 0.12);
+  border-radius: 10px;
+  transition: all 0.15s ease;
+}
+
+.searchInputContainer:focus-within {
+  border-color: #ff4500;
+  box-shadow: 0 0 0 3px rgba(255, 69, 0, 0.1);
+}
+
+.searchIcon {
+  color: rgba(var(--gray-rgb), 0.4);
+  flex-shrink: 0;
+}
+
+.searchInput {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  color: var(--foreground);
+  outline: none;
+  min-width: 0;
+}
+
+.searchInput::placeholder {
+  color: rgba(var(--gray-rgb), 0.4);
+}
+
+.searchInput:disabled {
+  opacity: 0.5;
+}
+
+.clearSearchButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  color: rgba(var(--gray-rgb), 0.5);
+  background: rgba(var(--gray-rgb), 0.08);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.clearSearchButton:hover {
+  color: rgba(var(--gray-rgb), 0.8);
+  background: rgba(var(--gray-rgb), 0.15);
+}
+
+/* No Results */
+.noResults {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 32px 16px;
+  text-align: center;
+}
+
+.noResults p {
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  color: rgba(var(--gray-rgb), 0.6);
+  margin: 0;
+}
+
+.clearSearchLink {
+  padding: 6px 12px;
+  font-family: var(--font-geist-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: #ff4500;
+  background: rgba(255, 69, 0, 0.08);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.clearSearchLink:hover {
+  background: rgba(255, 69, 0, 0.15);
+}

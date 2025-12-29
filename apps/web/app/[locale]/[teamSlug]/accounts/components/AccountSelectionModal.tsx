@@ -2,32 +2,53 @@
 
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useAvailableAccounts, useConnectAccounts } from "../hooks";
-import type { RedditAvailableAccount, RedditBusiness } from "../hooks";
+import type { AvailableAccount, BusinessGroup, AdPlatform } from "../hooks";
 import styles from "./AccountSelectionModal.module.css";
 
 interface AccountSelectionModalProps {
   isOpen: boolean;
   teamId: string;
+  platform?: AdPlatform;
   onClose: () => void;
   onSuccess: (connectedCount: number) => void;
 }
 
 /**
- * Modal for selecting Reddit ad accounts to connect after OAuth.
+ * Get display name for a platform
+ */
+function getPlatformDisplayName(platform: AdPlatform): string {
+  switch (platform) {
+    case "google":
+    case "google_ads":
+      return "Google Ads";
+    case "reddit":
+    default:
+      return "Reddit";
+  }
+}
+
+/**
+ * Modal for selecting ad accounts to connect after OAuth.
  *
  * This component is displayed when the OAuth callback returns with
  * `oauth=pending_selection`. It fetches available accounts from the
  * pending OAuth tokens and allows the user to select which accounts
  * to connect to their team.
+ *
+ * Features a searchable combobox-style interface for easy account filtering.
+ * Supports both Reddit and Google Ads platforms.
  */
 export function AccountSelectionModal({
   isOpen,
   teamId,
+  platform = "reddit",
   onClose,
   onSuccess,
 }: AccountSelectionModalProps) {
   const cancelButtonRef = useRef<HTMLButtonElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
 
   const {
     businesses,
@@ -45,14 +66,40 @@ export function AccountSelectionModal({
     reset: resetConnect,
   } = useConnectAccounts();
 
-  // Get all selectable accounts (not already connected)
+  // Filter businesses and accounts based on search query
+  const filteredBusinesses = useMemo(() => {
+    if (!searchQuery.trim()) return businesses;
+
+    const query = searchQuery.toLowerCase();
+    return businesses
+      .map((biz) => ({
+        ...biz,
+        accounts: biz.accounts.filter(
+          (acc) =>
+            acc.name.toLowerCase().includes(query) ||
+            acc.id.toLowerCase().includes(query) ||
+            (acc.currency && acc.currency.toLowerCase().includes(query)) ||
+            biz.name.toLowerCase().includes(query)
+        ),
+      }))
+      .filter((biz) => biz.accounts.length > 0);
+  }, [businesses, searchQuery]);
+
+  // Get all selectable accounts (not already connected) from filtered results
   const selectableAccounts = useMemo(() => {
+    return filteredBusinesses.flatMap((biz) =>
+      biz.accounts.filter((acc) => !acc.alreadyConnected)
+    );
+  }, [filteredBusinesses]);
+
+  // Get all selectable accounts (not already connected) from ALL businesses (for selection count)
+  const allSelectableAccounts = useMemo(() => {
     return businesses.flatMap((biz) =>
       biz.accounts.filter((acc) => !acc.alreadyConnected)
     );
   }, [businesses]);
 
-  // Check if all selectable accounts are selected
+  // Check if all visible selectable accounts are selected
   const allSelected = useMemo(() => {
     if (selectableAccounts.length === 0) return false;
     return selectableAccounts.every((acc) => selectedIds.has(acc.id));
@@ -61,17 +108,22 @@ export function AccountSelectionModal({
   // Fetch accounts when modal opens
   useEffect(() => {
     if (isOpen && teamId) {
-      fetchAvailableAccounts(teamId);
+      fetchAvailableAccounts(teamId, platform);
       setSelectedIds(new Set());
+      setSearchQuery("");
     }
-  }, [isOpen, teamId, fetchAvailableAccounts]);
+  }, [isOpen, teamId, platform, fetchAvailableAccounts]);
 
-  // Focus management
+  // Focus management - focus search input when accounts load
   useEffect(() => {
-    if (isOpen && !isLoadingAccounts && !fetchError) {
-      cancelButtonRef.current?.focus();
+    if (isOpen && !isLoadingAccounts && !fetchError && businesses.length > 0) {
+      // Small delay to ensure DOM is ready
+      const timer = setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
     }
-  }, [isOpen, isLoadingAccounts, fetchError]);
+  }, [isOpen, isLoadingAccounts, fetchError, businesses.length]);
 
   // Handle escape key and body scroll
   useEffect(() => {
@@ -99,6 +151,7 @@ export function AccountSelectionModal({
       clearConnectError();
       resetConnect();
       setSelectedIds(new Set());
+      setSearchQuery("");
     }
   }, [isOpen, clearFetchError, clearConnectError, resetConnect]);
 
@@ -116,18 +169,34 @@ export function AccountSelectionModal({
 
   const handleSelectAll = useCallback(() => {
     if (allSelected) {
-      setSelectedIds(new Set());
+      // Deselect only the visible/filtered accounts
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        selectableAccounts.forEach((acc) => next.delete(acc.id));
+        return next;
+      });
     } else {
-      setSelectedIds(new Set(selectableAccounts.map((acc) => acc.id)));
+      // Select all visible/filtered accounts (add to existing selection)
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        selectableAccounts.forEach((acc) => next.add(acc.id));
+        return next;
+      });
     }
   }, [allSelected, selectableAccounts]);
 
+  // Clear search
+  const handleClearSearch = useCallback(() => {
+    setSearchQuery("");
+    searchInputRef.current?.focus();
+  }, []);
+
   const handleConnect = useCallback(async () => {
-    const result = await connect(teamId, Array.from(selectedIds));
+    const result = await connect(teamId, Array.from(selectedIds), platform);
     if (result) {
       onSuccess(result.connectedCount);
     }
-  }, [connect, teamId, selectedIds, onSuccess]);
+  }, [connect, teamId, selectedIds, platform, onSuccess]);
 
   const handleOverlayClick = useCallback(
     (e: React.MouseEvent) => {
@@ -140,7 +209,6 @@ export function AccountSelectionModal({
 
   if (!isOpen) return null;
 
-  const hasSelectableAccounts = selectableAccounts.length > 0;
   const error = fetchError || connectError;
 
   return (
@@ -177,11 +245,11 @@ export function AccountSelectionModal({
           </div>
 
           <h2 id="account-selection-title" className={styles.title}>
-            Select Reddit Ad Accounts
+            Select {getPlatformDisplayName(platform)} Accounts
           </h2>
 
           <p id="account-selection-description" className={styles.description}>
-            Choose which ad accounts you want to connect to your team.
+            Choose which {getPlatformDisplayName(platform)} ad accounts you want to connect to your team.
           </p>
         </div>
 
@@ -213,15 +281,85 @@ export function AccountSelectionModal({
           {!isLoadingAccounts && !fetchError && businesses.length === 0 && (
             <div className={styles.emptyWrapper}>
               <p className={styles.emptyText}>
-                No ad accounts found. Make sure you have access to Reddit Ads
-                accounts.
+                No ad accounts found. Make sure you have access to {getPlatformDisplayName(platform)} accounts.
               </p>
             </div>
           )}
 
           {!isLoadingAccounts && !fetchError && businesses.length > 0 && (
             <>
-              {hasSelectableAccounts && (
+              {/* Search Input */}
+              <div className={styles.searchWrapper}>
+                <div className={styles.searchInputContainer}>
+                  <svg
+                    className={styles.searchIcon}
+                    width="16"
+                    height="16"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                  >
+                    <path
+                      d="M7 12C9.76142 12 12 9.76142 12 7C12 4.23858 9.76142 2 7 2C4.23858 2 2 4.23858 2 7C2 9.76142 4.23858 12 7 12Z"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M14 14L10.5 10.5"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    className={styles.searchInput}
+                    placeholder="Search accounts..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    disabled={isConnecting}
+                    aria-label="Search accounts"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      className={styles.clearSearchButton}
+                      onClick={handleClearSearch}
+                      aria-label="Clear search"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                        <path
+                          d="M10.5 3.5L3.5 10.5M3.5 3.5L10.5 10.5"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* No results message */}
+              {filteredBusinesses.length === 0 && searchQuery && (
+                <div className={styles.noResults}>
+                  <p>No accounts match &quot;{searchQuery}&quot;</p>
+                  <button
+                    type="button"
+                    className={styles.clearSearchLink}
+                    onClick={handleClearSearch}
+                  >
+                    Clear search
+                  </button>
+                </div>
+              )}
+
+              {/* Select All - only show when there are visible selectable accounts */}
+              {selectableAccounts.length > 0 && (
                 <div className={styles.selectAllWrapper}>
                   <button
                     type="button"
@@ -243,15 +381,15 @@ export function AccountSelectionModal({
                         </svg>
                       )}
                     </div>
-                    <span>Select All</span>
+                    <span>{searchQuery ? "Select visible" : "Select all"}</span>
                     <span className={styles.selectionCount}>
-                      {selectedIds.size} of {selectableAccounts.length} selected
+                      {selectedIds.size} of {allSelectableAccounts.length} selected
                     </span>
                   </button>
                 </div>
               )}
 
-              {businesses.map((business) => (
+              {filteredBusinesses.map((business) => (
                 <BusinessSection
                   key={business.id}
                   business={business}
@@ -296,7 +434,7 @@ export function AccountSelectionModal({
  * Business section component
  */
 interface BusinessSectionProps {
-  business: RedditBusiness;
+  business: BusinessGroup;
   selectedIds: Set<string>;
   onToggle: (accountId: string) => void;
   disabled: boolean;
@@ -330,7 +468,7 @@ function BusinessSection({
  * Account item component
  */
 interface AccountItemProps {
-  account: RedditAvailableAccount;
+  account: AvailableAccount;
   isSelected: boolean;
   onToggle: (accountId: string) => void;
   disabled: boolean;
@@ -382,7 +520,8 @@ function AccountItem({
         <p className={styles.accountName}>{account.name}</p>
         <div className={styles.accountMeta}>
           <span>{account.currency}</span>
-          <span className={styles.typeBadge}>{account.type}</span>
+          {account.type && <span className={styles.typeBadge}>{account.type}</span>}
+          {account.timeZone && <span className={styles.typeBadge}>{account.timeZone}</span>}
           {account.alreadyConnected && (
             <span className={styles.connectedBadge}>Already Connected</span>
           )}

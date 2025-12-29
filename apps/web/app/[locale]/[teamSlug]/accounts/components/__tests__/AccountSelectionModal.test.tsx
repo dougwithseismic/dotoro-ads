@@ -111,7 +111,7 @@ describe("AccountSelectionModal", () => {
       });
 
       expect(
-        screen.getByText("Select Reddit Ad Accounts")
+        screen.getByText("Select Reddit Accounts")
       ).toBeInTheDocument();
     });
 
@@ -261,7 +261,7 @@ describe("AccountSelectionModal", () => {
       expect(screen.getByText("1 of 2 selected")).toBeInTheDocument();
     });
 
-    it("should allow selecting all accounts with Select All button", async () => {
+    it("should allow selecting all accounts with Select all button", async () => {
       const user = userEvent.setup();
 
       render(
@@ -274,15 +274,15 @@ describe("AccountSelectionModal", () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText("Select All")).toBeInTheDocument();
+        expect(screen.getByText("Select all")).toBeInTheDocument();
       });
 
-      await user.click(screen.getByText("Select All"));
+      await user.click(screen.getByText("Select all"));
 
       expect(screen.getByText("2 of 2 selected")).toBeInTheDocument();
     });
 
-    it("should deselect all when Select All is clicked while all selected", async () => {
+    it("should deselect all when Select all is clicked while all selected", async () => {
       const user = userEvent.setup();
 
       render(
@@ -295,15 +295,15 @@ describe("AccountSelectionModal", () => {
       );
 
       await waitFor(() => {
-        expect(screen.getByText("Select All")).toBeInTheDocument();
+        expect(screen.getByText("Select all")).toBeInTheDocument();
       });
 
       // Select all
-      await user.click(screen.getByText("Select All"));
+      await user.click(screen.getByText("Select all"));
       expect(screen.getByText("2 of 2 selected")).toBeInTheDocument();
 
       // Deselect all
-      await user.click(screen.getByText("Select All"));
+      await user.click(screen.getByText("Select all"));
       expect(screen.getByText("0 of 2 selected")).toBeInTheDocument();
     });
   });
@@ -596,6 +596,143 @@ describe("AccountSelectionModal", () => {
           screen.getByText(/no ad accounts found/i)
         ).toBeInTheDocument();
       });
+    });
+  });
+
+  describe("search functionality", () => {
+    it("should display search input when accounts are loaded", async () => {
+      render(
+        <AccountSelectionModal
+          isOpen={true}
+          teamId={mockTeamId}
+          onClose={onClose}
+          onSuccess={onSuccess}
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByPlaceholderText("Search accounts...")).toBeInTheDocument();
+      });
+    });
+
+    it("should filter accounts based on search query", async () => {
+      const user = userEvent.setup();
+
+      render(
+        <AccountSelectionModal
+          isOpen={true}
+          teamId={mockTeamId}
+          onClose={onClose}
+          onSuccess={onSuccess}
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("Account 1")).toBeInTheDocument();
+      });
+
+      // Type in search
+      const searchInput = screen.getByPlaceholderText("Search accounts...");
+      await user.type(searchInput, "Client");
+
+      // Should only show matching account
+      expect(screen.getByText("Client Account")).toBeInTheDocument();
+      expect(screen.queryByText("Account 1")).not.toBeInTheDocument();
+      expect(screen.queryByText("Account 2")).not.toBeInTheDocument();
+    });
+
+    it("should show no results message when search has no matches", async () => {
+      const user = userEvent.setup();
+
+      render(
+        <AccountSelectionModal
+          isOpen={true}
+          teamId={mockTeamId}
+          onClose={onClose}
+          onSuccess={onSuccess}
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("Account 1")).toBeInTheDocument();
+      });
+
+      const searchInput = screen.getByPlaceholderText("Search accounts...");
+      await user.type(searchInput, "nonexistent");
+
+      expect(screen.getByText(/No accounts match/i)).toBeInTheDocument();
+    });
+
+    it("should show clear search button when there is a search query", async () => {
+      const user = userEvent.setup();
+
+      render(
+        <AccountSelectionModal
+          isOpen={true}
+          teamId={mockTeamId}
+          onClose={onClose}
+          onSuccess={onSuccess}
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("Account 1")).toBeInTheDocument();
+      });
+
+      const searchInput = screen.getByPlaceholderText("Search accounts...");
+      await user.type(searchInput, "test");
+
+      expect(screen.getByLabelText("Clear search")).toBeInTheDocument();
+    });
+
+    it("should clear search when clear button is clicked", async () => {
+      const user = userEvent.setup();
+
+      render(
+        <AccountSelectionModal
+          isOpen={true}
+          teamId={mockTeamId}
+          onClose={onClose}
+          onSuccess={onSuccess}
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("Account 1")).toBeInTheDocument();
+      });
+
+      const searchInput = screen.getByPlaceholderText("Search accounts...");
+      await user.type(searchInput, "Client");
+
+      // Click clear button
+      await user.click(screen.getByLabelText("Clear search"));
+
+      // All accounts should be visible again
+      expect(screen.getByText("Account 1")).toBeInTheDocument();
+      expect(screen.getByText("Client Account")).toBeInTheDocument();
+    });
+
+    it("should show 'Select visible' instead of 'Select all' when filtering", async () => {
+      const user = userEvent.setup();
+
+      render(
+        <AccountSelectionModal
+          isOpen={true}
+          teamId={mockTeamId}
+          onClose={onClose}
+          onSuccess={onSuccess}
+        />
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText("Select all")).toBeInTheDocument();
+      });
+
+      const searchInput = screen.getByPlaceholderText("Search accounts...");
+      await user.type(searchInput, "Client");
+
+      expect(screen.getByText("Select visible")).toBeInTheDocument();
+      expect(screen.queryByText("Select all")).not.toBeInTheDocument();
     });
   });
 });
