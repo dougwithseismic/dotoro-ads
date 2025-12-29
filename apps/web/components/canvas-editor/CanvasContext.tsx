@@ -16,6 +16,7 @@ import type {
   CanvasAction,
   EditorTool,
   TemplateVariable,
+  AspectRatioKey,
 } from './types';
 import { DEFAULT_CANVAS_SETTINGS, ASPECT_RATIOS } from './types';
 
@@ -67,7 +68,7 @@ function canvasReducer(state: CanvasState, action: CanvasAction): CanvasState {
       };
 
     case 'SET_ASPECT_RATIO':
-      const preset = ASPECT_RATIOS[action.payload as keyof typeof ASPECT_RATIOS];
+      const preset = ASPECT_RATIOS[action.payload];
       return {
         ...state,
         aspectRatio: action.payload,
@@ -141,7 +142,7 @@ const CanvasInstanceContext = createContext<{
  */
 interface CanvasProviderProps {
   children: ReactNode;
-  initialAspectRatio?: string;
+  initialAspectRatio?: AspectRatioKey;
 }
 
 /**
@@ -155,8 +156,7 @@ export function CanvasProvider({
     ...initialState,
     aspectRatio: initialAspectRatio,
     canvasSize:
-      ASPECT_RATIOS[initialAspectRatio as keyof typeof ASPECT_RATIOS] ??
-      initialState.canvasSize,
+      ASPECT_RATIOS[initialAspectRatio] ?? initialState.canvasSize,
   });
 
   // Canvas instance state (managed separately for better performance)
@@ -252,7 +252,7 @@ export function useCanvas() {
   );
 
   const setAspectRatio = useCallback(
-    (ratio: string) => {
+    (ratio: AspectRatioKey) => {
       dispatch({ type: 'SET_ASPECT_RATIO', payload: ratio });
     },
     [dispatch]

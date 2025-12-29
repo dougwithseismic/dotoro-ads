@@ -38,6 +38,15 @@ export { TextFormatting, type TextFormattingProps } from './TextFormatting';
 export { PropertiesPanel, type PropertiesPanelProps } from './PropertiesPanel';
 export { VariablesPanel, type VariablesPanelProps } from './VariablesPanel';
 export { VariableAutocomplete, type VariableAutocompleteProps } from './VariableAutocomplete';
+export { AspectRatioPanel, type AspectRatioPanelProps } from './AspectRatioPanel';
+export {
+  SafeZoneOverlay,
+  SAFE_ZONE_PRESETS,
+  getSafeZonePreset,
+  isValidSafeZone,
+  type SafeZoneOverlayProps,
+  type SafeZonePresetKey,
+} from './SafeZoneOverlay';
 
 // Hooks
 export { useFabricCanvas, type UseFabricCanvasReturn } from './hooks/useFabricCanvas';
@@ -62,6 +71,10 @@ export {
   type UsePreviewModeReturn,
   type PreviewData,
 } from './hooks/usePreviewMode';
+export {
+  useAspectRatioVariants,
+  type UseAspectRatioVariantsReturn,
+} from './hooks/useAspectRatioVariants';
 
 // Types
 export type {

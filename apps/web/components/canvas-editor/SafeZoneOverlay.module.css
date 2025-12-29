@@ -1,0 +1,105 @@
+/* SafeZoneOverlay */
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 100;
+}
+
+/* Danger Zone - Semi-transparent areas outside safe zone */
+.dangerZone {
+  position: absolute;
+  background-color: rgba(239, 68, 68, 0.15);
+  transition: background-color 0.15s ease;
+}
+
+/* Slightly darker on hover for visibility */
+.overlay:hover .dangerZone {
+  background-color: rgba(239, 68, 68, 0.2);
+}
+
+/* Safe Zone Border - Dashed outline */
+.safeZoneBorder {
+  position: absolute;
+  border: 2px dashed rgba(34, 197, 94, 0.6);
+  border-radius: 2px;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease;
+}
+
+/* Brighter border on hover */
+.overlay:hover .safeZoneBorder {
+  border-color: rgba(34, 197, 94, 0.8);
+}
+
+/* Corner Labels */
+.cornerLabel {
+  position: absolute;
+  padding: 2px 6px;
+  background-color: rgba(34, 197, 94, 0.9);
+  border-radius: 3px;
+  color: white;
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.overlay:hover .cornerLabel {
+  opacity: 1;
+}
+
+.topLeft {
+  /* Positioned via inline styles */
+}
+
+/* Alternative theme - Blue (for when red clashes with content) */
+.overlay[data-theme="blue"] .dangerZone {
+  background-color: rgba(59, 130, 246, 0.15);
+}
+
+.overlay[data-theme="blue"]:hover .dangerZone {
+  background-color: rgba(59, 130, 246, 0.2);
+}
+
+.overlay[data-theme="blue"] .safeZoneBorder {
+  border-color: rgba(59, 130, 246, 0.6);
+}
+
+.overlay[data-theme="blue"]:hover .safeZoneBorder {
+  border-color: rgba(59, 130, 246, 0.8);
+}
+
+.overlay[data-theme="blue"] .cornerLabel {
+  background-color: rgba(59, 130, 246, 0.9);
+}
+
+/* High contrast mode for accessibility */
+@media (prefers-contrast: high) {
+  .dangerZone {
+    background-color: rgba(239, 68, 68, 0.3);
+  }
+
+  .safeZoneBorder {
+    border-width: 3px;
+    border-color: rgba(34, 197, 94, 0.9);
+  }
+
+  .cornerLabel {
+    opacity: 1;
+    font-size: 10px;
+  }
+}
+
+/* Reduced motion - disable hover transitions */
+@media (prefers-reduced-motion: reduce) {
+  .dangerZone,
+  .safeZoneBorder,
+  .cornerLabel {
+    transition: none;
+  }
+}

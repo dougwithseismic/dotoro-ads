@@ -104,7 +104,7 @@ export interface CanvasState {
   /** Canvas dimensions */
   canvasSize: { width: number; height: number };
   /** Current aspect ratio (e.g., "1:1", "16:9") */
-  aspectRatio: string;
+  aspectRatio: AspectRatioKey;
   /** Whether there are unsaved changes */
   isDirty: boolean;
   /** Extracted template variables */
@@ -125,7 +125,7 @@ export type CanvasAction =
   | { type: "CLEAR_SELECTION" }
   | { type: "SET_ZOOM"; payload: number }
   | { type: "SET_CANVAS_SIZE"; payload: { width: number; height: number } }
-  | { type: "SET_ASPECT_RATIO"; payload: string }
+  | { type: "SET_ASPECT_RATIO"; payload: AspectRatioKey }
   | { type: "MARK_DIRTY" }
   | { type: "MARK_CLEAN" }
   | { type: "UPDATE_VARIABLES"; payload: TemplateVariable[] }
