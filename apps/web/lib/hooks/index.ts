@@ -38,3 +38,16 @@ export { useAssets } from "./useAssets";
 export type { UseAssetsReturn } from "./useAssets";
 export { useAssetUpload } from "./useAssetUpload";
 export type { UseAssetUploadOptions, UseAssetUploadReturn } from "./useAssetUpload";
+export { useDesignTemplates, useDesignTemplate } from "./useDesignTemplates";
+export type {
+  DesignTemplate,
+  DesignTemplateWithVariants,
+  DesignTemplateStatus,
+  DesignTemplateFilters,
+  CreateDesignTemplateInput,
+  UpdateDesignTemplateInput,
+  TemplateVariant,
+  UseDesignTemplatesReturn,
+  UseDesignTemplateReturn,
+  UpsertVariantInput,
+} from "./useDesignTemplates";
