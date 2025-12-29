@@ -1,14 +1,27 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { ChevronDown, Check, Plus, Users } from "lucide-react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { ChevronDown, Check, Plus, Users, Search, X } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { getTeams, createTeam, type Team } from "@/lib/teams";
+import {
+  useTeam,
+  createTeam,
+  type Team,
+} from "@/lib/teams";
 
 interface TeamSwitcherProps {
+  /**
+   * @deprecated Use TeamContext instead. This prop is maintained for backward compatibility.
+   */
   currentTeamId?: string;
+  /**
+   * @deprecated Use TeamContext instead. This prop is maintained for backward compatibility.
+   */
   onTeamChange?: (team: Team) => void;
 }
+
+/** Minimum number of teams required to show search input */
+const SEARCH_THRESHOLD = 5;
 
 /**
  * Role badge component for displaying team roles
@@ -139,42 +152,74 @@ function CreateTeamDialog({
 
 /**
  * TeamSwitcher Component
- * Dropdown for switching between teams
+ *
+ * Dropdown for switching between teams. Uses TeamContext for state management
+ * when available, with fallback support for prop-based usage (deprecated).
+ *
+ * Features:
+ * - Search/filter for users with 5+ teams
+ * - Full keyboard navigation (Arrow keys, Enter, Escape)
+ * - Mobile responsive (avatar only on small screens)
  */
 export function TeamSwitcher({ currentTeamId, onTeamChange }: TeamSwitcherProps) {
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
-  const [teams, setTeams] = useState<Team[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isOpen, setIsOpen] = useState(false);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const { user, isAuthenticated } = useAuth();
 
-  // Determine current team
-  const currentTeam = currentTeamId
+  // Try to get team context - may not be available if component is used standalone
+  let teamContext: ReturnType<typeof useTeam> | null = null;
+  try {
+    teamContext = useTeam();
+  } catch {
+    // Context not available, will use prop-based approach
+  }
+
+  // Get values from context or props
+  const teams = teamContext?.teams ?? [];
+  const isLoading = teamContext?.isLoading ?? false;
+  const error = teamContext?.error ?? null;
+
+  // Determine current team from context or prop
+  const contextCurrentTeam = teamContext?.currentTeam;
+  const propCurrentTeam = currentTeamId
     ? teams.find((t) => t.id === currentTeamId)
     : teams[0];
+  const currentTeam = contextCurrentTeam ?? propCurrentTeam;
 
-  // Load teams
+  const [isOpen, setIsOpen] = useState(false);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const optionsRef = useRef<(HTMLDivElement | null)[]>([]);
+
+  // Show search input only for users with 5+ teams
+  const showSearch = teams.length >= SEARCH_THRESHOLD;
+
+  // Filter teams based on search query
+  const filteredTeams = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return teams;
+    }
+    const query = searchQuery.toLowerCase();
+    return teams.filter((team) =>
+      team.name.toLowerCase().includes(query)
+    );
+  }, [teams, searchQuery]);
+
+  // Total options: filtered teams + create button
+  const totalOptions = filteredTeams.length + 1; // +1 for "Create new team"
+
+  // Reset search and highlighted index when dropdown closes
   useEffect(() => {
-    if (!isAuthenticated || authLoading) return;
-
-    const loadTeams = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const response = await getTeams();
-        setTeams(response.data);
-      } catch (err) {
-        setError("Failed to load teams");
-        console.error("Failed to load teams:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadTeams();
-  }, [isAuthenticated, authLoading]);
+    if (!isOpen) {
+      setSearchQuery("");
+      setHighlightedIndex(-1);
+    } else if (showSearch && searchInputRef.current) {
+      // Focus search input when dropdown opens
+      setTimeout(() => searchInputRef.current?.focus(), 0);
+    }
+  }, [isOpen, showSearch]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -191,9 +236,56 @@ export function TeamSwitcher({ currentTeamId, onTeamChange }: TeamSwitcherProps)
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Keyboard navigation
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent) => {
+      if (!isOpen) return;
+
+      switch (event.key) {
+        case "Escape":
+          event.preventDefault();
+          setIsOpen(false);
+          break;
+        case "ArrowDown":
+          event.preventDefault();
+          setHighlightedIndex((prev) => {
+            const next = prev + 1;
+            return next >= totalOptions ? 0 : next;
+          });
+          break;
+        case "ArrowUp":
+          event.preventDefault();
+          setHighlightedIndex((prev) => {
+            const next = prev - 1;
+            return next < 0 ? totalOptions - 1 : next;
+          });
+          break;
+        case "Enter":
+          event.preventDefault();
+          if (highlightedIndex >= 0 && highlightedIndex < filteredTeams.length) {
+            // Select team
+            const selectedTeam = filteredTeams[highlightedIndex];
+            if (selectedTeam) {
+              handleSelectTeam(selectedTeam);
+            }
+          } else if (highlightedIndex === filteredTeams.length) {
+            // Create new team
+            setIsOpen(false);
+            setIsCreateDialogOpen(true);
+          }
+          break;
+      }
+    },
+    [isOpen, highlightedIndex, totalOptions, filteredTeams]
+  );
+
   // Handle team selection
   const handleSelectTeam = (team: Team) => {
     if (team.id !== currentTeam?.id) {
+      // Use context if available, otherwise use prop callback
+      if (teamContext?.setCurrentTeam) {
+        teamContext.setCurrentTeam(team);
+      }
       onTeamChange?.(team);
     }
     setIsOpen(false);
@@ -203,12 +295,28 @@ export function TeamSwitcher({ currentTeamId, onTeamChange }: TeamSwitcherProps)
   const handleCreateTeam = async (name: string) => {
     try {
       const newTeam = await createTeam({ name });
-      setTeams((prev) => [...prev, newTeam]);
+
+      // Refetch teams to update the list
+      if (teamContext?.refetchTeams) {
+        await teamContext.refetchTeams();
+      }
+
+      // Set the new team as current
+      if (teamContext?.setCurrentTeam) {
+        teamContext.setCurrentTeam(newTeam);
+      }
       onTeamChange?.(newTeam);
     } catch (err) {
       console.error("Failed to create team:", err);
       throw err;
     }
+  };
+
+  // Clear search
+  const handleClearSearch = () => {
+    setSearchQuery("");
+    setHighlightedIndex(-1);
+    searchInputRef.current?.focus();
   };
 
   // Don't render if not authenticated
@@ -239,7 +347,7 @@ export function TeamSwitcher({ currentTeamId, onTeamChange }: TeamSwitcherProps)
   }
 
   return (
-    <div ref={dropdownRef} className="relative">
+    <div ref={dropdownRef} className="relative" onKeyDown={handleKeyDown}>
       {/* Trigger Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
@@ -253,7 +361,7 @@ export function TeamSwitcher({ currentTeamId, onTeamChange }: TeamSwitcherProps)
             {currentTeam?.name.charAt(0).toUpperCase() || "T"}
           </span>
         </div>
-        <span className="text-sm font-medium text-zinc-100 max-w-[150px] truncate">
+        <span className="text-sm font-medium text-zinc-100 max-w-[150px] truncate hidden sm:inline">
           {currentTeam?.name || "Select Team"}
         </span>
         <ChevronDown
@@ -267,19 +375,73 @@ export function TeamSwitcher({ currentTeamId, onTeamChange }: TeamSwitcherProps)
       {isOpen && (
         <div
           role="listbox"
-          className="absolute left-0 mt-1 w-72 bg-white dark:bg-zinc-900 rounded-lg shadow-lg border border-neutral-200 dark:border-zinc-700 py-1 z-50"
+          className="absolute left-0 mt-1 w-72 bg-white dark:bg-zinc-900 rounded-lg shadow-lg border border-neutral-200 dark:border-zinc-700 py-1 z-50 max-h-[70vh] overflow-auto sm:left-0 sm:right-auto"
         >
+          {/* Mobile header - shows current team name */}
+          <div
+            data-testid="dropdown-current-team"
+            className="px-3 py-2 border-b border-neutral-200 dark:border-zinc-700 sm:hidden"
+          >
+            <span className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
+              {currentTeam?.name || "Select Team"}
+            </span>
+          </div>
+
+          {/* Search input (only for 5+ teams) */}
+          {showSearch && (
+            <div className="px-2 py-2 border-b border-neutral-200 dark:border-zinc-700 sticky top-0 bg-white dark:bg-zinc-900">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setHighlightedIndex(-1);
+                  }}
+                  placeholder="Search teams..."
+                  className="w-full pl-9 pr-8 py-2 text-sm rounded-md border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={handleClearSearch}
+                    aria-label="Clear search"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-neutral-100 dark:hover:bg-neutral-700"
+                  >
+                    <X className="w-3 h-3 text-neutral-400" />
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Empty state when no teams match search */}
+          {filteredTeams.length === 0 && searchQuery && (
+            <div className="px-3 py-6 text-center text-sm text-neutral-500 dark:text-neutral-400">
+              No teams found
+            </div>
+          )}
+
           {/* Team options */}
-          {teams.map((team) => (
+          {filteredTeams.map((team, index) => (
             <div
               key={team.id}
+              ref={(el) => { optionsRef.current[index] = el; }}
               role="option"
               aria-selected={team.id === currentTeam?.id}
+              data-highlighted={highlightedIndex === index ? "true" : undefined}
               onClick={() => handleSelectTeam(team)}
-              className={`flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-neutral-100 dark:hover:bg-zinc-800 ${
+              onMouseEnter={() => setHighlightedIndex(index)}
+              className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors ${
                 team.id === currentTeam?.id
                   ? "bg-neutral-50 dark:bg-zinc-800/50"
                   : ""
+              } ${
+                highlightedIndex === index
+                  ? "bg-neutral-100 dark:bg-zinc-800"
+                  : "hover:bg-neutral-100 dark:hover:bg-zinc-800"
               }`}
             >
               {/* Team avatar */}
@@ -310,18 +472,27 @@ export function TeamSwitcher({ currentTeamId, onTeamChange }: TeamSwitcherProps)
             </div>
           ))}
 
-          {/* Divider */}
-          <div className="my-1 border-t border-neutral-200 dark:border-zinc-700" />
+          {/* Divider (only show if there are teams) */}
+          {filteredTeams.length > 0 && (
+            <div className="my-1 border-t border-neutral-200 dark:border-zinc-700" />
+          )}
 
           {/* Create new team option */}
           <div
+            ref={(el) => { optionsRef.current[filteredTeams.length] = el; }}
             role="option"
             aria-selected={false}
+            data-highlighted={highlightedIndex === filteredTeams.length ? "true" : undefined}
             onClick={() => {
               setIsOpen(false);
               setIsCreateDialogOpen(true);
             }}
-            className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-neutral-100 dark:hover:bg-zinc-800"
+            onMouseEnter={() => setHighlightedIndex(filteredTeams.length)}
+            className={`flex items-center gap-3 px-3 py-2 cursor-pointer transition-colors ${
+              highlightedIndex === filteredTeams.length
+                ? "bg-neutral-100 dark:bg-zinc-800"
+                : "hover:bg-neutral-100 dark:hover:bg-zinc-800"
+            }`}
           >
             <div className="w-8 h-8 rounded-md border border-dashed border-neutral-300 dark:border-zinc-600 flex items-center justify-center">
               <Plus className="w-4 h-4 text-neutral-500 dark:text-neutral-400" />

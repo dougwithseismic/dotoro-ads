@@ -59,6 +59,12 @@ export interface Invitation {
   inviterEmail: string;
   expiresAt: string;
   createdAt: string;
+  /** Whether the invitation email was sent successfully (only present on create/resend) */
+  emailSent?: boolean;
+  /** Error message if email sending failed (only present when emailSent is false) */
+  emailError?: string;
+  /** Manual invite link to share if email failed (only present when emailSent is false) */
+  inviteLink?: string;
 }
 
 /**
@@ -102,6 +108,16 @@ export interface InvitationActionResponse {
   success: true;
   teamId?: string;
   teamSlug?: string;
+}
+
+/**
+ * Resend invitation response
+ */
+export interface ResendInvitationResponse {
+  success: boolean;
+  emailSent: boolean;
+  emailError?: string;
+  inviteLink?: string;
 }
 
 /**

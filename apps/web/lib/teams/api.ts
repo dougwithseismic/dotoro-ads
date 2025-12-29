@@ -13,6 +13,7 @@ import type {
   MemberListResponse,
   InvitationListResponse,
   InvitationActionResponse,
+  ResendInvitationResponse,
   CreateTeamInput,
   UpdateTeamInput,
   SendInvitationInput,
@@ -133,6 +134,16 @@ export async function removeMember(teamId: string, userId: string): Promise<void
   });
 }
 
+/**
+ * Leave a team (remove self from team membership)
+ * The current user removes themselves from the team.
+ */
+export async function leaveTeam(teamId: string): Promise<void> {
+  await fetchWithAuth<void>(`/api/teams/${teamId}/members/me`, {
+    method: "DELETE",
+  });
+}
+
 // ============================================================================
 // Invitations
 // ============================================================================
@@ -169,6 +180,21 @@ export async function revokeInvitation(
   await fetchWithAuth<void>(`/api/teams/${teamId}/invitations/${invitationId}`, {
     method: "DELETE",
   });
+}
+
+/**
+ * Resend invitation email
+ * Re-sends the invitation email for a pending invitation.
+ * Requires admin or owner role.
+ */
+export async function resendInvitation(
+  teamId: string,
+  invitationId: string
+): Promise<ResendInvitationResponse> {
+  return fetchWithAuth<ResendInvitationResponse>(
+    `/api/teams/${teamId}/invitations/${invitationId}/resend`,
+    { method: "POST" }
+  );
 }
 
 /**

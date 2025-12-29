@@ -1,0 +1,234 @@
+.card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  background-color: var(--card-bg, #ffffff);
+  border: 1px solid var(--border-color, #e5e5e5);
+  border-radius: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.card:hover {
+  background-color: var(--card-hover-bg, #fafafa);
+  border-color: var(--border-hover-color, #d4d4d4);
+}
+
+.card:focus-visible {
+  outline: 2px solid var(--focus-ring, #3b82f6);
+  outline-offset: 2px;
+}
+
+.card.selected {
+  border-color: var(--selected-border, #3b82f6);
+  background-color: var(--selected-bg, #eff6ff);
+}
+
+/* Dark mode */
+:global(.dark) .card {
+  --card-bg: #18181b;
+  --border-color: #27272a;
+  --card-hover-bg: #27272a;
+  --border-hover-color: #3f3f46;
+  --selected-border: #3b82f6;
+  --selected-bg: rgba(59, 130, 246, 0.1);
+}
+
+.avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.5rem;
+  background-color: #3f3f46;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.avatarInitial {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #d4d4d8;
+}
+
+.info {
+  flex: 1;
+  min-width: 0;
+}
+
+.nameRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.name {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #171717;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+:global(.dark) .name {
+  color: #fafafa;
+}
+
+.metaRow {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+}
+
+.icon {
+  width: 0.875rem;
+  height: 0.875rem;
+  color: #737373;
+}
+
+:global(.dark) .icon {
+  color: #a1a1aa;
+}
+
+.memberCount {
+  font-size: 0.8125rem;
+  color: #737373;
+}
+
+:global(.dark) .memberCount {
+  color: #a1a1aa;
+}
+
+/* Role Badges */
+.roleBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  border-radius: 9999px;
+  text-transform: capitalize;
+}
+
+.roleOwner {
+  background-color: #f3e8ff;
+  color: #7c3aed;
+}
+
+:global(.dark) .roleOwner {
+  background-color: rgba(139, 92, 246, 0.2);
+  color: #c4b5fd;
+}
+
+.roleAdmin {
+  background-color: #dbeafe;
+  color: #2563eb;
+}
+
+:global(.dark) .roleAdmin {
+  background-color: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+}
+
+.roleEditor {
+  background-color: #dcfce7;
+  color: #16a34a;
+}
+
+:global(.dark) .roleEditor {
+  background-color: rgba(34, 197, 94, 0.2);
+  color: #86efac;
+}
+
+.roleViewer {
+  background-color: #f5f5f5;
+  color: #525252;
+}
+
+:global(.dark) .roleViewer {
+  background-color: rgba(161, 161, 170, 0.2);
+  color: #a1a1aa;
+}
+
+/* Personal Badge */
+.personalBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  border-radius: 9999px;
+  background-color: #fef3c7;
+  color: #d97706;
+}
+
+:global(.dark) .personalBadge {
+  background-color: rgba(251, 191, 36, 0.2);
+  color: #fbbf24;
+}
+
+/* Actions */
+.actions {
+  flex-shrink: 0;
+}
+
+.leaveButton {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #dc2626;
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.leaveButton:hover {
+  background-color: #fef2f2;
+  border-color: #fecaca;
+}
+
+:global(.dark) .leaveButton {
+  color: #f87171;
+}
+
+:global(.dark) .leaveButton:hover {
+  background-color: rgba(248, 113, 113, 0.1);
+  border-color: rgba(248, 113, 113, 0.3);
+}
+
+.leaveIcon {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.leaveText {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .leaveText {
+    display: inline;
+  }
+}
+
+/* Selected Indicator */
+.selectedIndicator {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background-color: #3b82f6;
+  border-radius: 0 2px 2px 0;
+}
