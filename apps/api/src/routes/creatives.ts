@@ -10,14 +10,18 @@ import {
   modifyTagsSchema,
   deleteResponseSchema,
   creativeWithUrlSchema,
+  moveCreativeSchema,
+  bulkMoveCreativesSchema,
+  bulkMoveResponseSchema,
 } from "../schemas/creatives.js";
-import { idParamSchema, accountIdQuerySchema } from "../schemas/common.js";
+import { idParamSchema, accountIdQuerySchema, errorResponseSchema } from "../schemas/common.js";
 import { commonResponses, createPaginatedResponse } from "../lib/openapi.js";
 import { createNotFoundError, ApiException, ErrorCode } from "../lib/errors.js";
 import {
   CreativeLibraryService,
   type CreativeFilters,
 } from "../services/creative-library.js";
+import * as folderService from "../services/asset-folders.js";
 import {
   getStorageService,
   getAllowedContentTypes,
@@ -60,6 +64,17 @@ function checkCreativeAccess(creative: { accountId: string }, requestAccountId: 
   if (creative.accountId !== requestAccountId) {
     throw new ApiException(403, ErrorCode.FORBIDDEN, "Access denied to this creative");
   }
+}
+
+/**
+ * Get team ID from request header
+ */
+function getTeamId(headers: Headers): string {
+  const teamId = headers.get("x-team-id");
+  if (!teamId) {
+    throw new ApiException(400, ErrorCode.VALIDATION_ERROR, "x-team-id header is required");
+  }
+  return teamId;
 }
 
 // Create the OpenAPI Hono app
@@ -284,6 +299,65 @@ const removeTagsRoute = createRoute({
   },
 });
 
+const moveCreativeRoute = createRoute({
+  method: "post",
+  path: "/api/v1/creatives/{id}/move",
+  tags: ["Creatives"],
+  summary: "Move creative to folder",
+  description: "Moves a creative to a different folder. Use null to move to root level.",
+  request: {
+    params: idParamSchema,
+    query: accountIdQuerySchema,
+    body: {
+      content: {
+        "application/json": {
+          schema: moveCreativeSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Creative moved successfully",
+      content: {
+        "application/json": {
+          schema: creativeSchema,
+        },
+      },
+    },
+    ...commonResponses,
+  },
+});
+
+const bulkMoveCreativesRoute = createRoute({
+  method: "post",
+  path: "/api/v1/creatives/bulk-move",
+  tags: ["Creatives"],
+  summary: "Bulk move creatives to folder",
+  description: "Moves multiple creatives to a folder. Returns success count and any errors.",
+  request: {
+    query: accountIdQuerySchema,
+    body: {
+      content: {
+        "application/json": {
+          schema: bulkMoveCreativesSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Bulk move completed (may include partial failures)",
+      content: {
+        "application/json": {
+          schema: bulkMoveResponseSchema,
+        },
+      },
+    },
+    ...commonResponses,
+  },
+});
+
 // ============================================================================
 // Route Handlers
 // ============================================================================
@@ -384,12 +458,50 @@ creativesApp.openapi(registerCreativeRoute, async (c) => {
 
 creativesApp.openapi(listCreativesRoute, async (c) => {
   const query = c.req.valid("query");
+  const teamId = getTeamId(c.req.raw.headers);
+
+  // Handle folder filtering
+  let folderId: string | null | undefined = undefined;
+  let folderIds: string[] | undefined = undefined;
+
+  if (query.folderId !== undefined) {
+    if (query.folderId === "null") {
+      // Request for root-level assets
+      folderId = null;
+    } else {
+      // Specific folder
+      folderId = query.folderId;
+
+      // If includeSubfolders is true, get all subfolder IDs
+      if (query.includeSubfolders === "true" && query.folderId) {
+        try {
+          const allFolders = await folderService.getFolderTree(teamId, {});
+          // Filter folders that are in the hierarchy of the requested folder
+          const targetFolder = allFolders.find((f) => f.id === query.folderId);
+          if (targetFolder) {
+            // Get all folders whose path starts with the target folder's path
+            const subfolders = allFolders.filter(
+              (f) => f.path.startsWith(targetFolder.path + "/") || f.id === query.folderId
+            );
+            folderIds = subfolders.map((f) => f.id);
+            folderId = undefined; // Clear folderId since we're using folderIds
+          }
+        } catch {
+          // If folder tree fetch fails, fall back to single folder
+          folderIds = undefined;
+        }
+      }
+    }
+  }
 
   const filters: CreativeFilters = {
     accountId: query.accountId,
     type: query.type as "IMAGE" | "VIDEO" | "CAROUSEL" | undefined,
     status: query.status as "PENDING" | "UPLOADED" | "PROCESSING" | "READY" | "FAILED" | undefined,
     tags: query.tags ? query.tags.split(",").map((t) => t.trim()) : undefined,
+    folderId,
+    folderIds,
+    search: query.search,
     page: query.page,
     limit: query.limit,
     sortBy: query.sortBy,
@@ -540,6 +652,79 @@ creativesApp.openapi(removeTagsRoute, async (c) => {
   }
 
   return c.json(updated, 200);
+});
+
+creativesApp.openapi(moveCreativeRoute, async (c) => {
+  const { id } = c.req.valid("param");
+  const { accountId } = c.req.valid("query");
+  const body = c.req.valid("json");
+  const teamId = getTeamId(c.req.raw.headers);
+
+  // Get the creative
+  const existing = await creativeService.getCreative(id);
+  if (!existing) {
+    throw createNotFoundError("Creative", id);
+  }
+
+  // Authorization check
+  checkCreativeAccess(existing, accountId);
+
+  // Verify team ownership
+  if (existing.teamId !== teamId) {
+    throw new ApiException(404, ErrorCode.NOT_FOUND, "Creative not found");
+  }
+
+  // Validate target folder if not null
+  if (body.folderId !== null) {
+    try {
+      const folder = await folderService.getFolder(body.folderId, teamId);
+      // Validate folder belongs to the same team
+      if (folder.teamId !== teamId) {
+        throw new ApiException(403, ErrorCode.FORBIDDEN, "Target folder belongs to a different team");
+      }
+    } catch (error) {
+      if (error instanceof ApiException) {
+        throw error;
+      }
+      throw createNotFoundError("Folder", body.folderId);
+    }
+  }
+
+  // Move the creative
+  const updated = await creativeService.moveCreative(id, body.folderId);
+
+  return c.json(updated, 200);
+});
+
+creativesApp.openapi(bulkMoveCreativesRoute, async (c) => {
+  const { accountId } = c.req.valid("query");
+  const body = c.req.valid("json");
+  const teamId = getTeamId(c.req.raw.headers);
+
+  // Validate target folder if not null
+  if (body.folderId !== null) {
+    try {
+      const folder = await folderService.getFolder(body.folderId, teamId);
+      // Validate folder belongs to the same team
+      if (folder.teamId !== teamId) {
+        throw new ApiException(403, ErrorCode.FORBIDDEN, "Target folder belongs to a different team");
+      }
+    } catch (error) {
+      if (error instanceof ApiException) {
+        throw error;
+      }
+      throw createNotFoundError("Folder", body.folderId);
+    }
+  }
+
+  // Bulk move the creatives
+  const result = await creativeService.bulkMoveCreatives(
+    body.creativeIds,
+    body.folderId,
+    accountId
+  );
+
+  return c.json(result, 200);
 });
 
 // Error handler for API exceptions

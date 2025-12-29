@@ -5,7 +5,7 @@
  */
 
 import { z } from "zod";
-import { eq, and, or, count, asc, desc, inArray, sql } from "drizzle-orm";
+import { eq, and, or, count, asc, desc, inArray, sql, like, isNull } from "drizzle-orm";
 import { db, creatives, creativeTags } from "./db.js";
 
 /**
@@ -48,6 +48,7 @@ export interface CreativeMetadata {
  */
 export interface Creative {
   id: string;
+  teamId?: string | null;
   accountId: string;
   name: string;
   type: CreativeType;
@@ -60,6 +61,7 @@ export interface Creative {
   status: CreativeStatus;
   metadata?: CreativeMetadata;
   tags: string[];
+  folderId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -100,10 +102,29 @@ export interface CreativeFilters {
   type?: CreativeType;
   tags?: string[];
   status?: CreativeStatus;
+  folderId?: string | null;
+  folderIds?: string[];
+  search?: string;
   page?: number;
   limit?: number;
   sortBy?: "name" | "createdAt" | "fileSize";
   sortOrder?: "asc" | "desc";
+}
+
+/**
+ * Bulk move error
+ */
+export interface BulkMoveError {
+  id: string;
+  message: string;
+}
+
+/**
+ * Bulk move result
+ */
+export interface BulkMoveResult {
+  moved: number;
+  errors: BulkMoveError[];
 }
 
 /**
@@ -170,6 +191,7 @@ async function toApiCreative(dbCreative: typeof creatives.$inferSelect): Promise
 
   return {
     id: dbCreative.id,
+    teamId: dbCreative.teamId ?? null,
     accountId: dbCreative.accountId,
     name: dbCreative.name,
     type: dbCreative.type as CreativeType,
@@ -182,6 +204,7 @@ async function toApiCreative(dbCreative: typeof creatives.$inferSelect): Promise
     status: dbCreative.status as CreativeStatus,
     metadata: dbCreative.metadata as CreativeMetadata | undefined,
     tags: tags.map(t => t.tag),
+    folderId: dbCreative.folderId ?? null,
     createdAt: dbCreative.createdAt.toISOString(),
     updatedAt: dbCreative.updatedAt.toISOString(),
   };
@@ -259,7 +282,7 @@ export class CreativeLibraryService {
     const sortOrder = filters.sortOrder ?? "desc";
 
     // Build conditions
-    const conditions = [eq(creatives.accountId, filters.accountId)];
+    const conditions: ReturnType<typeof eq>[] = [eq(creatives.accountId, filters.accountId)];
 
     if (filters.type) {
       conditions.push(eq(creatives.type, filters.type));
@@ -267,6 +290,26 @@ export class CreativeLibraryService {
 
     if (filters.status) {
       conditions.push(eq(creatives.status, filters.status));
+    }
+
+    // Folder filtering
+    if (filters.folderIds && filters.folderIds.length > 0) {
+      // Multiple folders (used for includeSubfolders)
+      conditions.push(inArray(creatives.folderId, filters.folderIds));
+    } else if (filters.folderId !== undefined) {
+      if (filters.folderId === null) {
+        // Root-level assets only
+        conditions.push(isNull(creatives.folderId));
+      } else {
+        // Specific folder
+        conditions.push(eq(creatives.folderId, filters.folderId));
+      }
+    }
+
+    // Search filtering (escape LIKE special characters to prevent SQL injection)
+    if (filters.search) {
+      const escapedSearch = filters.search.replace(/[%_\\]/g, '\\$&');
+      conditions.push(like(creatives.name, `%${escapedSearch}%`));
     }
 
     const whereClause = and(...conditions);
@@ -464,6 +507,72 @@ export class CreativeLibraryService {
     });
 
     return Promise.all(filtered.map(({ creative }) => toApiCreative(creative)));
+  }
+
+  /**
+   * Move a creative to a folder
+   */
+  async moveCreative(id: string, folderId: string | null): Promise<Creative> {
+    const [updated] = await db
+      .update(creatives)
+      .set({ folderId })
+      .where(eq(creatives.id, id))
+      .returning();
+
+    if (!updated) {
+      throw new Error(`Creative with id "${id}" not found`);
+    }
+
+    return toApiCreative(updated);
+  }
+
+  /**
+   * Bulk move creatives to a folder
+   */
+  async bulkMoveCreatives(
+    creativeIds: string[],
+    folderId: string | null,
+    accountId: string
+  ): Promise<BulkMoveResult> {
+    const errors: BulkMoveError[] = [];
+    let movedCount = 0;
+
+    for (const creativeId of creativeIds) {
+      try {
+        // Get the creative to verify ownership
+        const [creative] = await db
+          .select()
+          .from(creatives)
+          .where(eq(creatives.id, creativeId))
+          .limit(1);
+
+        if (!creative) {
+          errors.push({ id: creativeId, message: "Creative not found" });
+          continue;
+        }
+
+        if (creative.accountId !== accountId) {
+          errors.push({ id: creativeId, message: "Access denied to this creative" });
+          continue;
+        }
+
+        // Move the creative
+        await db
+          .update(creatives)
+          .set({ folderId })
+          .where(eq(creatives.id, creativeId));
+
+        movedCount++;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown error";
+        errors.push({ id: creativeId, message });
+      }
+    }
+
+    return {
+      moved: movedCount,
+      errors,
+    };
   }
 
   /**
