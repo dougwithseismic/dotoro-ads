@@ -1,0 +1,81 @@
+{
+  "feature": "campaign-ad-picker",
+  "status": "complete",
+  "completedAt": "2025-12-29T09:17:00Z",
+  "summary": "Fixed Reddit account ID flow in campaign set sync",
+  "rootCause": {
+    "issue1": "AdAccountSelector was passing Reddit's accountId (t2_xxx) instead of internal UUID",
+    "issue2": "GenerationPreview was not saving adAccountId to campaign set config"
+  },
+  "fixes": [
+    {
+      "file": "apps/web/app/[locale]/[teamSlug]/campaign-sets/new/components/reddit/AdAccountSelector.tsx",
+      "changes": [
+        "Changed onSelect to pass account.id (internal UUID) instead of account.accountId",
+        "Updated selectedAccount lookup to use account.id for matching",
+        "Updated keyboard navigation to use internal UUID",
+        "Updated comments to clarify ID types"
+      ]
+    },
+    {
+      "file": "apps/web/app/[locale]/[teamSlug]/campaign-sets/new/components/GenerationPreview.tsx",
+      "changes": [
+        "Added conditional spread to include adAccountId in campaignSetConfig when Reddit is selected",
+        "adAccountId is now properly saved to campaign set config for sync job to use"
+      ]
+    }
+  ],
+  "testsAdded": [
+    {
+      "file": "apps/api/src/__tests__/routes/campaign-set-sync-id.test.ts",
+      "count": 4,
+      "purpose": "Verify sync job data structure uses internal UUID"
+    },
+    {
+      "file": "apps/web/.../AdAccountSelector.test.tsx",
+      "changes": "Updated 4 tests to expect internal UUID instead of Reddit accountId"
+    },
+    {
+      "file": "apps/web/.../GenerationPreview.test.tsx",
+      "count": 3,
+      "purpose": "Verify adAccountId is included in config for Reddit campaigns"
+    }
+  ],
+  "testResults": {
+    "api": {
+      "passed": 4,
+      "failed": 0
+    },
+    "web": {
+      "adAccountSelector": {
+        "passed": 20,
+        "failed": 0
+      },
+      "generationPreview": {
+        "passed": 25,
+        "skipped": 12
+      }
+    }
+  },
+  "dataFlow": {
+    "before": {
+      "problem": "Frontend passed Reddit's accountId (t2_xxx) but backend expected internal UUID for DB lookup"
+    },
+    "after": {
+      "step1": "AdAccountSelector passes internal UUID (ad_accounts.id) on selection",
+      "step2": "GenerationPreview saves adAccountId to campaign set config",
+      "step3": "Sync endpoint looks up ad_account by internal UUID",
+      "step4": "Sync handler uses ad_account.accountId (t2_xxx) for Reddit API calls"
+    }
+  },
+  "filesChanged": [
+    "apps/web/app/[locale]/[teamSlug]/campaign-sets/new/components/reddit/AdAccountSelector.tsx",
+    "apps/web/app/[locale]/[teamSlug]/campaign-sets/new/components/reddit/__tests__/AdAccountSelector.test.tsx",
+    "apps/web/app/[locale]/[teamSlug]/campaign-sets/new/components/GenerationPreview.tsx",
+    "apps/web/app/[locale]/[teamSlug]/campaign-sets/new/components/__tests__/GenerationPreview.test.tsx",
+    "apps/api/src/__tests__/routes/campaign-set-sync-id.test.ts",
+    ".claude/plans/reddit-account-connection/features/campaign-ad-picker-TODO.md"
+  ],
+  "iterationsUsed": 1,
+  "blocker": "none"
+}

@@ -1,0 +1,70 @@
+.button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 16px 20px;
+  font-family: var(--font-geist-sans);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--foreground);
+  background: var(--background);
+  border: 1px solid rgba(var(--gray-rgb, 0, 0, 0), 0.1);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.button:not(:disabled):hover {
+  border-color: var(--platform-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.button svg {
+  color: var(--platform-color);
+  flex-shrink: 0;
+}
+
+.text {
+  flex: 1;
+}
+
+.badge {
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(var(--gray-rgb, 0, 0, 0), 0.5);
+  background: rgba(var(--gray-rgb, 0, 0, 0), 0.05);
+  border-radius: 4px;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+  color: var(--platform-color);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.button[data-loading="true"] {
+  opacity: 0.8;
+}
+
+@media (prefers-color-scheme: dark) {
+  .button {
+    --gray-rgb: 255, 255, 255;
+  }
+
+  .button:not(:disabled):hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  }
+}

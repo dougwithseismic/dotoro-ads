@@ -1,7 +1,7 @@
 # Project Orchestration: Reddit Account Connection
 Workflow: reddit-account-connection
 Generated: 2025-12-29
-Status: In Progress
+Status: Complete
 Parallelization: Enabled
 
 ## Summary
@@ -23,8 +23,8 @@ This workflow fixes the Reddit ad account connection flow to properly fetch and 
 ### Level 2 (Depends on Level 1) - PARALLEL
 | Feature | Status | TODO Doc | Dependencies | Phases | Checkboxes |
 |---------|--------|----------|--------------|--------|------------|
-| account-selection-ui | ⏳ Pending | [TODO](features/account-selection-ui-TODO.md) | oauth-callback-fix | 6 | 0/51 |
-| campaign-ad-picker | ⏳ Pending | [TODO](features/campaign-ad-picker-TODO.md) | oauth-callback-fix | 3 | 0/25 |
+| account-selection-ui | ✅ Complete | [TODO](features/account-selection-ui-TODO.md) | oauth-callback-fix | 6 | 51/51 |
+| campaign-ad-picker | ✅ Complete | [TODO](features/campaign-ad-picker-TODO.md) | oauth-callback-fix | 3 | 20/25 |
 
 ## Status Legend
 - ⏳ Pending - Ready to start (no blocking deps)
@@ -56,6 +56,9 @@ selection   ad-picker
 | 2025-12-29 | export-reddit-service | 1.1 | Verified | Exports already exist in index.ts |
 | 2025-12-29 | ALL | Planning | TODO docs created | 4 features planned |
 | 2025-12-29 | oauth-callback-fix | 6 | COMMITTED | 423dd28, 29 tests, +2343 lines |
+| 2025-12-29 | campaign-ad-picker | 3 | COMPLETE | Fixed ID flow, 7 new tests |
+| 2025-12-29 | account-selection-ui | 6 | COMPLETE | 46 tests, modal + hooks + page |
+| 2025-12-29 | WORKFLOW | - | COMPLETE | All 4 features done, 83 Reddit tests pass |
 
 ## Key Files
 

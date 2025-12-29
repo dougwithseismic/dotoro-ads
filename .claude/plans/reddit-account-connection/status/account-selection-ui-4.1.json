@@ -1,0 +1,83 @@
+{
+  "feature": "account-selection-ui",
+  "version": "4.1",
+  "status": "COMPLETE",
+  "completedAt": "2025-12-29T09:41:00Z",
+  "summary": "Account selection UI for Reddit OAuth pending_selection flow",
+  "changes": {
+    "backend": {
+      "fixed": [
+        {
+          "file": "apps/api/src/__tests__/routes/reddit-oauth-team.test.ts",
+          "description": "Updated tests to match new pending_selection flow instead of direct oauth=success"
+        }
+      ]
+    },
+    "frontend": {
+      "created": [
+        {
+          "file": "apps/web/app/[locale]/[teamSlug]/accounts/hooks/useAvailableAccounts.ts",
+          "description": "Hook to fetch available Reddit ad accounts from pending OAuth session"
+        },
+        {
+          "file": "apps/web/app/[locale]/[teamSlug]/accounts/hooks/__tests__/useAvailableAccounts.test.ts",
+          "description": "11 tests for useAvailableAccounts hook"
+        },
+        {
+          "file": "apps/web/app/[locale]/[teamSlug]/accounts/hooks/useConnectAccounts.ts",
+          "description": "Hook to connect selected Reddit ad accounts to team"
+        },
+        {
+          "file": "apps/web/app/[locale]/[teamSlug]/accounts/hooks/__tests__/useConnectAccounts.test.ts",
+          "description": "11 tests for useConnectAccounts hook"
+        },
+        {
+          "file": "apps/web/app/[locale]/[teamSlug]/accounts/hooks/index.ts",
+          "description": "Index exports for hooks"
+        },
+        {
+          "file": "apps/web/app/[locale]/[teamSlug]/accounts/components/AccountSelectionModal.tsx",
+          "description": "Modal component for selecting Reddit ad accounts after OAuth"
+        },
+        {
+          "file": "apps/web/app/[locale]/[teamSlug]/accounts/components/AccountSelectionModal.module.css",
+          "description": "Styles for AccountSelectionModal"
+        },
+        {
+          "file": "apps/web/app/[locale]/[teamSlug]/accounts/components/__tests__/AccountSelectionModal.test.tsx",
+          "description": "24 tests for AccountSelectionModal component"
+        }
+      ],
+      "modified": [
+        {
+          "file": "apps/web/app/[locale]/[teamSlug]/accounts/components/index.ts",
+          "description": "Added AccountSelectionModal export"
+        },
+        {
+          "file": "apps/web/app/[locale]/[teamSlug]/accounts/page.tsx",
+          "description": "Added handler for oauth=pending_selection and AccountSelectionModal integration"
+        }
+      ]
+    }
+  },
+  "testsAdded": 46,
+  "testsFixed": 12,
+  "apiEndpoints": {
+    "GET /api/v1/reddit/available-accounts": "Fetches available accounts from pending OAuth (existing)",
+    "POST /api/v1/reddit/connect-accounts": "Connects selected accounts to team (existing)"
+  },
+  "userFlow": [
+    "1. User clicks Connect Reddit button",
+    "2. OAuth flow redirects to Reddit",
+    "3. Reddit redirects back with oauth=pending_selection",
+    "4. AccountSelectionModal opens automatically",
+    "5. Modal fetches available accounts from GET /api/v1/reddit/available-accounts",
+    "6. User selects which accounts to connect",
+    "7. Modal calls POST /api/v1/reddit/connect-accounts",
+    "8. Success message shown and accounts list refreshed"
+  ],
+  "notes": [
+    "TypeScript errors unrelated to this feature exist in codebase (rules, transforms, RecentCampaignSets)",
+    "data-sources-detail.test.ts and data-sources-sample.test.ts have unrelated initialization errors"
+  ]
+}

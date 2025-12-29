@@ -1,0 +1,45 @@
+{
+  "feature": "account-selection-ui",
+  "status": "complete",
+  "completedAt": "2025-12-29T09:30:00Z",
+  "summary": "Implemented Phase 1 (API Endpoints) and Phase 4 Backend (OAuth Flow Integration)",
+  "filesChanged": [
+    "apps/api/src/routes/reddit.ts",
+    "apps/api/src/schemas/reddit.ts",
+    "apps/api/src/services/reddit/oauth.ts",
+    "apps/api/src/__tests__/routes/reddit-account-selection.test.ts",
+    "apps/api/src/__tests__/routes/reddit-oauth-callback.test.ts"
+  ],
+  "testsAdded": 28,
+  "testsPassing": true,
+  "phases": {
+    "phase1_api_endpoints": {
+      "status": "complete",
+      "items": [
+        "GET /api/v1/reddit/available-accounts - Fetches accounts grouped by business",
+        "POST /api/v1/reddit/connect-accounts - Connects selected accounts",
+        "Zod schemas for request/response validation",
+        "Authentication and authorization middleware",
+        "Invalid account ID validation",
+        "Already connected account detection"
+      ]
+    },
+    "phase4_oauth_flow": {
+      "status": "backend_complete",
+      "items": [
+        "OAuth callback redirects with oauth=pending_selection",
+        "Tokens stored temporarily in memory for account selection",
+        "No auto-creation of ad accounts on callback",
+        "Pending tokens cleared after account selection"
+      ]
+    }
+  },
+  "blockers": "none",
+  "nextSteps": [
+    "Phase 2: Create AccountSelectionModal.tsx frontend component",
+    "Phase 3: Create useAvailableAccounts and useConnectAccounts hooks",
+    "Phase 4 Frontend: Detect pending_selection and open modal",
+    "Phase 5: CSS styling for modal",
+    "Phase 6: Unit tests for frontend components"
+  ]
+}
