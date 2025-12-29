@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useParams } from "next/navigation";
 import {
   Home,
   Database,
@@ -13,63 +13,97 @@ import {
   UserCircle,
   Users,
   Cog,
+  ImageIcon,
 } from "lucide-react";
+import { getTeamPathWithoutSlug } from "@/lib/navigation/team-routes";
+import { TEAM_ROUTES } from "@/lib/routes";
 
 interface NavItem {
   label: string;
-  href: string;
+  /** Path relative to team context (e.g., "/dashboard", "/settings") */
+  path: string;
   icon: React.ComponentType<{ className?: string }>;
 }
 
 const mainNavItems: NavItem[] = [
-  { label: "Dashboard", href: "/", icon: Home },
+  { label: "Dashboard", path: TEAM_ROUTES.DASHBOARD, icon: Home },
 ];
 
 const dataNavItems: NavItem[] = [
-  { label: "Data Sources", href: "/data-sources", icon: Database },
-  { label: "Transforms", href: "/transforms", icon: Shuffle },
-  { label: "Templates", href: "/templates", icon: Layout },
-  { label: "Rules", href: "/rules", icon: Filter },
+  { label: "Data Sources", path: TEAM_ROUTES.DATA_SOURCES, icon: Database },
+  { label: "Transforms", path: TEAM_ROUTES.TRANSFORMS, icon: Shuffle },
+  { label: "Templates", path: TEAM_ROUTES.TEMPLATES, icon: Layout },
+  { label: "Rules", path: TEAM_ROUTES.RULES, icon: Filter },
 ];
 
 const managementNavItems: NavItem[] = [
-  { label: "Campaign Sets", href: "/campaign-sets", icon: Megaphone },
-  { label: "Accounts", href: "/accounts", icon: User },
+  { label: "Campaign Sets", path: TEAM_ROUTES.CAMPAIGN_SETS, icon: Megaphone },
+  { label: "Accounts", path: TEAM_ROUTES.ACCOUNTS, icon: User },
+  { label: "Assets", path: TEAM_ROUTES.ASSETS, icon: ImageIcon },
 ];
 
 const settingsNavItems: NavItem[] = [
-  { label: "Settings", href: "/settings", icon: Cog },
-  { label: "Profile", href: "/settings/profile", icon: UserCircle },
-  { label: "Team", href: "/settings/team", icon: Users },
+  { label: "Settings", path: TEAM_ROUTES.SETTINGS, icon: Cog },
+  { label: "Profile", path: TEAM_ROUTES.SETTINGS_PROFILE, icon: UserCircle },
+  { label: "Team", path: TEAM_ROUTES.SETTINGS_TEAM, icon: Users },
 ];
 
 interface NavigationProps {
   collapsed?: boolean;
 }
 
+/**
+ * Navigation Component
+ *
+ * Team-aware sidebar navigation. Automatically includes the current
+ * team slug and locale in all navigation links.
+ */
 export function Navigation({ collapsed = false }: NavigationProps) {
   const pathname = usePathname();
+  const params = useParams();
 
-  const isActive = (href: string) => {
-    if (href === "/") {
-      return pathname === "/";
+  // Get team slug and locale from URL params
+  const teamSlug = params?.teamSlug as string | undefined;
+  const locale = params?.locale as string | undefined;
+
+  // Get the path portion without locale and team (for active state matching)
+  const currentPath = getTeamPathWithoutSlug(pathname);
+
+  /**
+   * Build the full href for a nav item, including locale and team context.
+   */
+  const buildHref = (path: string): string => {
+    if (!teamSlug || !locale) {
+      // Fallback to path without team context
+      return path;
+    }
+    return `/${locale}/${teamSlug}${path}`;
+  };
+
+  /**
+   * Check if a nav item is currently active.
+   */
+  const isActive = (path: string) => {
+    if (path === TEAM_ROUTES.DASHBOARD) {
+      return currentPath === "/" || currentPath === TEAM_ROUTES.DASHBOARD;
     }
     // For /settings, only match exact path or with query params
     // to avoid matching /settings/profile or /settings/team
-    if (href === "/settings") {
-      return pathname === "/settings" || pathname.startsWith("/settings?");
+    if (path === TEAM_ROUTES.SETTINGS) {
+      return currentPath === TEAM_ROUTES.SETTINGS || currentPath.startsWith(`${TEAM_ROUTES.SETTINGS}?`);
     }
-    return pathname.startsWith(href);
+    return currentPath === path || currentPath.startsWith(`${path}/`);
   };
 
   const renderNavItem = (item: NavItem) => {
-    const active = isActive(item.href);
+    const active = isActive(item.path);
     const Icon = item.icon;
+    const href = buildHref(item.path);
 
     return (
-      <li key={item.href}>
+      <li key={item.path}>
         <Link
-          href={item.href}
+          href={href}
           className={`
             flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors
             ${active
