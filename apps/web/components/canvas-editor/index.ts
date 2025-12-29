@@ -111,3 +111,30 @@ export {
 
 // Utilities
 export { parseAspectRatio, calculateDimensions } from './types';
+
+// Carousel Components
+export {
+  CarouselModeToggle,
+  CarouselCardList,
+  CardNavigator,
+  CardReorder,
+  DataRowSelector,
+  CarouselCardEditor,
+  CarouselPreview,
+  useCarouselEditor,
+  useCarouselValidation,
+  useDataRowValidation,
+  type CarouselModeToggleProps,
+  type CarouselCardListProps,
+  type CardNavigatorProps,
+  type CardReorderProps,
+  type DataRowSelectorProps,
+  type DataRow,
+  type CarouselCardEditorProps,
+  type CardMetadata,
+  type CarouselPreviewProps,
+  type UseCarouselEditorOptions,
+  type UseCarouselEditorReturn,
+  type UseCarouselValidationReturn,
+  type UseDataRowValidationReturn,
+} from './carousel';

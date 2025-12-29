@@ -187,6 +187,49 @@ export type {
   LanguageOption,
 } from "./targeting/index.js";
 
+// Re-export carousel templates (with explicit exports to avoid conflicts)
+export {
+  CAROUSEL_PLATFORM_CONSTRAINTS,
+  isDataDrivenMode,
+  isManualMode,
+  isValidCarouselPlatform,
+  createCarouselTemplate,
+  createEmptyCanvasJson,
+  createCarouselCard,
+  generateCardId,
+  fabricObjectJsonSchema,
+  fabricCanvasJsonSchema,
+  carouselModeSchema,
+  carouselPlatformSchema,
+  carouselPlatformConstraintsSchema,
+  carouselCardSchema,
+  carouselTemplateSchema,
+  validateCarousel,
+  validateCardCount,
+  validateCard,
+  validateCardDimensions,
+  validateCardOrder,
+  getCarouselConstraints,
+  canAddCard,
+  canRemoveCard,
+  validateDataRowSelection,
+} from "./templates/index.js";
+export type {
+  CarouselMode,
+  CarouselPlatform,
+  CarouselPlatformConstraints,
+  CarouselCard,
+  CarouselTemplate,
+  CarouselValidationError,
+  CarouselValidationResult,
+  CarouselOutput,
+  CarouselOutputCard,
+  FacebookCarouselFormat,
+  RedditCarouselFormat,
+  FabricCanvasJson,
+  FabricObjectJson,
+} from "./templates/index.js";
+
 // Re-export campaign set types
 export type {
   // Status types
