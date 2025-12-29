@@ -1,0 +1,387 @@
+/* VariablesPanel */
+.panel {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--card, #18181b);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  color: var(--muted, #a1a1aa);
+}
+
+.panelTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--foreground, #fafafa);
+}
+
+.variableCount {
+  margin-left: auto;
+  padding: 2px 6px;
+  background-color: var(--accent, #27272a);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted, #a1a1aa);
+}
+
+/* Variable List */
+.variableList {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 120px;
+  max-height: 400px;
+  padding: 8px;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  text-align: center;
+}
+
+.emptyState p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted, #a1a1aa);
+}
+
+.emptyHint {
+  font-size: 12px !important;
+  color: var(--muted-foreground, #71717a) !important;
+  margin-top: 4px !important;
+}
+
+/* Variable Item */
+.variableItem {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background-color: var(--accent, #27272a);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: 6px;
+  transition: border-color 0.15s ease;
+}
+
+.variableItem:last-child {
+  margin-bottom: 0;
+}
+
+.variableItem:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Variable Header Row */
+.variableHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.variableIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.variableIcon.text {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+.variableIcon.image {
+  background-color: rgba(168, 85, 247, 0.15);
+  color: #a855f7;
+}
+
+.variableName {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--foreground, #fafafa);
+  font-family: 'SF Mono', Monaco, 'Fira Code', monospace;
+}
+
+.variableType {
+  font-size: 11px;
+  color: var(--muted-foreground, #71717a);
+  text-transform: capitalize;
+}
+
+.removeButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--muted-foreground, #71717a);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.variableItem:hover .removeButton {
+  opacity: 1;
+}
+
+.removeButton:hover {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+/* Variable Fields */
+.variableFields {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fieldRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fieldLabel {
+  flex-shrink: 0;
+  width: 60px;
+  font-size: 11px;
+  color: var(--muted-foreground, #71717a);
+}
+
+.fieldInput {
+  flex: 1;
+  padding: 6px 10px;
+  background-color: var(--background, #09090b);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: 4px;
+  color: var(--foreground, #fafafa);
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.fieldInput:focus {
+  border-color: #3b82f6;
+}
+
+.fieldInput::placeholder {
+  color: var(--muted-foreground, #71717a);
+}
+
+.fieldSelect {
+  flex: 1;
+  padding: 6px 10px;
+  background-color: var(--background, #09090b);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: 4px;
+  color: var(--foreground, #fafafa);
+  font-size: 12px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.fieldSelect:focus {
+  border-color: #3b82f6;
+}
+
+.fieldSelect option {
+  background-color: var(--background, #09090b);
+  color: var(--foreground, #fafafa);
+}
+
+/* Panel Footer */
+.panelFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+}
+
+.addButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background-color: transparent;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: 5px;
+  color: var(--foreground, #fafafa);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.addButton:hover {
+  background-color: var(--accent, #27272a);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.refreshButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: 5px;
+  color: var(--muted, #a1a1aa);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.refreshButton:hover {
+  background-color: var(--accent, #27272a);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--foreground, #fafafa);
+}
+
+.previewButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background-color: #3b82f6;
+  border: none;
+  border-radius: 5px;
+  color: white;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.previewButton:hover {
+  background-color: #2563eb;
+}
+
+.previewButton.active {
+  background-color: #22c55e;
+}
+
+.previewButton.active:hover {
+  background-color: #16a34a;
+}
+
+/* Add Variable Dialog */
+.addDialog {
+  padding: 12px;
+  background-color: var(--accent, #27272a);
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+}
+
+.addDialogTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--foreground, #fafafa);
+  margin-bottom: 10px;
+}
+
+.addDialogFields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.addDialogRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.addDialogInput {
+  flex: 1;
+  padding: 8px 10px;
+  background-color: var(--background, #09090b);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: 4px;
+  color: var(--foreground, #fafafa);
+  font-size: 12px;
+  outline: none;
+}
+
+.addDialogInput:focus {
+  border-color: #3b82f6;
+}
+
+.addDialogSelect {
+  width: 100px;
+  padding: 8px 10px;
+  background-color: var(--background, #09090b);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: 4px;
+  color: var(--foreground, #fafafa);
+  font-size: 12px;
+  outline: none;
+  cursor: pointer;
+}
+
+.addDialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.cancelButton {
+  padding: 6px 12px;
+  background-color: transparent;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: 4px;
+  color: var(--muted, #a1a1aa);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.cancelButton:hover {
+  background-color: var(--accent, #27272a);
+}
+
+.confirmButton {
+  padding: 6px 12px;
+  background-color: #3b82f6;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.confirmButton:hover {
+  background-color: #2563eb;
+}
+
+.confirmButton:disabled {
+  background-color: #3b82f680;
+  cursor: not-allowed;
+}

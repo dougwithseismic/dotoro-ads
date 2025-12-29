@@ -1,0 +1,252 @@
+/* PropertiesPanel */
+.panel {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--card, #18181b);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+}
+
+.title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--foreground, #fafafa);
+}
+
+/* Empty State */
+.emptyState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  font-size: 13px;
+  color: var(--muted, #a1a1aa);
+  text-align: center;
+}
+
+/* Sections */
+.sections {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 400px;
+}
+
+.section {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.05));
+}
+
+.section:last-child {
+  border-bottom: none;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  color: var(--muted, #a1a1aa);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted, #a1a1aa);
+}
+
+.aspectButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: auto;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: 4px;
+  color: var(--muted, #a1a1aa);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.aspectButton:hover {
+  background-color: var(--accent, #27272a);
+  border-color: var(--muted, #a1a1aa);
+  color: var(--foreground, #fafafa);
+}
+
+.aspectButton.active {
+  background-color: rgba(59, 130, 246, 0.15);
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+/* Row Layout */
+.row {
+  display: flex;
+  gap: 8px;
+}
+
+.row > * {
+  flex: 1;
+}
+
+/* Input Group */
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.inputGroup:last-child {
+  margin-bottom: 0;
+}
+
+.inputLabel {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted, #a1a1aa);
+}
+
+.inputWrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Number Input */
+.numberInput {
+  flex: 1;
+  width: 100%;
+  padding: 6px 8px;
+  background-color: var(--background, #09090b);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: 5px;
+  color: var(--foreground, #fafafa);
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.numberInput:focus {
+  border-color: #3b82f6;
+}
+
+.numberInput::-webkit-inner-spin-button,
+.numberInput::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.inputUnit {
+  font-size: 11px;
+  color: var(--muted, #a1a1aa);
+  min-width: 24px;
+}
+
+/* Color Input */
+.colorInputWrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.colorInput {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  background: transparent;
+}
+
+.colorInput::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.colorInput::-webkit-color-swatch {
+  border: 2px solid var(--border, rgba(255, 255, 255, 0.2));
+  border-radius: 4px;
+}
+
+.colorValue {
+  font-size: 11px;
+  font-family: monospace;
+  color: var(--muted, #a1a1aa);
+  text-transform: uppercase;
+}
+
+/* Range Input */
+.rangeWrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rangeInput {
+  flex: 1;
+  height: 4px;
+  appearance: none;
+  background: var(--accent, #27272a);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.rangeInput::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: #3b82f6;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.rangeInput::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+.rangeInput::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: #3b82f6;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.rangeValue {
+  min-width: 36px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted, #a1a1aa);
+  text-align: right;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .row {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .row > * {
+    flex: none;
+  }
+}

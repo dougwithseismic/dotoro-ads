@@ -1,0 +1,348 @@
+/* LayersPanel */
+.panel {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--card, #18181b);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  color: var(--muted, #a1a1aa);
+}
+
+.panelTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--foreground, #fafafa);
+}
+
+.layerCount {
+  margin-left: auto;
+  padding: 2px 6px;
+  background-color: var(--accent, #27272a);
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted, #a1a1aa);
+}
+
+/* Layer List */
+.layerList {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 120px;
+  max-height: 300px;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  text-align: center;
+}
+
+.emptyState p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted, #a1a1aa);
+}
+
+.emptyHint {
+  font-size: 12px !important;
+  color: var(--muted-foreground, #71717a) !important;
+  margin-top: 4px !important;
+}
+
+/* Layer Row */
+.layerRow {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.05));
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.layerRow:hover {
+  background-color: var(--accent, #27272a);
+}
+
+.layerRow:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+}
+
+.layerRow.selected {
+  background-color: rgba(59, 130, 246, 0.15);
+}
+
+.layerRow.selected:hover {
+  background-color: rgba(59, 130, 246, 0.2);
+}
+
+.layerRow.locked {
+  opacity: 0.7;
+}
+
+/* Drag Handle */
+.dragHandle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 24px;
+  color: var(--muted-foreground, #71717a);
+  cursor: grab;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.layerRow:hover .dragHandle {
+  opacity: 1;
+}
+
+/* Layer Action Buttons */
+.layerAction {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--muted, #a1a1aa);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.layerAction:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--foreground, #fafafa);
+}
+
+.layerAction.inactive {
+  color: var(--muted-foreground, #71717a);
+  opacity: 0.5;
+}
+
+.layerAction.active {
+  color: #f59e0b;
+}
+
+/* Layer Icon */
+.layerIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: var(--muted, #a1a1aa);
+}
+
+/* Layer Name */
+.layerName {
+  flex: 1;
+  min-width: 0;
+  padding: 0 4px;
+}
+
+.layerNameText {
+  display: block;
+  font-size: 12px;
+  color: var(--foreground, #fafafa);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.layerRow.selected .layerNameText {
+  color: #3b82f6;
+}
+
+.layerNameInput {
+  width: 100%;
+  padding: 2px 4px;
+  background-color: var(--background, #09090b);
+  border: 1px solid #3b82f6;
+  border-radius: 3px;
+  color: var(--foreground, #fafafa);
+  font-size: 12px;
+  outline: none;
+}
+
+/* Layer Order Controls */
+.layerOrderControls {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.layerRow:hover .layerOrderControls {
+  opacity: 1;
+}
+
+.orderButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 12px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 2px;
+  color: var(--muted, #a1a1aa);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.orderButton:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: var(--foreground, #fafafa);
+}
+
+.orderButton:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* LayerControls */
+.layerControls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+}
+
+/* Add Dropdown */
+.dropdownContainer {
+  position: relative;
+}
+
+.addButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background-color: #3b82f6;
+  border: none;
+  border-radius: 5px;
+  color: white;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.addButton:hover {
+  background-color: #2563eb;
+}
+
+.addButton:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.rotated {
+  transform: rotate(180deg);
+  transition: transform 0.15s ease;
+}
+
+.dropdown {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  min-width: 140px;
+  padding: 4px;
+  background-color: var(--card, #18181b);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 50;
+}
+
+.dropdownItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--foreground, #fafafa);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.dropdownItem:hover {
+  background-color: var(--accent, #27272a);
+}
+
+/* Quick Actions */
+.quickActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.actionButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: 5px;
+  color: var(--muted, #a1a1aa);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.actionButton:hover:not(:disabled) {
+  background-color: var(--accent, #27272a);
+  border-color: var(--muted, #a1a1aa);
+  color: var(--foreground, #fafafa);
+}
+
+.actionButton:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.actionButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.actionButton.active {
+  background-color: rgba(245, 158, 11, 0.15);
+  border-color: #f59e0b;
+  color: #f59e0b;
+}
+
+.actionButton.destructive:hover:not(:disabled) {
+  background-color: rgba(239, 68, 68, 0.15);
+  border-color: #ef4444;
+  color: #ef4444;
+}

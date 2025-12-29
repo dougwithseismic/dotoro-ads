@@ -1,0 +1,300 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--card, #18181b);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+}
+
+.panelTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--foreground, #fafafa);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+}
+
+/* Form Group */
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted, #a1a1aa);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Dropdown Container */
+.dropdownContainer {
+  position: relative;
+}
+
+.selectButton {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 8px 10px;
+  background-color: var(--accent, #27272a);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: 5px;
+  color: var(--foreground, #fafafa);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.selectButton:hover {
+  border-color: var(--muted, #a1a1aa);
+}
+
+.selectButton:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 4px;
+  background-color: var(--card, #18181b);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 50;
+}
+
+.dropdownItem {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: var(--foreground, #fafafa);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.dropdownItem:hover {
+  background-color: var(--accent, #27272a);
+}
+
+.dropdownItem.active {
+  background-color: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
+}
+
+/* Size Control */
+.sizeControl {
+  display: flex;
+  gap: 8px;
+}
+
+.sizeButton {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 80px;
+  padding: 8px 10px;
+  background-color: var(--accent, #27272a);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: 5px;
+  color: var(--foreground, #fafafa);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.sizeButton:hover {
+  border-color: var(--muted, #a1a1aa);
+}
+
+.numberInput {
+  flex: 1;
+  padding: 8px 10px;
+  background-color: var(--accent, #27272a);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: 5px;
+  color: var(--foreground, #fafafa);
+  font-size: 13px;
+  text-align: center;
+}
+
+.numberInput:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+/* Toggle Group */
+.toggleGroup {
+  display: flex;
+  gap: 4px;
+}
+
+.toggleButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background-color: var(--accent, #27272a);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: 5px;
+  color: var(--muted, #a1a1aa);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.toggleButton:hover {
+  border-color: var(--muted, #a1a1aa);
+  color: var(--foreground, #fafafa);
+}
+
+.toggleButton:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.toggleButton.active {
+  background-color: #3b82f6;
+  border-color: #3b82f6;
+  color: white;
+}
+
+/* Color Control */
+.colorControl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.colorInput {
+  width: 40px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: 5px;
+  cursor: pointer;
+  background: none;
+}
+
+.colorInput::-webkit-color-swatch-wrapper {
+  padding: 3px;
+}
+
+.colorInput::-webkit-color-swatch {
+  border: none;
+  border-radius: 3px;
+}
+
+.colorTextInput {
+  flex: 1;
+  padding: 8px 10px;
+  background-color: var(--accent, #27272a);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: 5px;
+  color: var(--foreground, #fafafa);
+  font-size: 13px;
+  font-family: monospace;
+}
+
+.colorTextInput:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+/* Slider Control */
+.sliderControl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.slider {
+  flex: 1;
+  height: 4px;
+  appearance: none;
+  background: var(--accent, #27272a);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  background: #3b82f6;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.slider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+}
+
+.slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: #3b82f6;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.numberInputSmall {
+  width: 60px;
+  padding: 6px 8px;
+  background-color: var(--accent, #27272a);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: 5px;
+  color: var(--foreground, #fafafa);
+  font-size: 12px;
+  text-align: center;
+}
+
+.numberInputSmall:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+/* Remove number input spinners */
+.numberInput::-webkit-outer-spin-button,
+.numberInput::-webkit-inner-spin-button,
+.numberInputSmall::-webkit-outer-spin-button,
+.numberInputSmall::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.numberInput[type="number"],
+.numberInputSmall[type="number"] {
+  -moz-appearance: textfield;
+}
