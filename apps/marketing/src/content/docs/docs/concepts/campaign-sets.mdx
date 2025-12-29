@@ -64,22 +64,22 @@ Define how data maps to campaign structure:
 
 **Campaign Level:**
 ```
-Name: \${brand} - \${category} - \${region}
-Budget: \${daily_budget}
+Name: &#36;{brand} - &#36;{category} - &#36;{region}
+Budget: &#36;{daily_budget}
 Status: enabled
 ```
 
 **Ad Group Level:**
 ```
-Name: \${product_type}
-Default Bid: \${cpc_bid}
+Name: &#36;{product_type}
+Default Bid: &#36;{cpc_bid}
 ```
 
 **Ad Level:**
 ```
-Headline: \${product_name} | Now \${price}
-Description: \${description}
-URL: \${product_url}
+Headline: &#36;{product_name} | Now &#36;{price}
+Description: &#36;{description}
+URL: &#36;{product_url}
 ```
 
 ### Step 4: Apply Rules
@@ -179,7 +179,7 @@ column: category
 **Custom Grouping:**
 ```yaml
 grouping: expression
-expression: "\${region}-\${category}"
+expression: "&#36;{region}-&#36;{category}"
 # Custom grouping logic
 ```
 
@@ -188,14 +188,14 @@ expression: "\${region}-\${category}"
 Use variables in campaign names:
 
 ```
-Pattern: "[\${region}] \${category} - \${brand}"
+Pattern: "[&#36;{region}] &#36;{category} - &#36;{brand}"
 Result: "[US-West] Electronics - Samsung"
 ```
 
 **Reserved variables:**
-- `\${_row_number}` - Data row index
-- `\${_timestamp}` - Generation timestamp
-- `\${_campaign_set}` - Parent campaign set name
+- `&#36;{_row_number}` - Data row index
+- `&#36;{_timestamp}` - Generation timestamp
+- `&#36;{_campaign_set}` - Parent campaign set name
 
 ### Budget Allocation
 

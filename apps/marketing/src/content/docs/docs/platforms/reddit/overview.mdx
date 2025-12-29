@@ -115,26 +115,26 @@ platform: reddit
 ad_type: promoted_post
 
 campaign:
-  name: "\${brand} - \${category}"
+  name: "&#36;{brand} - &#36;{category}"
   objective: conversions
-  budget: \${daily_budget}
+  budget: &#36;{daily_budget}
 
 ad_group:
-  name: "\${product_type}"
+  name: "&#36;{product_type}"
   targeting:
-    communities: ["r/\${target_subreddit}"]
-    interests: ["\${interest_category}"]
+    communities: ["r/&#36;{target_subreddit}"]
+    interests: ["&#36;{interest_category}"]
   bid:
     strategy: cpc
-    amount: \${bid_amount}
+    amount: &#36;{bid_amount}
 
 ad:
-  headline: "\${product_name} - \${tagline}"
+  headline: "&#36;{product_name} - &#36;{tagline}"
   body: |
-    \${description}
+    &#36;{description}
 
-    Shop now: \${url}
-  image: \${image_url}
+    Shop now: &#36;{url}
+  image: &#36;{image_url}
   cta: "Shop Now"
 ```
 

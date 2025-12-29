@@ -82,7 +82,7 @@ Configure polling frequency:
   "endpoint": "https://api.yourstore.com/products",
   "refreshInterval": 3600,
   "headers": {
-    "Authorization": "Bearer \${API_KEY}"
+    "Authorization": "Bearer &#36;{API_KEY}"
   }
 }
 ```
@@ -337,8 +337,8 @@ post_sync_actions:
   - type: webhook
     url: "https://yourapp.com/webhooks/sync-complete"
     payload:
-      campaign_set: \${campaign_set_id}
-      campaigns_synced: \${sync_count}
+      campaign_set: &#36;{campaign_set_id}
+      campaigns_synced: &#36;{sync_count}
 
   - type: email
     to: "team@company.com"

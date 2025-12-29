@@ -84,25 +84,25 @@ name: Reddit - Product Ads
 platform: reddit
 
 campaign:
-  name: "[Reddit] \${category} Products"
+  name: "[Reddit] &#36;{category} Products"
   objective: conversions
-  budget: \${reddit_budget}
+  budget: &#36;{reddit_budget}
 
 ad_group:
-  name: "\${name}"
+  name: "&#36;{name}"
   targeting:
-    communities: \${reddit_subreddits}
+    communities: &#36;{reddit_subreddits}
   bid:
     strategy: cpc
     amount: 0.75
 
 ad:
-  headline: "\${reddit_headline|\${name} - Now $\${price}}"
+  headline: "&#36;{reddit_headline|&#36;{name} - Now $&#36;{price}}"
   body: |
-    \${description}
+    &#36;{description}
 
-    Check it out: \${url}
-  image: \${image_url}
+    Check it out: &#36;{url}
+  image: &#36;{image_url}
 ```
 
 **Reddit-specific considerations:**
@@ -117,24 +117,24 @@ name: Google - Search Ads
 platform: google
 
 campaign:
-  name: "[Google] \${category}"
+  name: "[Google] &#36;{category}"
   objective: conversions
-  budget: \${google_budget}
+  budget: &#36;{google_budget}
 
 ad_group:
-  name: "\${name}"
-  keywords: \${google_keywords}
+  name: "&#36;{name}"
+  keywords: &#36;{google_keywords}
   match_type: phrase
 
 ad:
   headlines:
-    - "\${google_headline_1|\${name}}"
-    - "\${google_headline_2|$\${price}}"
-    - "Shop \${category} Today"
+    - "&#36;{google_headline_1|&#36;{name}}"
+    - "&#36;{google_headline_2|$&#36;{price}}"
+    - "Shop &#36;{category} Today"
   descriptions:
-    - "\${description}"
+    - "&#36;{description}"
     - "Free shipping on orders $50+"
-  final_url: \${url}?utm_source=google
+  final_url: &#36;{url}?utm_source=google
 ```
 
 **Google-specific considerations:**
@@ -149,23 +149,23 @@ name: Meta - Image Ads
 platform: meta
 
 campaign:
-  name: "[Meta] \${category}"
+  name: "[Meta] &#36;{category}"
   objective: conversions
-  budget: \${meta_budget}
+  budget: &#36;{meta_budget}
 
 ad_set:
-  name: "\${name}"
+  name: "&#36;{name}"
   targeting:
-    interests: \${meta_interests}
+    interests: &#36;{meta_interests}
     age_range: [25, 55]
     placements: [facebook_feed, instagram_feed]
 
 ad:
-  primary_text: "\${meta_primary_text|\${description}}"
-  headline: "\${name}"
-  description: "Starting at $\${price}"
-  link: \${url}?utm_source=meta
-  image: \${image_url}
+  primary_text: "&#36;{meta_primary_text|&#36;{description}}"
+  headline: "&#36;{name}"
+  description: "Starting at $&#36;{price}"
+  link: &#36;{url}?utm_source=meta
+  image: &#36;{image_url}
   cta: "Shop Now"
 ```
 

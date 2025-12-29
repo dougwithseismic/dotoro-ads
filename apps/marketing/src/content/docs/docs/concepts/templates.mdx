@@ -18,24 +18,24 @@ A template is a reusable blueprint for campaign content. It specifies:
 
 ## Variable Syntax
 
-Insert data source values using the `\${variable_name}` syntax:
+Insert data source values using the `&#36;{variable_name}` syntax:
 
 ```
-Headline: Get \${product_name} for \${price}!
-Description: Shop \${category} deals today.
-URL: https://shop.example.com/products/\${product_id}
+Headline: Get &#36;{product_name} for &#36;{price}!
+Description: Shop &#36;{category} deals today.
+URL: https://shop.example.com/products/&#36;{product_id}
 ```
 
 ### Variable Rules
 
-1. **Case-sensitive** - `\${ProductName}` differs from `\${product_name}`
-2. **No spaces** - Use underscores: `\${product_name}` not `\${product name}`
-3. **Fallback values** - Use `\${variable|default}` for missing data
+1. **Case-sensitive** - `&#36;{ProductName}` differs from `&#36;{product_name}`
+2. **No spaces** - Use underscores: `&#36;{product_name}` not `&#36;{product name}`
+3. **Fallback values** - Use `&#36;{variable|default}` for missing data
 
 ### Fallback Example
 
 ```
-Headline: \${product_name|Great Product} Now Available!
+Headline: &#36;{product_name|Great Product} Now Available!
 ```
 
 If `product_name` is empty, the headline becomes "Great Product Now Available!"
@@ -54,7 +54,7 @@ Most platforms support multiple headline options:
 
 **Best practices:**
 - Include the primary benefit
-- Use numbers when relevant: "Save \${discount}%"
+- Use numbers when relevant: "Save &#36;{discount}%"
 - Include a call to action
 
 ### Descriptions
@@ -62,8 +62,8 @@ Most platforms support multiple headline options:
 Extended text that supports your headlines:
 
 ```
-Description: \${product_name} is the perfect solution for
-\${target_audience}. Order now and get free shipping!
+Description: &#36;{product_name} is the perfect solution for
+&#36;{target_audience}. Order now and get free shipping!
 ```
 
 **Character limits vary by platform and ad format.**
@@ -73,7 +73,7 @@ Description: \${product_name} is the perfect solution for
 The landing page users visit after clicking:
 
 ```
-URL: https://example.com/\${category}/\${product_slug}?utm_campaign=\${campaign_id}
+URL: https://example.com/&#36;{category}/&#36;{product_slug}?utm_campaign=&#36;{campaign_id}
 ```
 
 **Dynamic URL features:**
@@ -111,14 +111,14 @@ Reddit supports promoted posts and comments:
 
 ```yaml
 # Promoted Post Template
-headline: \${product_name} - \${tagline}
+headline: &#36;{product_name} - &#36;{tagline}
 body: |
-  Looking for \${category}? Check out \${product_name}!
+  Looking for &#36;{category}? Check out &#36;{product_name}!
 
-  \${description}
+  &#36;{description}
 
-  Learn more: \${url}
-thumbnail: \${image_url}
+  Learn more: &#36;{url}
+thumbnail: &#36;{image_url}
 ```
 
 ### Google Ads
@@ -128,12 +128,12 @@ Google Responsive Search Ads (RSAs) need multiple options:
 ```yaml
 # RSA Template
 headlines:
-  - \${product_name} | \${brand}
-  - Save \${discount}% Today
-  - Free Shipping on \${category}
+  - &#36;{product_name} | &#36;{brand}
+  - Save &#36;{discount}% Today
+  - Free Shipping on &#36;{category}
 descriptions:
-  - Shop \${product_name} from \${brand}. \${value_prop}
-  - \${category} deals starting at \${price}. Order now!
+  - Shop &#36;{product_name} from &#36;{brand}. &#36;{value_prop}
+  - &#36;{category} deals starting at &#36;{price}. Order now!
 ```
 
 ### Meta Ads
@@ -142,11 +142,11 @@ Meta supports various creative formats:
 
 ```yaml
 # Single Image Ad Template
-primary_text: \${headline}
-headline: \${product_name}
-description: \${description}
-link: \${url}
-image: \${image_url}
+primary_text: &#36;{headline}
+headline: &#36;{product_name}
+description: &#36;{description}
+link: &#36;{url}
+image: &#36;{image_url}
 ```
 
 ## Template Hierarchy
@@ -156,21 +156,21 @@ Templates support campaign structure generation:
 ### Campaign Level
 
 ```
-Campaign Name: \${brand} - \${category} - \${region}
-Budget: \${daily_budget}
+Campaign Name: &#36;{brand} - &#36;{category} - &#36;{region}
+Budget: &#36;{daily_budget}
 ```
 
 ### Ad Group Level
 
 ```
-Ad Group Name: \${subcategory} - \${targeting}
-Bid: \${bid_amount}
+Ad Group Name: &#36;{subcategory} - &#36;{targeting}
+Bid: &#36;{bid_amount}
 ```
 
 ### Ad Level
 
 ```
-Ad Name: \${product_id} - \${variant}
+Ad Name: &#36;{product_id} - &#36;{variant}
 Headlines: ...
 Descriptions: ...
 ```

@@ -52,7 +52,7 @@ Connect to external APIs for real-time data from e-commerce platforms, CRMs, or 
   "type": "api",
   "endpoint": "https://api.yourstore.com/products",
   "headers": {
-    "Authorization": "Bearer \${API_KEY}"
+    "Authorization": "Bearer &#36;{API_KEY}"
   },
   "refreshInterval": 3600
 }
@@ -69,13 +69,13 @@ Column mapping defines how your data source fields become campaign variables.
 
 ### Variable Syntax
 
-Use the `\${variable_name}` syntax in templates to reference data source columns:
+Use the `&#36;{variable_name}` syntax in templates to reference data source columns:
 
 | Data Source Column | Variable | Example Value |
 |-------------------|----------|---------------|
-| `product_name` | `\${product_name}` | "Premium Widget" |
-| `price` | `\${price}` | "29.99" |
-| `category` | `\${category}` | "Electronics" |
+| `product_name` | `&#36;{product_name}` | "Premium Widget" |
+| `price` | `&#36;{price}` | "29.99" |
+| `category` | `&#36;{category}` | "Electronics" |
 
 ### Required Columns
 

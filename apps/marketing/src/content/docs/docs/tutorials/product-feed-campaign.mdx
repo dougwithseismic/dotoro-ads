@@ -112,7 +112,7 @@ Only advertise in-stock products:
 ### Configure Campaign Level
 
 ```yaml
-Campaign Name: \${category} Products - Automated
+Campaign Name: &#36;{category} Products - Automated
 Objective: Conversions
 Daily Budget: 50
 ```
@@ -120,9 +120,9 @@ Daily Budget: 50
 ### Configure Ad Group Level
 
 ```yaml
-Ad Group Name: \${product_name}
+Ad Group Name: &#36;{product_name}
 Targeting:
-  Interests: ["shopping", "deals", "\${category}"]
+  Interests: ["shopping", "deals", "&#36;{category}"]
 Bid Strategy: CPC
 Bid Amount: 0.75
 ```
@@ -130,15 +130,15 @@ Bid Amount: 0.75
 ### Configure Ad Level
 
 ```yaml
-Headline: \${product_name} - Now $\${price}!
+Headline: &#36;{product_name} - Now $&#36;{price}!
 Body: |
-  Looking for quality \${category}?
+  Looking for quality &#36;{category}?
 
-  \${description}
+  &#36;{description}
 
   Shop now at our online store!
-Destination URL: \${url}?utm_source=reddit&utm_campaign=\${product_id}
-Image: \${image_url}
+Destination URL: &#36;{url}?utm_source=reddit&utm_campaign=&#36;{product_id}
+Image: &#36;{image_url}
 Call to Action: Shop Now
 ```
 
@@ -243,9 +243,9 @@ Create multiple headline variations in your template:
 
 ```yaml
 Headlines:
-  - \${product_name} - Now $\${price}!
-  - Get \${product_name} for Only $\${price}
-  - \${product_name} | Free Shipping Today
+  - &#36;{product_name} - Now $&#36;{price}!
+  - Get &#36;{product_name} for Only $&#36;{price}
+  - &#36;{product_name} | Free Shipping Today
 ```
 
 ### Segment by Category
@@ -286,7 +286,7 @@ After campaigns run:
 ### "Character limit exceeded"
 
 - Shorten product descriptions
-- Use truncation in template: `\${description:0:100}...`
+- Use truncation in template: `&#36;{description:0:100}...`
 - Create platform-specific templates
 
 ### "Sync failing for some products"
