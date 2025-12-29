@@ -1095,15 +1095,24 @@ campaignSetsApp.openapi(syncCampaignsRoute, async (c) => {
     );
   }
 
-  // Validate fundingInstrumentId is present
+  // fundingInstrumentId is optional in Reddit v3 API
   const fundingInstrumentId = (config as Record<string, unknown> | null)?.fundingInstrumentId as string | undefined;
 
-  if (!fundingInstrumentId) {
-    throw new ApiException(
-      400,
-      ErrorCode.VALIDATION_ERROR,
-      "Funding instrument ID is required for Reddit sync. Please configure the campaign set with a funding instrument."
-    );
+  // Promote draft campaigns to pending so they can be synced
+  // The sync service skips campaigns with status "draft"
+  const promotedCampaigns = await db
+    .update(generatedCampaigns)
+    .set({ status: "pending" })
+    .where(
+      and(
+        eq(generatedCampaigns.campaignSetId, setId),
+        eq(generatedCampaigns.status, "draft")
+      )
+    )
+    .returning({ id: generatedCampaigns.id });
+
+  if (promotedCampaigns.length > 0) {
+    console.log(`[Sync] Promoted ${promotedCampaigns.length} draft campaigns to pending for set ${setId}`);
   }
 
   // Queue the sync job
@@ -1114,7 +1123,7 @@ campaignSetsApp.openapi(syncCampaignsRoute, async (c) => {
       campaignSetId: setId,
       userId,
       adAccountId,
-      fundingInstrumentId,
+      fundingInstrumentId, // Optional in v3
       platform: "reddit",
     };
 

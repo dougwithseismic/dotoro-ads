@@ -57,8 +57,8 @@ export interface RedditAdsAdapterConfig {
   client: RedditApiClient;
   /** Reddit ad account ID */
   accountId: string;
-  /** Funding instrument ID (required for campaign creation) */
-  fundingInstrumentId: string;
+  /** Funding instrument ID (optional in Reddit v3 API - billing is handled at account level) */
+  fundingInstrumentId?: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -91,6 +91,9 @@ function mapObjective(objective?: string): CampaignObjective {
     case "conversions":
       return "CONVERSIONS";
     default:
+      if (objective) {
+        console.warn(`[RedditAdapter] Unknown objective "${objective}", defaulting to AWARENESS`);
+      }
       return "AWARENESS";
   }
 }
@@ -108,6 +111,9 @@ function mapBidStrategy(strategy?: string): BidStrategy {
     case "manual_cpm":
       return "MANUAL_CPM";
     default:
+      if (strategy) {
+        console.warn(`[RedditAdapter] Unknown bid strategy "${strategy}", defaulting to AUTOMATIC`);
+      }
       return "AUTOMATIC";
   }
 }
@@ -142,7 +148,12 @@ function mapCallToAction(cta?: string): CallToAction {
     "PLAY_NOW",
   ];
 
-  return validCtas.includes(ctaUpper) ? ctaUpper : "LEARN_MORE";
+  if (!validCtas.includes(ctaUpper)) {
+    console.warn(`[RedditAdapter] Invalid call-to-action "${cta}", defaulting to LEARN_MORE`);
+    return "LEARN_MORE";
+  }
+
+  return ctaUpper;
 }
 
 /**
@@ -215,7 +226,7 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
 
   private readonly client: RedditApiClient;
   private readonly accountId: string;
-  private readonly fundingInstrumentId: string;
+  private readonly fundingInstrumentId?: string;
 
   constructor(config: RedditAdsAdapterConfig) {
     this.client = config.client;
@@ -234,7 +245,7 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
 
       const response = await this.client.post<
         RedditApiResponse<CampaignResponse>
-      >(`/accounts/${this.accountId}/campaigns`, redditCampaign);
+      >(`/ad_accounts/${this.accountId}/campaigns`, redditCampaign);
 
       return {
         success: true,
@@ -256,7 +267,7 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
       const updates = this.transformCampaignUpdate(campaign);
 
       await this.client.put<RedditApiResponse<CampaignResponse>>(
-        `/accounts/${this.accountId}/campaigns/${platformId}`,
+        `/ad_accounts/${this.accountId}/campaigns/${platformId}`,
         updates
       );
 
@@ -274,7 +285,7 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
    */
   async pauseCampaign(platformId: string): Promise<void> {
     await this.client.put<RedditApiResponse<CampaignResponse>>(
-      `/accounts/${this.accountId}/campaigns/${platformId}`,
+      `/ad_accounts/${this.accountId}/campaigns/${platformId}`,
       { status: "PAUSED" }
     );
   }
@@ -284,7 +295,7 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
    */
   async resumeCampaign(platformId: string): Promise<void> {
     await this.client.put<RedditApiResponse<CampaignResponse>>(
-      `/accounts/${this.accountId}/campaigns/${platformId}`,
+      `/ad_accounts/${this.accountId}/campaigns/${platformId}`,
       { status: "ACTIVE" }
     );
   }
@@ -293,7 +304,7 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
    * Delete a campaign from Reddit Ads
    */
   async deleteCampaign(platformId: string): Promise<void> {
-    await this.client.delete(`/accounts/${this.accountId}/campaigns/${platformId}`);
+    await this.client.delete(`/ad_accounts/${this.accountId}/campaigns/${platformId}`);
   }
 
   // ─── Ad Group Operations ───────────────────────────────────────────────────
@@ -310,7 +321,7 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
 
       const response = await this.client.post<
         RedditApiResponse<AdGroupResponse>
-      >(`/accounts/${this.accountId}/adgroups`, redditAdGroup);
+      >(`/ad_accounts/${this.accountId}/adgroups`, redditAdGroup);
 
       return {
         success: true,
@@ -332,7 +343,7 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
       const updates = this.transformAdGroupUpdate(adGroup);
 
       await this.client.put<RedditApiResponse<AdGroupResponse>>(
-        `/accounts/${this.accountId}/adgroups/${platformAdGroupId}`,
+        `/ad_accounts/${this.accountId}/adgroups/${platformAdGroupId}`,
         updates
       );
 
@@ -350,7 +361,7 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
    */
   async deleteAdGroup(platformAdGroupId: string): Promise<void> {
     await this.client.delete(
-      `/accounts/${this.accountId}/adgroups/${platformAdGroupId}`
+      `/ad_accounts/${this.accountId}/adgroups/${platformAdGroupId}`
     );
   }
 
@@ -377,7 +388,7 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
       const redditAd = this.transformAd(ad, platformAdGroupId);
 
       const response = await this.client.post<RedditApiResponse<AdResponse>>(
-        `/accounts/${this.accountId}/ads`,
+        `/ad_accounts/${this.accountId}/ads`,
         redditAd
       );
 
@@ -398,7 +409,7 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
       const updates = this.transformAdUpdate(ad);
 
       await this.client.put<RedditApiResponse<AdResponse>>(
-        `/accounts/${this.accountId}/ads/${platformAdId}`,
+        `/ad_accounts/${this.accountId}/ads/${platformAdId}`,
         updates
       );
 
@@ -415,7 +426,7 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
    * Delete an ad from Reddit Ads
    */
   async deleteAd(platformAdId: string): Promise<void> {
-    await this.client.delete(`/accounts/${this.accountId}/ads/${platformAdId}`);
+    await this.client.delete(`/ad_accounts/${this.accountId}/ads/${platformAdId}`);
   }
 
   // ─── Keyword Operations (No-op for Reddit) ─────────────────────────────────

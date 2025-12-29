@@ -113,7 +113,7 @@ describe("Sync Campaign Set Job Handler", () => {
     it("should successfully sync a campaign set", async () => {
       // Setup mocks
       mockAdAccountLookup.mockResolvedValue([
-        { id: "ad-account-789", userId: "user-456" },
+        { id: "ad-account-789", userId: "user-456", accountId: "reddit-account-abc123" },
       ]);
       mockGetValidTokens.mockResolvedValue({
         accessToken: "valid-access-token",
@@ -142,7 +142,7 @@ describe("Sync Campaign Set Job Handler", () => {
 
     it("should return partial success with errors", async () => {
       mockAdAccountLookup.mockResolvedValue([
-        { id: "ad-account-789", userId: "user-456" },
+        { id: "ad-account-789", userId: "user-456", accountId: "reddit-account-abc123" },
       ]);
       mockGetValidTokens.mockResolvedValue({
         accessToken: "valid-access-token",
@@ -181,7 +181,7 @@ describe("Sync Campaign Set Job Handler", () => {
 
     it("should throw error when OAuth tokens are not available", async () => {
       mockAdAccountLookup.mockResolvedValue([
-        { id: "ad-account-789", userId: "user-456" },
+        { id: "ad-account-789", userId: "user-456", accountId: "reddit-account-abc123" },
       ]);
       mockGetValidTokens.mockResolvedValue(null);
 
@@ -192,7 +192,7 @@ describe("Sync Campaign Set Job Handler", () => {
 
     it("should throw error when sync service fails", async () => {
       mockAdAccountLookup.mockResolvedValue([
-        { id: "ad-account-789", userId: "user-456" },
+        { id: "ad-account-789", userId: "user-456", accountId: "reddit-account-abc123" },
       ]);
       mockGetValidTokens.mockResolvedValue({
         accessToken: "valid-access-token",
@@ -231,7 +231,7 @@ describe("Sync Campaign Set Job Handler", () => {
 
     it("should record success on circuit breaker when campaigns sync successfully", async () => {
       mockAdAccountLookup.mockResolvedValue([
-        { id: "ad-account-789", userId: "user-456" },
+        { id: "ad-account-789", userId: "user-456", accountId: "reddit-account-abc123" },
       ]);
       mockGetValidTokens.mockResolvedValue({
         accessToken: "valid-access-token",
@@ -255,7 +255,7 @@ describe("Sync Campaign Set Job Handler", () => {
 
     it("should record failure on circuit breaker when all campaigns fail", async () => {
       mockAdAccountLookup.mockResolvedValue([
-        { id: "ad-account-789", userId: "user-456" },
+        { id: "ad-account-789", userId: "user-456", accountId: "reddit-account-abc123" },
       ]);
       mockGetValidTokens.mockResolvedValue({
         accessToken: "valid-access-token",
@@ -279,7 +279,7 @@ describe("Sync Campaign Set Job Handler", () => {
 
     it("should record failure on circuit breaker when sync throws error", async () => {
       mockAdAccountLookup.mockResolvedValue([
-        { id: "ad-account-789", userId: "user-456" },
+        { id: "ad-account-789", userId: "user-456", accountId: "reddit-account-abc123" },
       ]);
       mockGetValidTokens.mockResolvedValue({
         accessToken: "valid-access-token",
@@ -296,7 +296,7 @@ describe("Sync Campaign Set Job Handler", () => {
 
     it("should record success when at least some campaigns succeed", async () => {
       mockAdAccountLookup.mockResolvedValue([
-        { id: "ad-account-789", userId: "user-456" },
+        { id: "ad-account-789", userId: "user-456", accountId: "reddit-account-abc123" },
       ]);
       mockGetValidTokens.mockResolvedValue({
         accessToken: "valid-access-token",
@@ -348,7 +348,7 @@ describe("Sync Campaign Set Job Handler", () => {
       });
 
       mockAdAccountLookup.mockResolvedValue([
-        { id: "ad-account-789", userId: "user-456" },
+        { id: "ad-account-789", userId: "user-456", accountId: "reddit-account-abc123" },
       ]);
       mockGetValidTokens.mockResolvedValue({
         accessToken: "valid-access-token",
@@ -380,7 +380,7 @@ describe("Sync Campaign Set Job Handler", () => {
       });
 
       mockAdAccountLookup.mockResolvedValue([
-        { id: "ad-account-789", userId: "user-456" },
+        { id: "ad-account-789", userId: "user-456", accountId: "reddit-account-abc123" },
       ]);
       mockGetValidTokens.mockResolvedValue({
         accessToken: "valid-access-token",
@@ -411,7 +411,7 @@ describe("Sync Campaign Set Job Handler", () => {
       jobEvents.on(`sync:${mockJobId}:done`, doneReceived);
 
       mockAdAccountLookup.mockResolvedValue([
-        { id: "ad-account-789", userId: "user-456" },
+        { id: "ad-account-789", userId: "user-456", accountId: "reddit-account-abc123" },
       ]);
       mockGetValidTokens.mockResolvedValue({
         accessToken: "valid-access-token",
@@ -440,7 +440,7 @@ describe("Sync Campaign Set Job Handler", () => {
       });
 
       mockAdAccountLookup.mockResolvedValue([
-        { id: "ad-account-789", userId: "user-456" },
+        { id: "ad-account-789", userId: "user-456", accountId: "reddit-account-abc123" },
       ]);
       mockGetValidTokens.mockResolvedValue({
         accessToken: "valid-access-token",
@@ -465,7 +465,7 @@ describe("Sync Campaign Set Job Handler", () => {
       jobEvents.on(`sync:${mockJobId}:done`, doneReceived);
 
       mockAdAccountLookup.mockResolvedValue([
-        { id: "ad-account-789", userId: "user-456" },
+        { id: "ad-account-789", userId: "user-456", accountId: "reddit-account-abc123" },
       ]);
       mockGetValidTokens.mockResolvedValue({
         accessToken: "valid-access-token",
@@ -488,7 +488,7 @@ describe("Sync Campaign Set Job Handler", () => {
       });
 
       mockAdAccountLookup.mockResolvedValue([
-        { id: "ad-account-789", userId: "user-456" },
+        { id: "ad-account-789", userId: "user-456", accountId: "reddit-account-abc123" },
       ]);
       mockGetValidTokens.mockResolvedValue({
         accessToken: "valid-access-token",

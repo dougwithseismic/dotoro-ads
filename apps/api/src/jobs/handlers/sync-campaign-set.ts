@@ -88,7 +88,7 @@ export function createSyncCampaignSetHandler(): (
 
     const redditAdapter = new RedditAdsAdapter({
       client: redditClient,
-      accountId: adAccountId,
+      accountId: adAccount.accountId,  // Use Reddit's actual account_id, not our internal UUID
       fundingInstrumentId,
     });
 

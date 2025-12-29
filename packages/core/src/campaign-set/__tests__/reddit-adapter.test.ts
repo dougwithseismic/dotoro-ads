@@ -551,7 +551,7 @@ describe("RedditAdsAdapter - Campaign Operations", () => {
       const result = await adapter.createCampaign(campaign);
 
       expect(mockClient.post).toHaveBeenCalledWith(
-        "/accounts/test-account-123/campaigns",
+        "/ad_accounts/test-account-123/campaigns",
         expect.objectContaining({
           name: "Test Campaign",
           funding_instrument_id: "funding-instrument-456",
@@ -592,7 +592,7 @@ describe("RedditAdsAdapter - Campaign Operations", () => {
       const result = await adapter.updateCampaign(campaign, "platform-campaign-456");
 
       expect(mockClient.put).toHaveBeenCalledWith(
-        "/accounts/test-account-123/campaigns/platform-campaign-456",
+        "/ad_accounts/test-account-123/campaigns/platform-campaign-456",
         expect.objectContaining({
           name: "Updated Campaign Name",
         })
@@ -611,7 +611,7 @@ describe("RedditAdsAdapter - Campaign Operations", () => {
       await adapter.pauseCampaign("platform-campaign-123");
 
       expect(mockClient.put).toHaveBeenCalledWith(
-        "/accounts/test-account-123/campaigns/platform-campaign-123",
+        "/ad_accounts/test-account-123/campaigns/platform-campaign-123",
         expect.objectContaining({
           status: "PAUSED",
         })
@@ -628,7 +628,7 @@ describe("RedditAdsAdapter - Campaign Operations", () => {
       await adapter.resumeCampaign("platform-campaign-123");
 
       expect(mockClient.put).toHaveBeenCalledWith(
-        "/accounts/test-account-123/campaigns/platform-campaign-123",
+        "/ad_accounts/test-account-123/campaigns/platform-campaign-123",
         expect.objectContaining({
           status: "ACTIVE",
         })
@@ -643,7 +643,7 @@ describe("RedditAdsAdapter - Campaign Operations", () => {
       await adapter.deleteCampaign("platform-campaign-123");
 
       expect(mockClient.delete).toHaveBeenCalledWith(
-        "/accounts/test-account-123/campaigns/platform-campaign-123"
+        "/ad_accounts/test-account-123/campaigns/platform-campaign-123"
       );
     });
   });
@@ -681,7 +681,7 @@ describe("RedditAdsAdapter - Ad Group Operations", () => {
       const result = await adapter.createAdGroup(adGroup, "platform-campaign-123");
 
       expect(mockClient.post).toHaveBeenCalledWith(
-        "/accounts/test-account-123/adgroups",
+        "/ad_accounts/test-account-123/adgroups",
         expect.objectContaining({
           name: "Test Ad Group",
           campaign_id: "platform-campaign-123",
@@ -722,7 +722,7 @@ describe("RedditAdsAdapter - Ad Group Operations", () => {
       const result = await adapter.updateAdGroup(adGroup, "platform-adgroup-456");
 
       expect(mockClient.put).toHaveBeenCalledWith(
-        "/accounts/test-account-123/adgroups/platform-adgroup-456",
+        "/ad_accounts/test-account-123/adgroups/platform-adgroup-456",
         expect.objectContaining({
           name: "Updated Ad Group",
         })
@@ -739,7 +739,7 @@ describe("RedditAdsAdapter - Ad Group Operations", () => {
       await adapter.deleteAdGroup("platform-adgroup-123");
 
       expect(mockClient.delete).toHaveBeenCalledWith(
-        "/accounts/test-account-123/adgroups/platform-adgroup-123"
+        "/ad_accounts/test-account-123/adgroups/platform-adgroup-123"
       );
     });
   });
@@ -777,7 +777,7 @@ describe("RedditAdsAdapter - Ad Operations", () => {
       const result = await adapter.createAd(ad, "platform-adgroup-123");
 
       expect(mockClient.post).toHaveBeenCalledWith(
-        "/accounts/test-account-123/ads",
+        "/ad_accounts/test-account-123/ads",
         expect.objectContaining({
           ad_group_id: "platform-adgroup-123",
           headline: "Check out our new product!",
@@ -801,7 +801,7 @@ describe("RedditAdsAdapter - Ad Operations", () => {
       const result = await adapter.updateAd(ad, "platform-ad-456");
 
       expect(mockClient.put).toHaveBeenCalledWith(
-        "/accounts/test-account-123/ads/platform-ad-456",
+        "/ad_accounts/test-account-123/ads/platform-ad-456",
         expect.objectContaining({
           headline: "Updated Headline",
         })
@@ -818,7 +818,7 @@ describe("RedditAdsAdapter - Ad Operations", () => {
       await adapter.deleteAd("platform-ad-123");
 
       expect(mockClient.delete).toHaveBeenCalledWith(
-        "/accounts/test-account-123/ads/platform-ad-123"
+        "/ad_accounts/test-account-123/ads/platform-ad-123"
       );
     });
   });
