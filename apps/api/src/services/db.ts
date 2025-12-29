@@ -33,6 +33,9 @@ export {
   adAccounts,
   oauthTokens,
 
+  // Asset Folders
+  assetFolders,
+
   // Creatives
   creatives,
   creativeTags,
@@ -109,6 +112,10 @@ export type {
   NewAdAccount,
   OAuthToken,
   NewOAuthToken,
+
+  // Asset Folders
+  AssetFolder,
+  NewAssetFolder,
 
   // Creatives
   Creative,

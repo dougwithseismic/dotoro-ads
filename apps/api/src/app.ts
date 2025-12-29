@@ -17,15 +17,21 @@ import { campaignSetsApp } from "./routes/campaign-sets.js";
 import { jobsApp } from "./routes/jobs.js";
 import { googleAuthApp } from "./routes/google.js";
 import { googleSheetsApp } from "./routes/google-sheets.js";
+import { metaAuthApp } from "./routes/meta.js";
 import { authHandler } from "./routes/auth-handler.js";
 import { teamsApp } from "./routes/teams.js";
 import { invitationsApp } from "./routes/invitations.js";
+import { dashboardApp } from "./routes/dashboard.js";
+import { syncApp } from "./routes/sync.js";
+import { usersApp } from "./routes/users.js";
+import { assetsApp } from "./routes/assets.js";
 import { registerOpenAPIEndpoints, openApiConfig } from "./lib/openapi.js";
 import { ApiException, ErrorCode } from "./lib/errors.js";
 
 // CORS origins from environment variable
+// Includes web app, API, and marketing/docs site by default
 const corsOrigins = (
-  process.env.CORS_ORIGINS || "http://localhost:3000,http://localhost:3001"
+  process.env.CORS_ORIGINS || "http://localhost:3000,http://localhost:3001,http://localhost:4000"
 )
   .split(",")
   .map((origin) => origin.trim());
@@ -43,7 +49,7 @@ app.use(
   cors({
     origin: corsOrigins,
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization", "x-user-id"],
+    allowHeaders: ["Content-Type", "Authorization", "x-user-id", "x-team-id"],
     exposeHeaders: ["Content-Length"],
     maxAge: 600,
     credentials: true,
@@ -115,9 +121,14 @@ app.route("/", campaignSetsApp);
 app.route("/", jobsApp);
 app.route("/", googleAuthApp);
 app.route("/", googleSheetsApp);
+app.route("/", metaAuthApp);
 app.route("/", authHandler);
 app.route("/", teamsApp);
 app.route("/", invitationsApp);
+app.route("/", dashboardApp);
+app.route("/", syncApp);
+app.route("/", usersApp);
+app.route("/", assetsApp);
 
 // ============================================================================
 // OpenAPI Documentation
