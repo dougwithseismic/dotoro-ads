@@ -1,0 +1,391 @@
+---
+title: Transforms
+description: Aggregate and modify data before campaign generation
+---
+
+# Transforms
+
+Transforms allow you to reshape your data before it's used for campaign generation. They're powerful tools for aggregation, filtering, and data manipulation that sit between your data sources and campaign sets.
+
+## What is a Transform?
+
+A transform is a data pipeline that processes your source data:
+
+```
+Data Source → Transform → Campaign Set
+```
+
+**Common uses:**
+- Aggregate product data by category
+- Calculate totals and averages
+- Join data from multiple sources
+- Filter and deduplicate rows
+
+## Transform Pipeline
+
+Transforms process data through a series of stages:
+
+```
+Source → Filter → Group → Aggregate → Sort → Output
+```
+
+Each stage is optional, allowing flexible data manipulation.
+
+## Creating a Transform
+
+### Step 1: Select Source
+
+1. Navigate to **Transforms** > **New Transform**
+2. Select the source data source
+3. Preview available columns
+
+### Step 2: Configure Stages
+
+Add processing stages as needed:
+
+```yaml
+transform:
+  name: "Products by Category"
+  source: product_feed
+  stages:
+    - filter:
+        condition: inventory > 0
+    - group:
+        by: [category]
+    - aggregate:
+        total_products: count(*)
+        avg_price: avg(price)
+        min_price: min(price)
+        max_price: max(price)
+    - sort:
+        by: total_products
+        order: desc
+```
+
+### Step 3: Preview Output
+
+1. Click **Preview** to see transformed data
+2. Verify row count and values
+3. Check for missing or unexpected data
+
+### Step 4: Save and Use
+
+1. Save the transform
+2. Use as data source in campaign sets
+3. Transform re-runs automatically when source updates
+
+## Transform Stages
+
+### Filter Stage
+
+Remove rows based on conditions:
+
+```yaml
+filter:
+  condition: price > 0 AND inventory > 0
+```
+
+**Operators:**
+- `AND`, `OR`, `NOT` - Logical operators
+- `=`, `!=`, `>`, `<`, `>=`, `<=` - Comparison
+- `IN`, `NOT IN` - List membership
+- `LIKE`, `NOT LIKE` - Pattern matching
+
+### Group Stage
+
+Group rows by one or more columns:
+
+```yaml
+group:
+  by: [category, brand]
+```
+
+**Result:** One output row per unique combination of grouped columns.
+
+### Aggregate Stage
+
+Calculate summary values for grouped data:
+
+```yaml
+aggregate:
+  total_revenue: sum(price * quantity)
+  product_count: count(*)
+  avg_rating: avg(rating)
+  top_product: first(product_name)
+```
+
+**Aggregation Functions:**
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `count(*)` | Row count | `count(*)` |
+| `count(column)` | Non-null count | `count(price)` |
+| `sum(column)` | Sum of values | `sum(revenue)` |
+| `avg(column)` | Average | `avg(price)` |
+| `min(column)` | Minimum | `min(price)` |
+| `max(column)` | Maximum | `max(price)` |
+| `first(column)` | First value | `first(name)` |
+| `last(column)` | Last value | `last(date)` |
+| `concat(column)` | Join strings | `concat(tag, ", ")` |
+
+### Sort Stage
+
+Order output rows:
+
+```yaml
+sort:
+  by: revenue
+  order: desc
+  nulls: last
+```
+
+**Options:**
+- `asc` - Ascending (A-Z, 0-9)
+- `desc` - Descending (Z-A, 9-0)
+- `nulls: first|last` - Null value placement
+
+### Limit Stage
+
+Restrict output rows:
+
+```yaml
+limit: 100
+offset: 0
+```
+
+### Compute Stage
+
+Create calculated columns:
+
+```yaml
+compute:
+  margin: price - cost
+  margin_percent: (price - cost) / price * 100
+  full_name: concat(first_name, " ", last_name)
+  discounted_price: price * 0.9
+```
+
+**Supported operations:**
+- Arithmetic: `+`, `-`, `*`, `/`, `%`
+- String: `concat()`, `upper()`, `lower()`, `trim()`
+- Date: `year()`, `month()`, `day()`, `date_diff()`
+- Conditional: `if(condition, then, else)`
+
+## Transform Examples
+
+### Category Summary
+
+Aggregate products by category for category-level campaigns:
+
+```yaml
+name: "Category Summary"
+source: products
+stages:
+  - filter:
+      condition: status = "active"
+  - group:
+      by: [category]
+  - aggregate:
+      product_count: count(*)
+      total_inventory: sum(inventory)
+      price_range: concat(min(price), " - ", max(price))
+      featured_product: first(product_name)
+  - sort:
+      by: product_count
+      order: desc
+```
+
+**Output:**
+| category | product_count | total_inventory | price_range | featured_product |
+|----------|---------------|-----------------|-------------|------------------|
+| Electronics | 450 | 12500 | 9.99 - 1999.99 | iPhone 15 |
+| Clothing | 320 | 8400 | 12.99 - 299.99 | Winter Jacket |
+| Home | 180 | 3200 | 4.99 - 599.99 | Smart Thermostat |
+
+### Regional Performance
+
+Calculate regional metrics for geo-targeted campaigns:
+
+```yaml
+name: "Regional Performance"
+source: sales_data
+stages:
+  - filter:
+      condition: date >= "2025-01-01"
+  - group:
+      by: [region, state]
+  - aggregate:
+      total_sales: sum(revenue)
+      order_count: count(*)
+      avg_order_value: avg(revenue)
+  - compute:
+      performance_tier: |
+        if(total_sales > 100000, "high",
+        if(total_sales > 50000, "medium", "low"))
+  - sort:
+      by: total_sales
+      order: desc
+```
+
+### Product Rankings
+
+Rank products for bid optimization:
+
+```yaml
+name: "Product Rankings"
+source: products
+stages:
+  - filter:
+      condition: inventory > 0 AND price > 0
+  - compute:
+      profit_margin: (price - cost) / price
+      performance_score: sales_30d * profit_margin
+  - sort:
+      by: performance_score
+      order: desc
+  - limit: 500
+  - compute:
+      rank: row_number()
+      tier: if(rank <= 50, "top", if(rank <= 200, "mid", "standard"))
+```
+
+## Chaining Transforms
+
+Use the output of one transform as input to another:
+
+```yaml
+# Transform 1: Product aggregation
+name: "Category Products"
+source: raw_products
+# ... aggregation logic
+
+# Transform 2: Regional overlay
+name: "Regional Category Campaigns"
+source: transform("Category Products")
+stages:
+  - join:
+      source: regional_settings
+      on: category = region_category
+  - compute:
+      campaign_name: concat(region, " - ", category)
+      budget: base_budget * regional_multiplier
+```
+
+## Transform Scheduling
+
+### On-Demand
+
+Transforms run when:
+- Source data changes
+- Manual trigger via **Run Now**
+- Campaign set generation
+
+### Scheduled
+
+Configure automatic execution:
+
+```yaml
+schedule:
+  frequency: daily
+  time: "03:00"
+  timezone: "UTC"
+```
+
+### Dependencies
+
+Transforms track source dependencies:
+- Re-run automatically when sources update
+- Chain updates propagate correctly
+- Failed dependencies block execution
+
+## Performance Considerations
+
+### Large Datasets
+
+For transforms processing 100k+ rows:
+
+1. **Filter early** - Reduce data before aggregation
+2. **Limit output** - Cap rows if full dataset not needed
+3. **Index columns** - Group/sort columns should be indexed
+4. **Monitor duration** - Set timeout limits
+
+### Memory Usage
+
+Complex aggregations may require significant memory:
+
+- Avoid grouping by high-cardinality columns
+- Use approximate functions for estimates
+- Break into multiple smaller transforms
+
+### Caching
+
+Transform outputs are cached:
+
+- Cache invalidates when source changes
+- Manual cache clear available
+- Cache duration configurable
+
+## Debugging Transforms
+
+### Preview Mode
+
+Test transforms with subset of data:
+
+```yaml
+preview:
+  limit: 100
+  show_stages: true
+```
+
+### Stage-by-Stage
+
+View data at each pipeline stage:
+
+1. Open transform
+2. Enable **Debug Mode**
+3. Run transform
+4. View row counts and samples per stage
+
+### Common Issues
+
+**"Column not found":**
+- Column name typo or case mismatch
+- Column doesn't exist in source
+- Column removed by earlier stage
+
+**"Type mismatch":**
+- Aggregating non-numeric column with sum/avg
+- Date function on text column
+- Solution: Cast or filter invalid data
+
+**"Out of memory":**
+- Too many groups or high cardinality
+- Solution: Add filters or reduce grouping
+
+## Best Practices
+
+### Design
+
+1. **Single responsibility** - Each transform does one thing well
+2. **Document purpose** - Clear names and descriptions
+3. **Filter early** - Remove unnecessary data first
+4. **Test incrementally** - Build stages one at a time
+
+### Maintenance
+
+1. **Monitor runtime** - Track performance over time
+2. **Review regularly** - Update as source data evolves
+3. **Version control** - Track changes to transform logic
+4. **Archive unused** - Remove obsolete transforms
+
+### Organization
+
+1. **Naming conventions** - `source_purpose_output`
+2. **Folder structure** - Group related transforms
+3. **Dependencies map** - Document transform chains
+
+## Next Steps
+
+- [Data Sources](/docs/concepts/data-sources/) - Connect source data
+- [Campaign Sets](/docs/concepts/campaign-sets/) - Use transforms in campaigns
+- [Rules](/docs/concepts/rules/) - Apply conditional logic

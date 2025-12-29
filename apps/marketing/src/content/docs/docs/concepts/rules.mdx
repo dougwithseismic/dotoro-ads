@@ -1,0 +1,310 @@
+---
+title: Rules
+description: Automate campaign logic with Dotoro's powerful rules engine
+---
+
+# Rules
+
+Rules enable you to automate decision-making in your campaigns. They apply conditional logic to filter data, modify content, and control campaign behavior based on your business requirements.
+
+## What are Rules?
+
+Rules are condition-action pairs that execute during campaign generation:
+
+```
+IF condition THEN action
+```
+
+**Example:**
+```
+IF price > 100 THEN set budget = 50
+IF category = "electronics" THEN add targeting = "tech_enthusiasts"
+```
+
+## Rule Types
+
+### Filter Rules
+
+Control which data rows become campaigns:
+
+```yaml
+# Only create campaigns for in-stock products
+rule: filter
+condition: inventory > 0
+```
+
+**Use cases:**
+- Exclude out-of-stock items
+- Filter by minimum price threshold
+- Limit to specific categories
+
+### Transform Rules
+
+Modify data values during generation:
+
+```yaml
+# Apply discount pricing
+rule: transform
+condition: sale_active = true
+action: price = price * 0.8
+```
+
+**Use cases:**
+- Calculate sale prices
+- Format text (uppercase, truncate)
+- Combine multiple fields
+
+### Assignment Rules
+
+Set campaign properties dynamically:
+
+```yaml
+# Increase budget for high-margin products
+rule: assign
+condition: margin > 50
+target: daily_budget
+value: 100
+```
+
+**Use cases:**
+- Dynamic budget allocation
+- Variable bid strategies
+- Conditional targeting options
+
+### Validation Rules
+
+Check data quality before generation:
+
+```yaml
+# Ensure all products have images
+rule: validate
+condition: image_url is_empty
+action: skip_row
+message: "Missing product image"
+```
+
+**Use cases:**
+- Require mandatory fields
+- Check data format compliance
+- Flag potential policy violations
+
+## Condition Syntax
+
+### Comparison Operators
+
+| Operator | Description | Example |
+|----------|-------------|---------|
+| `=` | Equals | `category = "shoes"` |
+| `!=` | Not equals | `status != "draft"` |
+| `>` | Greater than | `price > 50` |
+| `<` | Less than | `stock < 10` |
+| `>=` | Greater or equal | `rating >= 4` |
+| `<=` | Less or equal | `discount <= 30` |
+
+### Logical Operators
+
+Combine conditions with AND/OR:
+
+```yaml
+# Multiple conditions
+condition: price > 100 AND category = "premium"
+condition: sale_active = true OR clearance = true
+```
+
+### String Operations
+
+| Operation | Description | Example |
+|-----------|-------------|---------|
+| `contains` | Substring match | `title contains "sale"` |
+| `starts_with` | Prefix match | `sku starts_with "PRD-"` |
+| `ends_with` | Suffix match | `url ends_with ".html"` |
+| `matches` | Regex match | `email matches ".*@company.com"` |
+| `is_empty` | Null/empty check | `description is_empty` |
+
+### Numeric Operations
+
+| Operation | Description | Example |
+|-----------|-------------|---------|
+| `between` | Range check | `price between 10 and 100` |
+| `in` | List membership | `category in ["shoes", "bags"]` |
+
+## Rule Priority
+
+Rules execute in priority order (1 = highest):
+
+```yaml
+rules:
+  - priority: 1
+    name: "Exclude out of stock"
+    type: filter
+    condition: inventory = 0
+
+  - priority: 2
+    name: "Premium product budget"
+    type: assign
+    condition: category = "premium"
+    target: budget
+    value: 200
+```
+
+**Execution order matters:**
+1. Filter rules run first (remove rows)
+2. Transform rules modify remaining data
+3. Assignment rules set campaign properties
+4. Validation rules check final state
+
+## Rule Examples
+
+### E-commerce Campaign Rules
+
+```yaml
+# 1. Only advertise products with images
+- type: filter
+  condition: image_url is_empty
+  action: exclude
+
+# 2. Calculate sale price
+- type: transform
+  condition: sale_percent > 0
+  action: sale_price = price * (1 - sale_percent/100)
+
+# 3. Premium products get higher budget
+- type: assign
+  condition: price > 200
+  target: daily_budget
+  value: 50
+
+# 4. Budget boost for high-margin items
+- type: assign
+  condition: margin > 40
+  target: daily_budget
+  value: daily_budget * 1.5
+```
+
+### Location-Based Campaign Rules
+
+```yaml
+# 1. Filter to active markets
+- type: filter
+  condition: market_active = true
+
+# 2. Set regional targeting
+- type: assign
+  condition: region = "west_coast"
+  target: geo_targeting
+  value: ["CA", "OR", "WA"]
+
+# 3. Apply local messaging
+- type: transform
+  condition: has_local_store = true
+  action: headline = "Visit our \${city} store!"
+```
+
+## Creating Rules
+
+### Visual Rule Builder
+
+1. Navigate to **Rules** in the sidebar
+2. Click **New Rule**
+3. Select rule type (filter, transform, assign, validate)
+4. Build conditions using the visual builder
+5. Define actions
+6. Set priority
+7. Test with sample data
+8. Save rule
+
+### Inline Rules (Campaign Set)
+
+Apply rules directly in campaign set configuration:
+
+1. Open campaign set editor
+2. Navigate to **Rules** section
+3. Add inline rules specific to this campaign set
+4. These rules override global rules
+
+## Rule Sets
+
+Group related rules into reusable sets:
+
+```yaml
+name: "Holiday Campaign Rules"
+rules:
+  - name: "Holiday messaging"
+    type: transform
+    action: headline = "🎄 " + headline
+
+  - name: "Holiday budget boost"
+    type: assign
+    target: budget
+    value: budget * 1.25
+```
+
+**Benefits:**
+- Reuse across multiple campaign sets
+- Enable/disable entire sets at once
+- Version control for rule changes
+
+## Debugging Rules
+
+### Rule Preview
+
+Test rules before applying:
+
+1. Open rule editor
+2. Click **Preview**
+3. View sample data before/after rules
+4. Check filter counts
+5. Verify transformations
+
+### Execution Log
+
+Review rule execution for active campaigns:
+
+```
+Row 1: "Premium Widget"
+  ✓ Filter: inventory > 0 (passed)
+  ✓ Transform: sale_price calculated (19.99)
+  ✓ Assign: budget = 50
+
+Row 2: "Basic Widget"
+  ✗ Filter: inventory > 0 (failed - excluded)
+```
+
+### Common Issues
+
+**Rule not applying:**
+- Check condition syntax
+- Verify column names match data source
+- Confirm priority order
+
+**Wrong values:**
+- Review transformation logic
+- Check for conflicting rules
+- Verify data types (string vs number)
+
+## Best Practices
+
+### Rule Design
+
+1. **Start simple** - Add complexity incrementally
+2. **Test thoroughly** - Preview with diverse data
+3. **Document intent** - Name rules descriptively
+4. **Order matters** - Consider rule interactions
+
+### Performance
+
+1. **Filter early** - Reduce data before transforms
+2. **Limit complexity** - Avoid deeply nested conditions
+3. **Batch similar rules** - Group related logic
+
+### Maintenance
+
+1. **Review regularly** - Update rules as data changes
+2. **Archive unused** - Remove obsolete rules
+3. **Version control** - Track rule changes over time
+
+## Next Steps
+
+- [Campaign Sets](/docs/concepts/campaign-sets/) - Apply rules during generation
+- [Transforms](/docs/concepts/transforms/) - Advanced data transformation
+- [Data Sources](/docs/concepts/data-sources/) - Connect data for rule conditions

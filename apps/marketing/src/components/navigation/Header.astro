@@ -1,0 +1,586 @@
+---
+/**
+ * Header Navigation Component
+ *
+ * The main site navigation header with logo, nav links, and CTA buttons.
+ * Supports sticky positioning and mobile responsive menu.
+ * Dotoro - Open Source Programmatic Ad Builder
+ *
+ * @example
+ * ```astro
+ * <Header currentPath={Astro.url.pathname} />
+ * ```
+ */
+import Badge from '@/components/common/Badge.astro';
+import { DEFAULT_LOCALE, type Locale, getLocalizedPath } from '@/i18n';
+
+export interface NavLink {
+  label: string;
+  href: string;
+  external?: boolean;
+}
+
+export interface Props {
+  /** Current page path for active link highlighting */
+  currentPath?: string;
+  /** Language/locale for translations */
+  lang?: Locale;
+  /** Additional CSS classes */
+  class?: string;
+}
+
+const {
+  currentPath = '',
+  lang = DEFAULT_LOCALE,
+  class: className = '',
+} = Astro.props;
+
+// Navigation links - Dotoro marketing site
+const navLinks: NavLink[] = [
+  { label: 'Features', href: getLocalizedPath('/#features', lang) },
+  { label: 'How it works', href: getLocalizedPath('/#how-it-works', lang) },
+  { label: 'Pricing', href: getLocalizedPath('/#pricing', lang) },
+  { label: 'Docs', href: getLocalizedPath('/docs/', lang) },
+  { label: 'Contact', href: getLocalizedPath('/contact', lang) },
+];
+
+const isActive = (href: string) => {
+  if (href === '/') return currentPath === '/';
+  const basePath = href.split('#')[0];
+  return basePath ? currentPath.startsWith(basePath) : false;
+};
+---
+
+<header class:list={['header', className]}>
+  <nav class="header-navbar" aria-label="Main navigation">
+    <div class="header-container">
+      <!-- Logo Section -->
+      <a href={getLocalizedPath('/', lang)} class="header-logo" aria-label="Home">
+        <!-- Colorful Logo Icon -->
+        <div class="header-logo-icon">
+          <svg
+            width="36"
+            height="36"
+            viewBox="0 0 36 36"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+          >
+            <!-- Background circle with gradient -->
+            <defs>
+              <linearGradient id="logo-gradient-1" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#EB6DF7" />
+                <stop offset="100%" stop-color="#B46DF7" />
+              </linearGradient>
+              <linearGradient id="logo-gradient-2" x1="0%" y1="100%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#4DD4AC" />
+                <stop offset="100%" stop-color="#10B981" />
+              </linearGradient>
+              <linearGradient id="logo-gradient-3" x1="100%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#60A5FA" />
+                <stop offset="100%" stop-color="#3B82F6" />
+              </linearGradient>
+            </defs>
+            <!-- Main shape - abstract colorful form -->
+            <ellipse cx="18" cy="18" rx="14" ry="14" fill="url(#logo-gradient-1)" opacity="0.3" />
+            <path d="M8 22C8 16 12 10 18 10C24 10 28 16 28 22" stroke="url(#logo-gradient-1)" stroke-width="4" stroke-linecap="round" fill="none" />
+            <circle cx="12" cy="16" r="5" fill="url(#logo-gradient-2)" />
+            <circle cx="24" cy="16" r="5" fill="url(#logo-gradient-3)" />
+            <circle cx="18" cy="24" r="4" fill="#F472B6" />
+            <circle cx="18" cy="18" r="3" fill="white" />
+          </svg>
+        </div>
+        <span class="header-logo-text">Dotoro</span>
+        <div class="header-logo-badge">
+          <Badge variant="brand" size="sm">
+            <svg slot="icon" width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M6 0.5C6 0.5 7.5 2 7.5 4C7.5 6 6 7.5 6 7.5C6 7.5 4.5 6 4.5 4C4.5 2 6 0.5 6 0.5ZM2.5 6C2.5 6 4 7.5 4 9.5C4 11.5 2.5 13 2.5 13C2.5 13 1 11.5 1 9.5C1 7.5 2.5 6 2.5 6ZM9.5 6C9.5 6 11 7.5 11 9.5C11 11.5 9.5 13 9.5 13C9.5 13 8 11.5 8 9.5C8 7.5 9.5 6 9.5 6Z" fill="currentColor" />
+            </svg>
+            Open Source
+          </Badge>
+        </div>
+      </a>
+
+      <!-- Desktop Navigation Links -->
+      <ul class="header-nav-list">
+        {navLinks.map((link) => (
+          <li>
+            <a
+              href={link.href}
+              class:list={['header-nav-link', isActive(link.href) && 'active']}
+              {...link.external && { target: '_blank', rel: 'noopener noreferrer' }}
+            >
+              {link.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+
+      <!-- CTA Buttons -->
+      <div class="header-cta">
+        <a href="https://app.dotoro.io" class="header-btn header-btn-ghost">
+          Log In
+        </a>
+        <a href="https://github.com/withseismic/dotoro" target="_blank" rel="noopener noreferrer" class="header-btn header-btn-primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z" fill="currentColor" />
+          </svg>
+          Get Started
+        </a>
+      </div>
+
+      <!-- Mobile Menu Button -->
+      <button
+        class="header-menu-toggle"
+        aria-expanded="false"
+        aria-controls="mobile-menu"
+        aria-label="Toggle navigation menu"
+      >
+        <span class="header-menu-icon">
+          <span></span>
+          <span></span>
+          <span></span>
+        </span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Mobile Navigation Menu -->
+  <div id="mobile-menu" class="header-mobile-nav" aria-label="Mobile navigation">
+    <ul class="header-mobile-nav-list">
+      {navLinks.map((link) => (
+        <li>
+          <a
+            href={link.href}
+            class:list={['header-mobile-nav-link', isActive(link.href) && 'active']}
+            {...link.external && { target: '_blank', rel: 'noopener noreferrer' }}
+          >
+            {link.label}
+          </a>
+        </li>
+      ))}
+    </ul>
+    <div class="header-mobile-cta">
+      <a href="https://app.dotoro.io" class="header-btn header-btn-ghost header-btn-full">
+        Log In
+      </a>
+      <a href="https://github.com/withseismic/dotoro" target="_blank" rel="noopener noreferrer" class="header-btn header-btn-primary header-btn-full">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z" fill="currentColor" />
+        </svg>
+        Get Started
+      </a>
+    </div>
+  </div>
+</header>
+
+<script>
+  // Mobile menu toggle
+  const toggle = document.querySelector('.header-menu-toggle');
+  const mobileMenu = document.getElementById('mobile-menu');
+  const header = document.querySelector('.header');
+
+  toggle?.addEventListener('click', () => {
+    const isExpanded = toggle.getAttribute('aria-expanded') === 'true';
+    toggle.setAttribute('aria-expanded', String(!isExpanded));
+    mobileMenu?.classList.toggle('open');
+    header?.classList.toggle('menu-open');
+  });
+
+  // Close menu when clicking a link
+  const mobileLinks = mobileMenu?.querySelectorAll('a');
+  mobileLinks?.forEach((link) => {
+    link.addEventListener('click', () => {
+      toggle?.setAttribute('aria-expanded', 'false');
+      mobileMenu?.classList.remove('open');
+      header?.classList.remove('menu-open');
+    });
+  });
+
+  // Close menu on escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && mobileMenu?.classList.contains('open')) {
+      toggle?.setAttribute('aria-expanded', 'false');
+      mobileMenu?.classList.remove('open');
+      header?.classList.remove('menu-open');
+    }
+  });
+
+  // Add scroll behavior for sticky header
+  window.addEventListener('scroll', () => {
+    const currentScroll = window.scrollY;
+
+    if (currentScroll > 100) {
+      header?.classList.add('scrolled');
+    } else {
+      header?.classList.remove('scrolled');
+    }
+  });
+</script>
+
+<style>
+  /* ==========================================================================
+     HEADER BASE STYLES
+     Based on Figma NavBar design with rounded container
+     ========================================================================== */
+  .header {
+    position: sticky;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: var(--z-sticky);
+    padding: var(--spacing-4);
+    background: transparent;
+  }
+
+  .header.scrolled .header-navbar {
+    box-shadow: var(--shadow-md);
+  }
+
+  .header-navbar {
+    background-color: var(--color-bg-white);
+    border: 1px solid var(--color-stroke-light);
+    border-radius: 20px;
+    padding: var(--spacing-4);
+    max-width: var(--content-width-wide, 1400px);
+    margin: 0 auto;
+    transition: box-shadow var(--transition-normal) var(--ease-out);
+  }
+
+  .header-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-8);
+  }
+
+  /* ==========================================================================
+     LOGO SECTION
+     ========================================================================== */
+  .header-logo {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    text-decoration: none;
+    color: inherit;
+    flex-shrink: 0;
+    min-width: 200px;
+  }
+
+  .header-logo:hover {
+    color: inherit;
+  }
+
+  .header-logo-icon {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+  }
+
+  .header-logo-text {
+    font-family: var(--font-heading);
+    font-size: 26px;
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-black);
+    letter-spacing: -1.04px;
+  }
+
+  .header-logo-badge {
+    display: flex;
+    align-items: center;
+    margin-left: var(--spacing-2);
+  }
+
+  /* ==========================================================================
+     DESKTOP NAVIGATION
+     ========================================================================== */
+  .header-nav-list {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-10);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    flex: 1;
+    justify-content: center;
+  }
+
+  .header-nav-link {
+    font-family: var(--font-heading);
+    font-size: var(--text-body-xs);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-grey);
+    text-decoration: none;
+    text-transform: capitalize;
+    padding: var(--spacing-2) 0;
+    position: relative;
+    transition: color var(--transition-fast) var(--ease-out);
+    white-space: nowrap;
+  }
+
+  .header-nav-link:hover {
+    color: var(--color-text-black);
+  }
+
+  .header-nav-link.active {
+    color: var(--color-text-black);
+  }
+
+  /* ==========================================================================
+     CTA BUTTONS - Custom styled to match Figma
+     ========================================================================== */
+  .header-cta {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-4);
+    flex-shrink: 0;
+    min-width: 200px;
+    justify-content: flex-end;
+  }
+
+  .header-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-2);
+    font-family: var(--font-heading);
+    font-size: var(--text-body-xs);
+    font-weight: var(--font-weight-medium);
+    line-height: 1;
+    border-radius: var(--radius-xl);
+    cursor: pointer;
+    text-decoration: none;
+    white-space: nowrap;
+    transition:
+      background-color var(--transition-normal) var(--ease-out),
+      border-color var(--transition-normal) var(--ease-out),
+      color var(--transition-normal) var(--ease-out),
+      box-shadow var(--transition-normal) var(--ease-out),
+      transform var(--transition-fast) var(--ease-out);
+  }
+
+  .header-btn:focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+
+  /* Ghost button - Log In */
+  .header-btn-ghost {
+    background-color: var(--color-bg-white);
+    color: var(--color-text-grey);
+    border: 1px solid #DCE5ED;
+    padding: 13px var(--spacing-4);
+    box-shadow: 0 0 0 1px rgba(225, 228, 234, 0.6);
+  }
+
+  .header-btn-ghost:hover {
+    background-color: var(--color-bg-subtle);
+    color: var(--color-text-black);
+    border-color: var(--color-stroke-strong);
+  }
+
+  /* Primary button - Try For Free */
+  .header-btn-primary {
+    background-color: var(--color-text-black);
+    color: var(--color-text-white);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    padding: 12px var(--spacing-4);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .header-btn-primary::before {
+    content: '';
+    position: absolute;
+    bottom: -34px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90px;
+    height: 33px;
+    background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .header-btn-primary:hover {
+    background-color: #2a2828;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .header-btn-primary:active {
+    transform: translateY(0);
+    box-shadow: none;
+  }
+
+  .header-btn-primary svg {
+    color: #FFD700;
+  }
+
+  .header-btn-full {
+    width: 100%;
+  }
+
+  /* ==========================================================================
+     MOBILE MENU TOGGLE
+     ========================================================================== */
+  .header-menu-toggle {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+  }
+
+  .header-menu-icon {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    width: 24px;
+  }
+
+  .header-menu-icon span {
+    display: block;
+    height: 2px;
+    background-color: var(--color-text-black);
+    border-radius: 1px;
+    transition:
+      transform var(--transition-normal) var(--ease-out),
+      opacity var(--transition-normal) var(--ease-out);
+  }
+
+  .header-menu-toggle[aria-expanded="true"] .header-menu-icon span:nth-child(1) {
+    transform: translateY(7px) rotate(45deg);
+  }
+
+  .header-menu-toggle[aria-expanded="true"] .header-menu-icon span:nth-child(2) {
+    opacity: 0;
+  }
+
+  .header-menu-toggle[aria-expanded="true"] .header-menu-icon span:nth-child(3) {
+    transform: translateY(-7px) rotate(-45deg);
+  }
+
+  /* ==========================================================================
+     MOBILE NAVIGATION
+     ========================================================================== */
+  .header-mobile-nav {
+    display: none;
+    background-color: var(--color-bg-white);
+    border: 1px solid var(--color-stroke-light);
+    border-radius: 16px;
+    padding: var(--spacing-4) var(--spacing-4);
+    margin-top: var(--spacing-2);
+    max-width: var(--content-width-wide, 1400px);
+    margin-left: auto;
+    margin-right: auto;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .header-mobile-nav.open {
+    display: block;
+  }
+
+  .header-mobile-nav-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-1);
+  }
+
+  .header-mobile-nav-link {
+    display: block;
+    padding: var(--spacing-3) var(--spacing-4);
+    font-family: var(--font-heading);
+    font-size: var(--text-body-md);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-grey);
+    text-decoration: none;
+    border-radius: var(--radius-md);
+    transition: background-color var(--transition-fast) var(--ease-out);
+  }
+
+  .header-mobile-nav-link:hover {
+    background-color: var(--color-bg-subtle);
+    color: var(--color-text-black);
+  }
+
+  .header-mobile-nav-link.active {
+    color: var(--color-brand);
+    background-color: var(--color-brand-50);
+  }
+
+  .header-mobile-cta {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-3);
+    margin-top: var(--spacing-4);
+    padding-top: var(--spacing-4);
+    border-top: 1px solid var(--color-stroke-light);
+  }
+
+  /* ==========================================================================
+     RESPONSIVE STYLES
+     ========================================================================== */
+  @media (max-width: 1024px) {
+    .header-nav-list {
+      display: none;
+    }
+
+    .header-cta {
+      display: none;
+    }
+
+    .header-menu-toggle {
+      display: flex;
+    }
+
+    .header-logo {
+      min-width: auto;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .header {
+      padding: var(--spacing-3);
+    }
+
+    .header-navbar {
+      padding: var(--spacing-3);
+      border-radius: 16px;
+    }
+
+    .header-logo-text {
+      font-size: 22px;
+    }
+
+    .header-logo-badge {
+      display: none;
+    }
+
+    .header-mobile-nav {
+      margin-left: 0;
+      margin-right: 0;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .header {
+      padding: var(--spacing-2);
+    }
+
+    .header-navbar {
+      padding: var(--spacing-2) var(--spacing-3);
+      border-radius: 12px;
+    }
+
+    .header-logo-text {
+      font-size: 20px;
+    }
+  }
+</style>

@@ -1,0 +1,323 @@
+---
+title: Campaign Sets
+description: Generate and manage multiple campaigns from a single data source
+---
+
+# Campaign Sets
+
+Campaign sets are the core of Dotoro's campaign generation system. They combine data sources, templates, and rules to generate hundreds or thousands of campaigns automatically.
+
+## What is a Campaign Set?
+
+A campaign set is a configuration that defines:
+
+- **Data Source** - Where campaign data comes from
+- **Template** - How campaigns are structured
+- **Rules** - Conditional logic for generation
+- **Platform** - Target advertising platform
+- **Sync Settings** - How changes are pushed
+
+## Campaign Hierarchy
+
+Dotoro generates a three-level hierarchy matching platform structures:
+
+```
+Campaign Set
+└── Campaigns (1 per data row or grouping)
+    └── Ad Groups (based on template structure)
+        └── Ads (individual ad creatives)
+```
+
+### Example: E-commerce Product Campaigns
+
+```
+Campaign Set: "Spring Sale Products"
+├── Campaign: "Shoes - Running"
+│   ├── Ad Group: "Men's Running Shoes"
+│   │   ├── Ad: "Nike Air Max - $89"
+│   │   └── Ad: "Adidas Ultraboost - $120"
+│   └── Ad Group: "Women's Running Shoes"
+│       └── Ad: "Brooks Ghost - $130"
+└── Campaign: "Shoes - Casual"
+    └── Ad Group: "Lifestyle Sneakers"
+        └── Ad: "Converse All-Star - $60"
+```
+
+## Creating a Campaign Set
+
+### Step 1: Basic Configuration
+
+1. Navigate to **Campaign Sets** > **New Campaign Set**
+2. Enter a descriptive name
+3. Select target advertising platform
+4. Choose the advertising account to sync to
+
+### Step 2: Connect Data Source
+
+1. Select an existing data source or create new
+2. Preview available columns
+3. Verify row count and data quality
+
+### Step 3: Configure Templates
+
+Define how data maps to campaign structure:
+
+**Campaign Level:**
+```
+Name: \${brand} - \${category} - \${region}
+Budget: \${daily_budget}
+Status: enabled
+```
+
+**Ad Group Level:**
+```
+Name: \${product_type}
+Default Bid: \${cpc_bid}
+```
+
+**Ad Level:**
+```
+Headline: \${product_name} | Now \${price}
+Description: \${description}
+URL: \${product_url}
+```
+
+### Step 4: Apply Rules
+
+Add rules to filter data or modify campaigns:
+
+- Include only in-stock products
+- Set budgets based on margin
+- Apply promotional messaging
+
+### Step 5: Preview and Generate
+
+1. Click **Preview** to see generated campaigns
+2. Review campaign count and structure
+3. Check for validation warnings
+4. Click **Generate** to create campaigns
+
+## Sync Status
+
+Campaign sets track synchronization state:
+
+| Status | Description |
+|--------|-------------|
+| `draft` | Not yet synced to platform |
+| `syncing` | Sync in progress |
+| `synced` | All campaigns up to date |
+| `partial` | Some campaigns failed to sync |
+| `error` | Sync failed completely |
+
+### Sync Operations
+
+**Initial Sync:**
+- Creates all campaigns on the platform
+- Uploads creative assets
+- Applies targeting settings
+
+**Update Sync:**
+- Detects changes in data source
+- Updates modified campaigns
+- Adds new campaigns for new rows
+- Optionally pauses campaigns for deleted rows
+
+**Manual Sync:**
+```
+Campaign Set > Actions > Sync Now
+```
+
+## Managing Campaign Sets
+
+### Bulk Operations
+
+Perform actions on multiple campaign sets:
+
+- **Sync All** - Update all campaign sets
+- **Pause All** - Pause syncing
+- **Archive** - Move to archive
+
+### Campaign Set Actions
+
+| Action | Description |
+|--------|-------------|
+| **Sync** | Push changes to platform |
+| **Preview** | View generated campaigns |
+| **Edit** | Modify configuration |
+| **Duplicate** | Create a copy |
+| **Archive** | Stop syncing and archive |
+| **Delete** | Remove permanently |
+
+### Monitoring
+
+The campaign set dashboard shows:
+
+- Total campaigns generated
+- Sync status and last sync time
+- Campaign performance metrics
+- Error counts and warnings
+
+## Advanced Configuration
+
+### Grouping Strategies
+
+Control how data rows become campaigns:
+
+**One Campaign Per Row:**
+```yaml
+grouping: none
+# Each data row = 1 campaign
+```
+
+**Group by Column:**
+```yaml
+grouping: column
+column: category
+# All rows with same category = 1 campaign
+```
+
+**Custom Grouping:**
+```yaml
+grouping: expression
+expression: "\${region}-\${category}"
+# Custom grouping logic
+```
+
+### Naming Patterns
+
+Use variables in campaign names:
+
+```
+Pattern: "[\${region}] \${category} - \${brand}"
+Result: "[US-West] Electronics - Samsung"
+```
+
+**Reserved variables:**
+- `\${_row_number}` - Data row index
+- `\${_timestamp}` - Generation timestamp
+- `\${_campaign_set}` - Parent campaign set name
+
+### Budget Allocation
+
+**Fixed Budget:**
+```yaml
+budget_type: fixed
+budget: 100
+# Each campaign gets $100/day
+```
+
+**Proportional Budget:**
+```yaml
+budget_type: proportional
+total_budget: 5000
+weight_column: revenue
+# Budget allocated by revenue share
+```
+
+**Dynamic Budget (via Rules):**
+```yaml
+rules:
+  - condition: margin > 50
+    action: budget = budget * 1.5
+```
+
+### Scheduling
+
+Control when campaigns are active:
+
+```yaml
+schedule:
+  start_date: "2025-01-01"
+  end_date: "2025-01-31"
+  time_zone: "America/New_York"
+  day_parting:
+    - days: [monday, tuesday, wednesday, thursday, friday]
+      hours: [9, 10, 11, 12, 13, 14, 15, 16, 17]
+```
+
+## Error Handling
+
+### Common Errors
+
+**"Missing required field":**
+- A required column is empty in your data
+- Solution: Add fallback values or filter empty rows
+
+**"Character limit exceeded":**
+- Ad text exceeds platform limits
+- Solution: Shorten templates or truncate variables
+
+**"Invalid targeting":**
+- Targeting configuration is invalid
+- Solution: Verify geo-codes, interests, etc.
+
+**"Budget below minimum":**
+- Platform requires higher minimum budget
+- Solution: Increase budget or combine campaigns
+
+### Error Recovery
+
+When syncs fail:
+
+1. Review error details in campaign set
+2. Fix data source or template issues
+3. Click **Retry Failed** to re-sync only failed items
+4. Monitor sync status
+
+### Rollback
+
+Revert to previous state if needed:
+
+1. View sync history
+2. Select previous sync point
+3. Click **Restore** to revert changes
+4. Re-sync to apply restored configuration
+
+## Performance Optimization
+
+### Large Campaign Sets
+
+For campaign sets with 1000+ campaigns:
+
+1. **Use filters** - Reduce rows with filter rules
+2. **Batch syncing** - Enable incremental sync
+3. **Limit preview** - Preview sample only
+4. **Monitor quotas** - Stay within platform API limits
+
+### Sync Efficiency
+
+Optimize sync performance:
+
+- **Delta sync** - Only sync changed campaigns
+- **Parallel processing** - Sync multiple campaigns simultaneously
+- **Asset caching** - Reuse uploaded images/videos
+
+## Best Practices
+
+### Organization
+
+1. **Name clearly** - Include purpose, platform, date
+2. **Document configuration** - Add notes explaining choices
+3. **Version templates** - Track template changes
+4. **Archive old sets** - Keep workspace clean
+
+### Quality
+
+1. **Preview before sync** - Always review generated campaigns
+2. **Start small** - Test with subset of data first
+3. **Monitor after sync** - Check platform for issues
+4. **Review performance** - Adjust based on results
+
+### Maintenance
+
+1. **Schedule syncs** - Automate regular updates
+2. **Set alerts** - Get notified of sync failures
+3. **Review regularly** - Update rules as business changes
+4. **Clean up** - Remove unused campaign sets
+
+## Next Steps
+
+- [Data Sources](/docs/concepts/data-sources/) - Configure data for campaign sets
+- [Templates](/docs/concepts/templates/) - Create campaign templates
+- [Rules](/docs/concepts/rules/) - Add conditional logic
+- [Platform Guides](/docs/platforms/reddit/overview/) - Platform-specific setup

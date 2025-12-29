@@ -1,0 +1,170 @@
+---
+title: Data Sources
+description: Learn how to connect and manage data sources to power your Dotoro campaigns
+---
+
+# Data Sources
+
+Data sources are the foundation of Dotoro's campaign generation system. They provide the dynamic content that powers your advertising campaigns across platforms.
+
+## What is a Data Source?
+
+A data source is a connection to structured data that Dotoro uses to generate campaigns. Each row in your data source can become a campaign, ad group, or ad with unique content based on your configuration.
+
+## Supported Data Source Types
+
+### Google Sheets
+
+Connect directly to Google Sheets for real-time data synchronization.
+
+**Benefits:**
+- Automatic updates when spreadsheet changes
+- Collaborative editing with your team
+- No file uploads required
+
+**Setup:**
+1. Click **New Data Source** > **Google Sheets**
+2. Authorize Dotoro to access your Google account
+3. Select the spreadsheet and worksheet
+4. Map columns to campaign variables
+
+### CSV Upload
+
+Upload static data files for one-time or periodic campaign generation.
+
+**Supported formats:**
+- CSV (comma-separated values)
+- UTF-8 encoding recommended for special characters
+
+**Upload process:**
+1. Click **New Data Source** > **CSV Upload**
+2. Drag and drop or browse for your file
+3. Preview detected columns
+4. Confirm column mapping
+
+### REST API
+
+Connect to external APIs for real-time data from e-commerce platforms, CRMs, or custom systems.
+
+**Configuration:**
+```json
+{
+  "type": "api",
+  "endpoint": "https://api.yourstore.com/products",
+  "headers": {
+    "Authorization": "Bearer \${API_KEY}"
+  },
+  "refreshInterval": 3600
+}
+```
+
+**Features:**
+- Automatic refresh at configurable intervals
+- Header authentication support
+- JSON response parsing
+
+## Column Mapping
+
+Column mapping defines how your data source fields become campaign variables.
+
+### Variable Syntax
+
+Use the `\${variable_name}` syntax in templates to reference data source columns:
+
+| Data Source Column | Variable | Example Value |
+|-------------------|----------|---------------|
+| `product_name` | `\${product_name}` | "Premium Widget" |
+| `price` | `\${price}` | "29.99" |
+| `category` | `\${category}` | "Electronics" |
+
+### Required Columns
+
+Some columns are required depending on your campaign type:
+
+- **Headline/Title** - Primary ad text (max 30-90 characters depending on platform)
+- **Description** - Supporting ad text
+- **Final URL** - Landing page destination
+
+### Optional Enrichment
+
+Enhance your data with computed fields:
+
+- **Transforms** - Aggregate or modify data before use
+- **Rules** - Apply conditional logic to filter rows
+
+## Sync and Refresh
+
+### Manual Sync
+
+Trigger an immediate sync from the data source detail page:
+
+1. Open your data source
+2. Click **Sync Now**
+3. Review sync status and any errors
+
+### Scheduled Refresh
+
+For Google Sheets and API sources, configure automatic refresh:
+
+- **Hourly** - Best for frequently changing data
+- **Daily** - Suitable for stable product catalogs
+- **Weekly** - For rarely changing content
+
+### Sync Status
+
+| Status | Description |
+|--------|-------------|
+| `synced` | Data is current |
+| `syncing` | Sync in progress |
+| `error` | Sync failed - check error details |
+| `stale` | Data older than refresh interval |
+
+## Best Practices
+
+### Data Quality
+
+1. **Clean headers** - Use clear, lowercase column names without spaces
+2. **Consistent formatting** - Maintain uniform date, currency, and text formats
+3. **No empty rows** - Remove blank rows to avoid empty campaigns
+4. **Unique identifiers** - Include a unique ID column for tracking
+
+### Performance
+
+1. **Limit row count** - Large data sources (10,000+ rows) may slow sync times
+2. **Filter at source** - Pre-filter data before connecting to Dotoro
+3. **Use transforms** - Aggregate data to reduce campaign volume
+
+### Security
+
+1. **Protect API keys** - Use environment variables for sensitive credentials
+2. **Limit permissions** - Grant only read access to data sources
+3. **Review access** - Audit team member permissions regularly
+
+## Troubleshooting
+
+### "Column not found" Error
+
+Your template references a column that doesn't exist in the data source.
+
+**Solution:** Verify column names match exactly (case-sensitive).
+
+### "Sync failed" Error
+
+The data source couldn't be accessed.
+
+**Solutions:**
+- For Google Sheets: Re-authorize if access expired
+- For API: Verify endpoint URL and credentials
+- For CSV: Re-upload the file
+
+### "Invalid data format" Error
+
+A column contains data in an unexpected format.
+
+**Solution:** Check for mixed data types in numeric columns.
+
+## Next Steps
+
+- [Templates](/docs/concepts/templates/) - Learn to create templates using data source variables
+- [Rules](/docs/concepts/rules/) - Apply conditional logic to your data
+- [Transforms](/docs/concepts/transforms/) - Aggregate and modify data

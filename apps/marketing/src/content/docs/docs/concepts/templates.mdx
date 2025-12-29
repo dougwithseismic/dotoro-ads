@@ -1,0 +1,223 @@
+---
+title: Templates
+description: Create reusable campaign templates with dynamic variables in Dotoro
+---
+
+# Templates
+
+Templates define the structure and content of your campaigns. They combine static text with dynamic variables from your data sources to generate unique ads at scale.
+
+## What is a Template?
+
+A template is a reusable blueprint for campaign content. It specifies:
+
+- **Ad copy** - Headlines, descriptions, and body text
+- **Structure** - Campaign, ad group, and ad hierarchy
+- **Variables** - Dynamic placeholders filled from data sources
+- **Platform settings** - Platform-specific configurations
+
+## Variable Syntax
+
+Insert data source values using the `\${variable_name}` syntax:
+
+```
+Headline: Get \${product_name} for \${price}!
+Description: Shop \${category} deals today.
+URL: https://shop.example.com/products/\${product_id}
+```
+
+### Variable Rules
+
+1. **Case-sensitive** - `\${ProductName}` differs from `\${product_name}`
+2. **No spaces** - Use underscores: `\${product_name}` not `\${product name}`
+3. **Fallback values** - Use `\${variable|default}` for missing data
+
+### Fallback Example
+
+```
+Headline: \${product_name|Great Product} Now Available!
+```
+
+If `product_name` is empty, the headline becomes "Great Product Now Available!"
+
+## Template Components
+
+### Headlines
+
+Most platforms support multiple headline options:
+
+| Platform | Headlines | Max Length |
+|----------|-----------|------------|
+| Reddit | 1 | 300 characters |
+| Google | 3 | 30 characters each |
+| Meta | 1-5 | 40 characters each |
+
+**Best practices:**
+- Include the primary benefit
+- Use numbers when relevant: "Save \${discount}%"
+- Include a call to action
+
+### Descriptions
+
+Extended text that supports your headlines:
+
+```
+Description: \${product_name} is the perfect solution for
+\${target_audience}. Order now and get free shipping!
+```
+
+**Character limits vary by platform and ad format.**
+
+### Final URLs
+
+The landing page users visit after clicking:
+
+```
+URL: https://example.com/\${category}/\${product_slug}?utm_campaign=\${campaign_id}
+```
+
+**Dynamic URL features:**
+- Category-specific landing pages
+- Product detail pages
+- Campaign tracking parameters
+
+## Template Validation
+
+Dotoro validates templates against platform requirements before generating campaigns.
+
+### Validation Checks
+
+| Check | Description |
+|-------|-------------|
+| **Character limits** | Ensures text fits platform requirements |
+| **Required fields** | Verifies all mandatory fields are populated |
+| **URL format** | Validates URL structure and accessibility |
+| **Variable existence** | Confirms all variables exist in data source |
+| **Prohibited content** | Flags potentially disapproved content |
+
+### Validation Warnings
+
+Templates may display warnings for:
+
+- **Near limit** - Text approaching character limits
+- **Missing variables** - Variables not found in all data rows
+- **URL issues** - Redirects or slow-loading pages
+
+## Platform-Specific Templates
+
+### Reddit Ads
+
+Reddit supports promoted posts and comments:
+
+```yaml
+# Promoted Post Template
+headline: \${product_name} - \${tagline}
+body: |
+  Looking for \${category}? Check out \${product_name}!
+
+  \${description}
+
+  Learn more: \${url}
+thumbnail: \${image_url}
+```
+
+### Google Ads
+
+Google Responsive Search Ads (RSAs) need multiple options:
+
+```yaml
+# RSA Template
+headlines:
+  - \${product_name} | \${brand}
+  - Save \${discount}% Today
+  - Free Shipping on \${category}
+descriptions:
+  - Shop \${product_name} from \${brand}. \${value_prop}
+  - \${category} deals starting at \${price}. Order now!
+```
+
+### Meta Ads
+
+Meta supports various creative formats:
+
+```yaml
+# Single Image Ad Template
+primary_text: \${headline}
+headline: \${product_name}
+description: \${description}
+link: \${url}
+image: \${image_url}
+```
+
+## Template Hierarchy
+
+Templates support campaign structure generation:
+
+### Campaign Level
+
+```
+Campaign Name: \${brand} - \${category} - \${region}
+Budget: \${daily_budget}
+```
+
+### Ad Group Level
+
+```
+Ad Group Name: \${subcategory} - \${targeting}
+Bid: \${bid_amount}
+```
+
+### Ad Level
+
+```
+Ad Name: \${product_id} - \${variant}
+Headlines: ...
+Descriptions: ...
+```
+
+## Creating a Template
+
+1. Navigate to **Templates** in the sidebar
+2. Click **New Template**
+3. Select target platform
+4. Configure campaign structure
+5. Add variables from your data source
+6. Preview with sample data
+7. Save template
+
+## Template Versioning
+
+Dotoro tracks template versions:
+
+- **Draft** - Work in progress, not used for generation
+- **Published** - Active template used for new campaigns
+- **Archived** - Previous versions kept for reference
+
+## Best Practices
+
+### Writing Effective Ad Copy
+
+1. **Be specific** - Use exact numbers and details from data
+2. **Create urgency** - Limited time, limited stock messaging
+3. **Match intent** - Align copy with user search/interest
+4. **Test variations** - Create multiple headline options
+
+### Variable Usage
+
+1. **Validate data** - Ensure all variable values are appropriate
+2. **Handle edge cases** - Use fallbacks for missing data
+3. **Keep it readable** - Don't overuse variables
+4. **Test thoroughly** - Preview with various data rows
+
+### Performance
+
+1. **Start simple** - Begin with basic templates
+2. **Iterate based on data** - Improve using campaign performance
+3. **A/B test** - Compare different template approaches
+4. **Document decisions** - Note why templates work
+
+## Next Steps
+
+- [Data Sources](/docs/concepts/data-sources/) - Connect data to power your templates
+- [Campaign Sets](/docs/concepts/campaign-sets/) - Generate campaigns from templates
+- [Rules](/docs/concepts/rules/) - Apply conditional logic to templates

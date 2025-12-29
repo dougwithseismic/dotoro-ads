@@ -1,0 +1,267 @@
+---
+title: Reddit Connection Guide
+description: Step-by-step guide to connect your Reddit Ads account to Dotoro
+---
+
+# Connecting Reddit Ads to Dotoro
+
+This guide walks you through connecting your Reddit Ads account to Dotoro for campaign management.
+
+## Prerequisites
+
+Before you begin, ensure you have:
+
+- [ ] An active Reddit account
+- [ ] A Reddit Ads account at [ads.reddit.com](https://ads.reddit.com)
+- [ ] A valid funding instrument (payment method) in Reddit Ads
+- [ ] A Dotoro account with appropriate permissions
+
+## Step 1: Prepare Your Reddit Ads Account
+
+### Create an Ads Account
+
+If you don't have a Reddit Ads account:
+
+1. Go to [ads.reddit.com](https://ads.reddit.com)
+2. Click **Sign Up** or **Get Started**
+3. Complete the account setup wizard
+4. Verify your email address
+
+### Add a Funding Instrument
+
+Dotoro requires a valid funding instrument to sync campaigns:
+
+1. In Reddit Ads, go to **Billing**
+2. Click **Add payment method**
+3. Enter your payment details
+4. Set a billing threshold if desired
+
+### Note Your Account ID
+
+You'll need this during connection:
+
+1. In Reddit Ads, look at the URL or account switcher
+2. Your account ID looks like: `t2_xxxxxx`
+
+## Step 2: Initiate Connection in Dotoro
+
+### Navigate to Accounts
+
+1. Log in to Dotoro at [app.dotoro.io](https://app.dotoro.io)
+2. Go to **Settings** in the sidebar
+3. Select **Accounts** tab
+
+### Start Reddit Connection
+
+1. Click **Connect Account**
+2. Select **Reddit Ads** from the platform list
+3. Review the permissions Dotoro will request
+
+## Step 3: Authorize Access
+
+### Reddit OAuth Flow
+
+1. You'll be redirected to Reddit's authorization page
+2. Review the requested permissions:
+   - **Read account info** - View your ad accounts
+   - **Manage ads** - Create and edit campaigns
+   - **View reports** - Pull performance data
+3. Click **Allow** to authorize Dotoro
+
+### Handle Authorization Issues
+
+**"Access denied" error:**
+- Ensure you're logged into the correct Reddit account
+- Check that you have admin access to the ad account
+- Try clearing browser cookies and retrying
+
+**"Session expired" error:**
+- The authorization timed out
+- Start the connection process again
+
+## Step 4: Select Ad Accounts
+
+### Choose Accounts to Manage
+
+After authorization:
+
+1. Dotoro shows available Reddit ad accounts
+2. Select the accounts you want to manage
+3. Click **Connect Selected Accounts**
+
+### Account Types
+
+| Type | Description |
+|------|-------------|
+| **Personal** | Individual advertiser account |
+| **Business** | Company/organization account |
+| **Agency** | Multi-client management account |
+
+### Multiple Accounts
+
+You can connect multiple Reddit ad accounts:
+
+- Each account appears separately in Dotoro
+- Campaigns are organized by account
+- Billing remains per-account in Reddit
+
+## Step 5: Verify Connection
+
+### Check Connection Status
+
+1. Return to **Settings > Accounts**
+2. Your Reddit account should show as **Connected**
+3. The connection date and account name are displayed
+
+### Test the Connection
+
+1. Go to **Campaign Sets**
+2. Create a new campaign set
+3. Select **Reddit Ads** as the platform
+4. Your connected accounts should appear in the dropdown
+
+### Verify Permissions
+
+Dotoro will show if any permissions are missing:
+
+- ✅ **Full access** - All features available
+- ⚠️ **Limited access** - Some features restricted
+- ❌ **No access** - Re-authorization required
+
+## Managing Connected Accounts
+
+### View Account Details
+
+In **Settings > Accounts**:
+
+- View connected account name and ID
+- See last sync time
+- Check connection health
+
+### Refresh Authorization
+
+Reddit tokens expire periodically. To refresh:
+
+1. Click the account menu (⋮)
+2. Select **Refresh Authorization**
+3. Re-authorize if prompted
+
+### Disconnect Account
+
+To remove a Reddit connection:
+
+1. Click the account menu (⋮)
+2. Select **Disconnect**
+3. Confirm disconnection
+
+**Note:** Disconnecting removes Dotoro's access but does not affect live campaigns in Reddit.
+
+## Account Permissions
+
+### Required Permissions
+
+Dotoro requests these Reddit permissions:
+
+| Permission | Purpose |
+|------------|---------|
+| `ads.read` | View campaigns and performance |
+| `ads.write` | Create and edit campaigns |
+| `account.read` | View account details |
+| `reports.read` | Pull performance reports |
+
+### Granting Additional Permissions
+
+If new Dotoro features require more permissions:
+
+1. You'll be prompted to re-authorize
+2. Review the additional permissions
+3. Approve to continue using all features
+
+## Team Access
+
+### Sharing Reddit Connections
+
+Connected accounts are available to team members based on roles:
+
+| Role | Access |
+|------|--------|
+| **Owner** | Full access, can disconnect |
+| **Admin** | Full access, cannot disconnect |
+| **Editor** | Create/edit campaigns |
+| **Viewer** | View only |
+
+### Adding Team Members
+
+1. Go to **Settings > Team**
+2. Invite members with appropriate roles
+3. They can use connected Reddit accounts
+
+## Security Considerations
+
+### Token Security
+
+- Dotoro encrypts all OAuth tokens
+- Tokens are stored securely and never exposed
+- Access can be revoked from Reddit at any time
+
+### Revoking Access
+
+To revoke Dotoro's access from Reddit:
+
+1. Go to your [Reddit App Preferences](https://www.reddit.com/prefs/apps/)
+2. Find Dotoro in authorized apps
+3. Click **Revoke access**
+
+**Warning:** This immediately breaks the connection and stops all syncing.
+
+### Audit Access
+
+Review who has accessed your Reddit account:
+
+- Check Dotoro team member activity
+- Review Reddit's access log
+- Monitor for unauthorized activity
+
+## Troubleshooting
+
+### Connection Issues
+
+**"Unable to connect to Reddit":**
+- Check your internet connection
+- Reddit may be experiencing downtime
+- Try again in a few minutes
+
+**"Account not found":**
+- Verify you're using the correct Reddit account
+- Ensure the ad account exists and is active
+- Check for account suspensions
+
+**"Insufficient permissions":**
+- Re-authorize with all required permissions
+- Contact your Reddit Ads account admin if needed
+
+### Sync Issues
+
+**"Campaigns not syncing":**
+- Verify the connection is still active
+- Check for funding instrument issues
+- Review campaign validation errors
+
+**"Performance data not updating":**
+- Data may be delayed up to 24 hours
+- Check Reddit Ads directly for immediate data
+- Ensure reports permission is granted
+
+### Getting Help
+
+If you continue to have issues:
+
+1. Check our [FAQ](/docs/getting-started/)
+2. Contact [support@dotoro.io](mailto:support@dotoro.io)
+3. Include your account ID and error messages
+
+## Next Steps
+
+- [Reddit Ads Overview](/docs/platforms/reddit/overview/) - Learn about Reddit features
+- [Create a Campaign Set](/docs/concepts/campaign-sets/) - Build your first Reddit campaigns
+- [Templates](/docs/concepts/templates/) - Create Reddit ad templates

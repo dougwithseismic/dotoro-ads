@@ -1,0 +1,220 @@
+---
+title: Reddit Ads Overview
+description: Connect and manage Reddit advertising campaigns with Dotoro
+---
+
+# Reddit Ads Integration
+
+Dotoro provides native integration with Reddit Ads, allowing you to create, manage, and sync advertising campaigns directly to the Reddit platform.
+
+## Supported Features
+
+### Campaign Types
+
+Dotoro supports all major Reddit ad formats:
+
+| Format | Description | Use Case |
+|--------|-------------|----------|
+| **Promoted Posts** | Native feed posts | Brand awareness, engagement |
+| **Carousel Ads** | Multi-image swipeable ads | Product showcases |
+| **Video Ads** | Video content in feed | Storytelling, demos |
+| **Conversation Ads** | Comment-style placements | Discussion engagement |
+
+### Targeting Options
+
+Configure targeting through Dotoro:
+
+- **Communities** - Target specific subreddits
+- **Interests** - Topic-based targeting
+- **Demographics** - Age, location, device
+- **Custom Audiences** - Retargeting lists
+
+### Bid Strategies
+
+Available bidding options:
+
+- **CPC** - Cost per click
+- **CPM** - Cost per thousand impressions
+- **CPV** - Cost per video view
+
+## Getting Started
+
+### Prerequisites
+
+Before connecting Reddit Ads:
+
+1. **Reddit Ads Account** - Create at [ads.reddit.com](https://ads.reddit.com)
+2. **Funding Instrument** - Add payment method to your Reddit Ads account
+3. **Dotoro Account** - Sign up at [dotoro.io](https://dotoro.io)
+
+### Connection Steps
+
+1. Navigate to **Settings > Accounts** in Dotoro
+2. Click **Connect Account**
+3. Select **Reddit Ads**
+4. Sign in to your Reddit account
+5. Authorize Dotoro access
+6. Select ad accounts to manage
+
+For detailed connection instructions, see [Reddit Connection Guide](/docs/platforms/reddit/connection/).
+
+## Campaign Structure
+
+Reddit campaigns follow this hierarchy:
+
+```
+Ad Account
+└── Campaign
+    └── Ad Group
+        └── Ad (Creative)
+```
+
+### Campaign Level
+
+Configure at campaign level:
+
+- Campaign name and objective
+- Total budget and pacing
+- Start and end dates
+
+### Ad Group Level
+
+Configure at ad group level:
+
+- Targeting (communities, interests, demographics)
+- Bid strategy and amount
+- Schedule and day-parting
+
+### Ad Level
+
+Configure at ad level:
+
+- Headline and body copy
+- Images or video
+- Call-to-action button
+- Destination URL
+
+## Using Dotoro with Reddit
+
+### Creating Campaigns
+
+Generate Reddit campaigns from your data:
+
+1. Create a campaign set targeting Reddit
+2. Select your connected Reddit ad account
+3. Map data source columns to ad fields:
+   - `headline` → Ad headline (max 300 chars)
+   - `body` → Post body text
+   - `url` → Destination URL
+   - `image_url` → Creative image
+
+### Template Example
+
+```yaml
+platform: reddit
+ad_type: promoted_post
+
+campaign:
+  name: "\${brand} - \${category}"
+  objective: conversions
+  budget: \${daily_budget}
+
+ad_group:
+  name: "\${product_type}"
+  targeting:
+    communities: ["r/\${target_subreddit}"]
+    interests: ["\${interest_category}"]
+  bid:
+    strategy: cpc
+    amount: \${bid_amount}
+
+ad:
+  headline: "\${product_name} - \${tagline}"
+  body: |
+    \${description}
+
+    Shop now: \${url}
+  image: \${image_url}
+  cta: "Shop Now"
+```
+
+### Syncing Campaigns
+
+Dotoro syncs campaigns to Reddit:
+
+1. **Initial sync** - Creates campaigns, ad groups, and ads
+2. **Update sync** - Modifies changed elements
+3. **Status sync** - Pulls performance data
+
+**Sync frequency:**
+- Manual: On-demand via dashboard
+- Automatic: Configurable (hourly, daily)
+
+## Best Practices
+
+### Content Guidelines
+
+Reddit has unique community norms:
+
+1. **Be authentic** - Avoid overly promotional language
+2. **Add value** - Provide useful information
+3. **Match tone** - Understand subreddit culture
+4. **Disclose sponsorship** - Be transparent about ads
+
+### Targeting Tips
+
+1. **Start broad** - Test interest targeting first
+2. **Refine gradually** - Narrow based on performance
+3. **Avoid over-targeting** - Maintain audience scale
+4. **Test communities** - Find high-performing subreddits
+
+### Creative Best Practices
+
+1. **Use high-quality images** - Reddit users notice quality
+2. **Write conversationally** - Match Reddit's informal style
+3. **Include clear CTAs** - Tell users what to do
+4. **Test variations** - A/B test headlines and images
+
+## Troubleshooting
+
+### Common Issues
+
+**"Ad rejected by Reddit":**
+- Review Reddit's [advertising policy](https://advertising.reddithelp.com/en/categories/policies-and-guidelines)
+- Check for prohibited content or claims
+- Ensure landing page matches ad content
+
+**"Funding instrument error":**
+- Verify payment method is valid in Reddit Ads
+- Check for sufficient balance
+- Contact Reddit Ads support if persistent
+
+**"Community not found":**
+- Verify subreddit exists and allows ads
+- Check for typos in subreddit name
+- Some subreddits opt out of advertising
+
+### Sync Errors
+
+**"Authentication failed":**
+- Re-authorize Dotoro in Settings > Accounts
+- Reddit tokens expire periodically
+
+**"Rate limit exceeded":**
+- Dotoro respects Reddit API limits
+- Large syncs may take longer
+- Retry failed items automatically
+
+## API Reference
+
+For programmatic access, see:
+
+- [Reddit OAuth Guide](/docs/api/authentication/)
+- [Campaign Sets API](/docs/api/)
+- [Sync API](/docs/api/)
+
+## Next Steps
+
+- [Reddit Connection Guide](/docs/platforms/reddit/connection/) - Detailed setup instructions
+- [Campaign Sets](/docs/concepts/campaign-sets/) - Create Reddit campaign sets
+- [Templates](/docs/concepts/templates/) - Build Reddit ad templates

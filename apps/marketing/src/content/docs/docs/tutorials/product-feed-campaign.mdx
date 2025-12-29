@@ -1,0 +1,304 @@
+---
+title: Building a Product Feed Campaign
+description: Create dynamic advertising campaigns from your product catalog
+---
+
+# Building a Product Feed Campaign
+
+This tutorial walks you through creating advertising campaigns that automatically generate from your e-commerce product catalog. By the end, you'll have a scalable system that creates unique ads for each product.
+
+## What You'll Build
+
+A complete product advertising system that:
+
+- Connects to your product data (Google Sheets or CSV)
+- Generates individual campaigns for each product category
+- Creates ads with dynamic product information
+- Syncs automatically when products change
+
+## Prerequisites
+
+Before starting, ensure you have:
+
+- [ ] A Dotoro account
+- [ ] A connected advertising account (Reddit, Google, or Meta)
+- [ ] Your product data in a spreadsheet or CSV
+
+## Step 1: Prepare Your Product Data
+
+### Data Structure
+
+Organize your product data with these columns:
+
+| Column | Description | Example |
+|--------|-------------|---------|
+| `product_id` | Unique identifier | `SKU-12345` |
+| `product_name` | Product title | `Premium Wireless Headphones` |
+| `category` | Product category | `Electronics` |
+| `price` | Sale price | `79.99` |
+| `description` | Short description | `Crystal clear audio...` |
+| `image_url` | Product image URL | `https://...` |
+| `url` | Product page URL | `https://shop.com/...` |
+| `inventory` | Stock quantity | `150` |
+
+### Sample Data
+
+Here's example data to use:
+
+```csv
+product_id,product_name,category,price,description,image_url,url,inventory
+SKU-001,Premium Wireless Headphones,Electronics,79.99,Crystal clear audio with 30-hour battery,https://images.shop.com/headphones.jpg,https://shop.com/headphones,150
+SKU-002,Organic Cotton T-Shirt,Apparel,29.99,Sustainable comfort in classic style,https://images.shop.com/tshirt.jpg,https://shop.com/tshirt,500
+SKU-003,Smart Home Hub,Electronics,149.99,Control your entire home with voice,https://images.shop.com/hub.jpg,https://shop.com/hub,75
+```
+
+### Data Quality Checklist
+
+Before proceeding, verify:
+
+- [ ] All products have unique IDs
+- [ ] Prices are numeric (no currency symbols)
+- [ ] URLs are complete (including https://)
+- [ ] Image URLs are publicly accessible
+- [ ] No blank rows exist
+
+## Step 2: Create a Data Source
+
+### Connect Google Sheets
+
+1. Go to **Data Sources** > **New Data Source**
+2. Select **Google Sheets**
+3. Authorize access to your Google account
+4. Select your product spreadsheet
+5. Choose the worksheet containing product data
+6. Click **Connect**
+
+### Or Upload CSV
+
+1. Go to **Data Sources** > **New Data Source**
+2. Select **CSV Upload**
+3. Drag and drop your CSV file
+4. Review detected columns
+5. Click **Upload**
+
+### Verify Data Source
+
+After connecting:
+
+1. Preview shows your product rows
+2. Column names are correctly detected
+3. Row count matches your expected products
+
+## Step 3: Create a Filter Rule
+
+Only advertise in-stock products:
+
+1. Go to **Rules** > **New Rule**
+2. Configure:
+   ```
+   Name: In-Stock Products Only
+   Type: Filter
+   Condition: inventory > 0
+   ```
+3. Save the rule
+
+## Step 4: Design Your Campaign Template
+
+### Navigate to Templates
+
+1. Go to **Templates** > **New Template**
+2. Select your target platform (e.g., Reddit Ads)
+
+### Configure Campaign Level
+
+```yaml
+Campaign Name: \${category} Products - Automated
+Objective: Conversions
+Daily Budget: 50
+```
+
+### Configure Ad Group Level
+
+```yaml
+Ad Group Name: \${product_name}
+Targeting:
+  Interests: ["shopping", "deals", "\${category}"]
+Bid Strategy: CPC
+Bid Amount: 0.75
+```
+
+### Configure Ad Level
+
+```yaml
+Headline: \${product_name} - Now $\${price}!
+Body: |
+  Looking for quality \${category}?
+
+  \${description}
+
+  Shop now at our online store!
+Destination URL: \${url}?utm_source=reddit&utm_campaign=\${product_id}
+Image: \${image_url}
+Call to Action: Shop Now
+```
+
+### Save Template
+
+Give your template a descriptive name:
+```
+Template Name: Product Catalog - Reddit Ads
+```
+
+## Step 5: Create Your Campaign Set
+
+### Start a New Campaign Set
+
+1. Go to **Campaign Sets** > **New Campaign Set**
+2. Enter name: `Product Feed - [Month] [Year]`
+
+### Configure Settings
+
+**Platform & Account:**
+- Platform: Reddit Ads
+- Account: [Your connected account]
+
+**Data Source:**
+- Source: [Your product data source]
+
+**Template:**
+- Template: Product Catalog - Reddit Ads
+
+**Rules:**
+- Apply: In-Stock Products Only
+
+### Preview Generated Campaigns
+
+1. Click **Preview**
+2. Review:
+   - Total campaigns to generate
+   - Individual ad content
+   - Any validation warnings
+
+**Example preview:**
+
+| Campaign | Ad Group | Headline | Status |
+|----------|----------|----------|--------|
+| Electronics Products | Premium Wireless Headphones | Premium Wireless Headphones - Now $79.99! | ✓ Valid |
+| Apparel Products | Organic Cotton T-Shirt | Organic Cotton T-Shirt - Now $29.99! | ✓ Valid |
+| Electronics Products | Smart Home Hub | Smart Home Hub - Now $149.99! | ✓ Valid |
+
+### Generate Campaigns
+
+1. Verify everything looks correct
+2. Click **Create Campaign Set**
+3. The system generates all campaigns
+
+## Step 6: Sync to Advertising Platform
+
+### Initial Sync
+
+1. Open your new campaign set
+2. Click **Sync Now**
+3. Monitor sync progress
+
+**Sync stages:**
+1. Creating campaigns on Reddit
+2. Uploading ad creatives
+3. Setting targeting options
+4. Activating ads
+
+### Verify in Platform
+
+1. Log into Reddit Ads directly
+2. Confirm campaigns were created
+3. Verify ad content matches templates
+
+## Step 7: Set Up Automatic Updates
+
+### Enable Auto-Sync
+
+Configure your campaign set to sync when data changes:
+
+1. Open campaign set settings
+2. Enable **Auto-Sync**
+3. Choose frequency:
+   - **On data change** - Syncs when source updates
+   - **Daily** - Syncs once per day
+   - **Hourly** - Syncs every hour
+
+### Configure Update Behavior
+
+| Setting | Description | Recommended |
+|---------|-------------|-------------|
+| Add new products | Create campaigns for new rows | ✓ Enabled |
+| Update existing | Modify campaigns for changed data | ✓ Enabled |
+| Pause deleted | Pause campaigns for removed products | ✓ Enabled |
+| Delete paused | Remove campaigns for removed products | ○ Disabled |
+
+## Optimization Tips
+
+### A/B Test Headlines
+
+Create multiple headline variations in your template:
+
+```yaml
+Headlines:
+  - \${product_name} - Now $\${price}!
+  - Get \${product_name} for Only $\${price}
+  - \${product_name} | Free Shipping Today
+```
+
+### Segment by Category
+
+Create separate campaign sets for high-value categories:
+
+1. Duplicate your campaign set
+2. Add a filter rule: `category = "Electronics"`
+3. Increase budget for electronics campaigns
+
+### Dynamic Budget Allocation
+
+Use rules to set budgets based on margin:
+
+```yaml
+Rule: High Margin Budget Boost
+Condition: margin > 40
+Action: daily_budget = 75
+```
+
+### Performance-Based Optimization
+
+After campaigns run:
+
+1. Review performance in your ad platform
+2. Identify top-performing products
+3. Create rules to boost winning products
+4. Pause underperforming items
+
+## Troubleshooting
+
+### "Product image not displaying"
+
+- Verify image URL is publicly accessible
+- Check image meets platform requirements (size, format)
+- Test image URL in an incognito browser window
+
+### "Character limit exceeded"
+
+- Shorten product descriptions
+- Use truncation in template: `\${description:0:100}...`
+- Create platform-specific templates
+
+### "Sync failing for some products"
+
+- Check individual product data quality
+- Review validation warnings in preview
+- Look for special characters in text fields
+
+## Next Steps
+
+Congratulations! You've built an automated product advertising system. To expand:
+
+- [Automated Updates Tutorial](/docs/tutorials/automated-updates/) - Advanced sync configurations
+- [Rules Documentation](/docs/concepts/rules/) - Complex optimization rules
+- [Transforms](/docs/concepts/transforms/) - Aggregate products for category campaigns

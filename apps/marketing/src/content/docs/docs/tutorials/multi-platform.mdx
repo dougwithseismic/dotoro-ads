@@ -1,0 +1,428 @@
+---
+title: Multi-Platform Campaign Strategy
+description: Create and manage campaigns across Reddit, Google, and Meta from a single data source
+---
+
+# Multi-Platform Campaign Strategy
+
+Learn how to efficiently manage advertising across multiple platforms using Dotoro. This tutorial covers creating platform-specific campaigns from shared data while maintaining consistency and efficiency.
+
+## What You'll Learn
+
+- Structure data for multi-platform campaigns
+- Create platform-specific templates
+- Coordinate budgets across platforms
+- Analyze cross-platform performance
+
+## The Multi-Platform Advantage
+
+### Why Advertise Across Platforms?
+
+| Platform | Strengths | Best For |
+|----------|-----------|----------|
+| **Reddit** | Community engagement, niche targeting | Brand awareness, tech products |
+| **Google** | Intent-based, high volume | Direct response, search queries |
+| **Meta** | Visual, detailed targeting | Lifestyle, e-commerce |
+
+### Dotoro's Approach
+
+Single data source → Multiple platform-specific campaign sets → Coordinated results
+
+## Step 1: Design Your Data Structure
+
+### Core Product Data
+
+Create a unified data source with platform-agnostic fields:
+
+```csv
+product_id,name,description,price,image_url,url,category,target_audience
+SKU-001,Premium Headphones,Crystal clear audio,79.99,/img/headphones.jpg,/products/headphones,Electronics,audiophiles
+SKU-002,Running Shoes,Lightweight performance,129.99,/img/shoes.jpg,/products/shoes,Sports,runners
+```
+
+### Platform-Specific Fields
+
+Add columns for platform variations:
+
+```csv
+# Reddit-specific
+reddit_subreddits,reddit_headline
+"r/headphones,r/audiophile","🎧 The headphones r/audiophile is raving about"
+
+# Google-specific
+google_keywords,google_headline_1,google_headline_2
+"wireless headphones,bluetooth earbuds","Premium Wireless Headphones","Free Shipping Today"
+
+# Meta-specific
+meta_interests,meta_primary_text
+"electronics,gadgets","Looking for amazing sound quality? 🎵"
+```
+
+### Full Multi-Platform Structure
+
+| Column | Purpose | Used By |
+|--------|---------|---------|
+| `product_id` | Unique identifier | All |
+| `name` | Product name | All |
+| `price` | Display price | All |
+| `image_url` | Product image | All |
+| `url` | Landing page | All |
+| `description` | Base description | Fallback |
+| `reddit_headline` | Reddit ad copy | Reddit |
+| `reddit_subreddits` | Target communities | Reddit |
+| `google_headlines` | RSA headlines | Google |
+| `google_keywords` | Target keywords | Google |
+| `meta_primary_text` | Facebook copy | Meta |
+| `meta_interests` | Interest targeting | Meta |
+
+## Step 2: Create Platform-Specific Templates
+
+### Reddit Template
+
+```yaml
+name: Reddit - Product Ads
+platform: reddit
+
+campaign:
+  name: "[Reddit] \${category} Products"
+  objective: conversions
+  budget: \${reddit_budget}
+
+ad_group:
+  name: "\${name}"
+  targeting:
+    communities: \${reddit_subreddits}
+  bid:
+    strategy: cpc
+    amount: 0.75
+
+ad:
+  headline: "\${reddit_headline|\${name} - Now $\${price}}"
+  body: |
+    \${description}
+
+    Check it out: \${url}
+  image: \${image_url}
+```
+
+**Reddit-specific considerations:**
+- Conversational tone
+- Community-aware targeting
+- Longer body text allowed
+
+### Google Template
+
+```yaml
+name: Google - Search Ads
+platform: google
+
+campaign:
+  name: "[Google] \${category}"
+  objective: conversions
+  budget: \${google_budget}
+
+ad_group:
+  name: "\${name}"
+  keywords: \${google_keywords}
+  match_type: phrase
+
+ad:
+  headlines:
+    - "\${google_headline_1|\${name}}"
+    - "\${google_headline_2|$\${price}}"
+    - "Shop \${category} Today"
+  descriptions:
+    - "\${description}"
+    - "Free shipping on orders $50+"
+  final_url: \${url}?utm_source=google
+```
+
+**Google-specific considerations:**
+- Multiple headline variations
+- Character limits (30 chars headlines)
+- Keyword relevance
+
+### Meta Template
+
+```yaml
+name: Meta - Image Ads
+platform: meta
+
+campaign:
+  name: "[Meta] \${category}"
+  objective: conversions
+  budget: \${meta_budget}
+
+ad_set:
+  name: "\${name}"
+  targeting:
+    interests: \${meta_interests}
+    age_range: [25, 55]
+    placements: [facebook_feed, instagram_feed]
+
+ad:
+  primary_text: "\${meta_primary_text|\${description}}"
+  headline: "\${name}"
+  description: "Starting at $\${price}"
+  link: \${url}?utm_source=meta
+  image: \${image_url}
+  cta: "Shop Now"
+```
+
+**Meta-specific considerations:**
+- Visual-first format
+- Detailed audience targeting
+- Emoji-friendly copy
+
+## Step 3: Coordinate Budgets
+
+### Budget Allocation Strategy
+
+Allocate your total budget across platforms:
+
+**Option 1: Fixed Split**
+```csv
+product_id,total_budget,reddit_budget,google_budget,meta_budget
+SKU-001,100,20,50,30
+SKU-002,150,30,75,45
+```
+
+**Option 2: Calculated Split**
+Add a transform to calculate platform budgets:
+
+```yaml
+transform:
+  name: Budget Calculator
+  compute:
+    reddit_budget: total_budget * 0.20
+    google_budget: total_budget * 0.50
+    meta_budget: total_budget * 0.30
+```
+
+**Option 3: Performance-Based**
+Use rules to adjust based on historical performance:
+
+```yaml
+rules:
+  - name: Boost performing platforms
+    condition: google_roas > 3
+    action: google_budget = google_budget * 1.2
+```
+
+### Budget Caps
+
+Set platform-level budget limits in each campaign set:
+
+| Platform | Daily Cap | Monthly Cap |
+|----------|-----------|-------------|
+| Reddit | $500 | $10,000 |
+| Google | $1,000 | $20,000 |
+| Meta | $750 | $15,000 |
+
+## Step 4: Create Campaign Sets
+
+### Create Reddit Campaign Set
+
+1. **Campaign Sets > New Campaign Set**
+2. Name: `Multi-Platform - Reddit`
+3. Platform: Reddit Ads
+4. Data Source: Your unified data source
+5. Template: Reddit - Product Ads
+6. Add rules for Reddit-specific filtering
+
+### Create Google Campaign Set
+
+1. **Campaign Sets > New Campaign Set**
+2. Name: `Multi-Platform - Google`
+3. Platform: Google Ads
+4. Data Source: Same unified data source
+5. Template: Google - Search Ads
+6. Add rules for Google-specific filtering
+
+### Create Meta Campaign Set
+
+1. **Campaign Sets > New Campaign Set**
+2. Name: `Multi-Platform - Meta`
+3. Platform: Meta Ads
+4. Data Source: Same unified data source
+5. Template: Meta - Image Ads
+6. Add rules for Meta-specific filtering
+
+### Platform-Specific Rules
+
+Apply different rules per platform:
+
+**Reddit: Community-friendly products**
+```yaml
+filter: reddit_subreddits is not empty
+```
+
+**Google: Products with search demand**
+```yaml
+filter: google_keywords is not empty
+```
+
+**Meta: Visual products with lifestyle appeal**
+```yaml
+filter: meta_interests is not empty AND image_quality = "high"
+```
+
+## Step 5: Manage Cross-Platform Sync
+
+### Sync Strategy
+
+| Strategy | Description | Use Case |
+|----------|-------------|----------|
+| **Simultaneous** | All platforms sync together | Coordinated launches |
+| **Staggered** | Platforms sync at different times | Reduce API load |
+| **Independent** | Each platform has own schedule | Platform-specific needs |
+
+### Recommended Schedule
+
+```yaml
+# Reddit: Morning sync (US East)
+reddit_sync:
+  time: "08:00"
+  timezone: "America/New_York"
+
+# Google: Afternoon sync
+google_sync:
+  time: "14:00"
+  timezone: "America/New_York"
+
+# Meta: Evening sync
+meta_sync:
+  time: "20:00"
+  timezone: "America/New_York"
+```
+
+### Cross-Platform Coordination
+
+Create a master campaign set group:
+
+1. Go to **Campaign Sets**
+2. Create a folder: `Multi-Platform - Q1 2025`
+3. Move all related campaign sets into folder
+4. Use folder actions for bulk operations
+
+## Step 6: Analyze Cross-Platform Performance
+
+### Unified Reporting
+
+Dotoro aggregates performance across platforms:
+
+| Metric | Reddit | Google | Meta | Total |
+|--------|--------|--------|------|-------|
+| Spend | $2,500 | $5,000 | $3,750 | $11,250 |
+| Clicks | 8,500 | 12,000 | 15,000 | 35,500 |
+| Conversions | 85 | 180 | 150 | 415 |
+| CPA | $29.41 | $27.78 | $25.00 | $27.11 |
+| ROAS | 2.8x | 3.2x | 3.5x | 3.2x |
+
+### Performance Comparison
+
+Compare the same products across platforms:
+
+```sql
+-- Example analysis query
+SELECT
+  product_id,
+  platform,
+  SUM(spend) as spend,
+  SUM(conversions) as conversions,
+  SUM(revenue) / SUM(spend) as roas
+FROM campaign_performance
+GROUP BY product_id, platform
+ORDER BY roas DESC
+```
+
+### Cross-Platform Insights
+
+Identify platform strengths by category:
+
+| Category | Best Platform | Why |
+|----------|---------------|-----|
+| Electronics | Reddit | Tech-savvy community engagement |
+| Fashion | Meta | Visual discovery, lifestyle targeting |
+| Services | Google | Intent-based search queries |
+
+## Optimization Strategies
+
+### Platform Rebalancing
+
+Shift budget to top performers:
+
+```yaml
+rule: Weekly Platform Rebalancing
+trigger: weekly
+action:
+  - Calculate ROAS per platform
+  - Increase budget 10% for top performer
+  - Decrease budget 10% for lowest performer
+  - Maintain minimum $500/platform
+```
+
+### Message Testing
+
+Test different messaging per platform:
+
+| Version | Reddit | Google | Meta |
+|---------|--------|--------|------|
+| A | Community tone | Feature-focused | Lifestyle |
+| B | Technical specs | Benefit-focused | Social proof |
+| C | Reddit memes | Problem-solution | User testimonials |
+
+### Audience Expansion
+
+Use insights to expand targeting:
+
+1. Identify top-performing audiences per platform
+2. Create lookalike audiences (Meta)
+3. Expand keyword lists (Google)
+4. Target related subreddits (Reddit)
+
+## Troubleshooting
+
+### "Platform sync out of date"
+
+1. Check individual platform connection status
+2. Verify API credentials haven't expired
+3. Review platform-specific error logs
+
+### "Budget overspend"
+
+1. Verify platform-level caps are set
+2. Check for overlapping audience (cross-platform attribution)
+3. Adjust frequency caps
+
+### "Inconsistent performance data"
+
+1. Confirm attribution windows match across platforms
+2. Account for platform reporting delays
+3. Use Dotoro's unified reporting for consistency
+
+## Best Practices
+
+### Creative Consistency
+
+1. **Unified brand voice** - Adapt tone, maintain identity
+2. **Consistent visuals** - Same product images, platform-optimized sizes
+3. **Aligned messaging** - Core value prop across platforms
+
+### Operational Efficiency
+
+1. **Single source of truth** - One data source, multiple outputs
+2. **Template inheritance** - Base template with platform overrides
+3. **Centralized rules** - Global rules applied across platforms
+
+### Performance Focus
+
+1. **Platform-appropriate KPIs** - Different goals per platform
+2. **Cross-platform attribution** - Understand the full journey
+3. **Incremental testing** - Test one variable at a time
+
+## Next Steps
+
+- [Automated Updates](/docs/tutorials/automated-updates/) - Set up cross-platform sync
+- [Rules](/docs/concepts/rules/) - Platform-specific optimization rules
+- [Transforms](/docs/concepts/transforms/) - Data preparation for multi-platform

@@ -1,0 +1,398 @@
+---
+title: Automated Campaign Updates
+description: Set up automated syncing and scheduled updates for your campaigns
+---
+
+# Automated Campaign Updates
+
+Learn how to configure Dotoro to automatically update your advertising campaigns when your data changes. This tutorial covers sync scheduling, change detection, and error handling.
+
+## What You'll Learn
+
+- Configure automatic data source refresh
+- Set up scheduled campaign syncing
+- Handle sync errors gracefully
+- Monitor sync health and alerts
+
+## Prerequisites
+
+- A functioning campaign set (see [Product Feed Tutorial](/docs/tutorials/product-feed-campaign/))
+- Connected advertising account
+- Data source connected (Google Sheets or API recommended)
+
+## Understanding the Sync Pipeline
+
+Dotoro's automation flows through these stages:
+
+```
+Data Source → Refresh → Change Detection → Campaign Set → Sync → Platform
+```
+
+### Stage 1: Data Source Refresh
+
+Pull latest data from your source:
+- Google Sheets: Automatic on edit
+- CSV: Manual re-upload
+- API: Scheduled polling
+
+### Stage 2: Change Detection
+
+Dotoro compares new data to previous state:
+- New rows → New campaigns
+- Modified rows → Updated campaigns
+- Deleted rows → Paused/removed campaigns
+
+### Stage 3: Campaign Sync
+
+Push changes to advertising platform:
+- Create new campaigns
+- Update existing campaigns
+- Manage campaign status
+
+## Configure Data Source Refresh
+
+### Google Sheets (Real-time)
+
+Google Sheets updates automatically:
+
+1. Edit your spreadsheet
+2. Dotoro detects changes within minutes
+3. Dependent campaign sets are notified
+
+**Best for:** Collaborative data, frequent small updates
+
+### API Data Source (Scheduled)
+
+Configure polling frequency:
+
+1. Open your API data source
+2. Go to **Settings** tab
+3. Set **Refresh Interval**:
+
+| Interval | Use Case |
+|----------|----------|
+| 15 minutes | High-frequency inventory changes |
+| 1 hour | Standard e-commerce updates |
+| 6 hours | Stable catalogs |
+| Daily | Rarely changing data |
+
+**Example configuration:**
+```json
+{
+  "endpoint": "https://api.yourstore.com/products",
+  "refreshInterval": 3600,
+  "headers": {
+    "Authorization": "Bearer \${API_KEY}"
+  }
+}
+```
+
+### CSV Data Source (Manual)
+
+CSV sources require manual updates:
+
+1. Prepare updated CSV file
+2. Go to **Data Sources** > Select your source
+3. Click **Upload New Version**
+4. Verify new data
+
+**Tip:** For automation, convert to Google Sheets or API.
+
+## Configure Campaign Set Sync
+
+### Enable Auto-Sync
+
+1. Open your campaign set
+2. Click **Settings** (gear icon)
+3. Enable **Automatic Sync**
+4. Configure sync options
+
+### Sync Triggers
+
+Choose when syncs occur:
+
+| Trigger | Description | When to Use |
+|---------|-------------|-------------|
+| **On data change** | Syncs when source updates | Real-time inventory |
+| **Scheduled** | Syncs at fixed times | Controlled update windows |
+| **Manual only** | No automatic sync | Testing, approval workflows |
+
+### Scheduled Sync Configuration
+
+Set up time-based syncing:
+
+```yaml
+sync_schedule:
+  frequency: daily
+  time: "03:00"
+  timezone: "America/New_York"
+  days: [monday, tuesday, wednesday, thursday, friday]
+```
+
+**Scheduling options:**
+- **Hourly** - Every N hours
+- **Daily** - Once per day at specified time
+- **Weekly** - Specific days and time
+- **Custom** - Cron expression
+
+### Update Behavior Settings
+
+Control how changes are applied:
+
+**New Rows (Add campaigns):**
+```yaml
+on_new_row:
+  action: create_campaign
+  status: enabled  # or "paused" for review
+```
+
+**Modified Rows (Update campaigns):**
+```yaml
+on_modified_row:
+  action: update_campaign
+  update_fields:
+    - headline
+    - description
+    - price
+    - bid
+  preserve_fields:
+    - performance_data
+    - manual_overrides
+```
+
+**Deleted Rows (Handle removals):**
+```yaml
+on_deleted_row:
+  action: pause_campaign  # or "delete"
+  delay: 24h  # Grace period before action
+```
+
+## Change Detection Deep Dive
+
+### What Triggers Updates
+
+Dotoro tracks changes to campaign-relevant fields:
+
+| Change Type | Triggers Sync | Example |
+|-------------|---------------|---------|
+| Text content | Yes | Product name changed |
+| Numeric values | Yes | Price updated |
+| URLs | Yes | Image or landing page |
+| Metadata only | No | Internal notes |
+
+### Configuring Tracked Fields
+
+Specify which fields trigger updates:
+
+1. Open campaign set settings
+2. Go to **Change Detection**
+3. Select monitored fields:
+
+```yaml
+tracked_fields:
+  - product_name   # Text changes trigger update
+  - price          # Price changes trigger update
+  - image_url      # New image triggers upload
+  - inventory      # Stock changes may affect status
+ignored_fields:
+  - internal_sku   # Changes don't affect ads
+  - last_updated   # Timestamp only
+```
+
+### Delta vs Full Sync
+
+**Delta Sync (Default):**
+- Only syncs changed campaigns
+- Faster and less API-intensive
+- Recommended for most cases
+
+**Full Sync:**
+- Syncs all campaigns regardless of changes
+- Useful after platform issues
+- Trigger manually: **Actions > Full Sync**
+
+## Error Handling
+
+### Retry Configuration
+
+Handle temporary failures:
+
+```yaml
+retry_policy:
+  max_retries: 3
+  retry_delay: 300  # 5 minutes
+  backoff: exponential  # 5min, 10min, 20min
+```
+
+### Partial Failure Handling
+
+When some campaigns fail:
+
+1. Successful campaigns sync normally
+2. Failed campaigns are marked for retry
+3. Error details are logged
+4. Alerts trigger if configured
+
+### Skip Rules
+
+Skip problematic rows automatically:
+
+```yaml
+skip_on_error:
+  missing_image: true    # Skip if image URL fails
+  char_limit: false      # Fail and notify
+  validation_error: true # Skip invalid rows
+```
+
+## Monitoring and Alerts
+
+### Sync Dashboard
+
+Monitor sync health at **Campaign Sets > [Your Set] > Sync History**:
+
+| Metric | Description |
+|--------|-------------|
+| Last sync | When sync last ran |
+| Next sync | Scheduled next run |
+| Success rate | % of campaigns synced |
+| Errors | Count of failed items |
+
+### Setting Up Alerts
+
+Configure notifications for sync issues:
+
+1. Go to **Settings > Notifications**
+2. Enable sync alerts
+3. Choose notification channels:
+
+```yaml
+alerts:
+  sync_failed:
+    email: true
+    slack: true
+    threshold: any  # Alert on any failure
+
+  sync_partial:
+    email: true
+    threshold: 10%  # Alert if >10% fail
+
+  data_stale:
+    email: true
+    duration: 24h  # Alert if no update in 24h
+```
+
+### Slack Integration
+
+Connect Slack for real-time alerts:
+
+1. Go to **Settings > Integrations > Slack**
+2. Click **Connect Slack**
+3. Select alert channel
+4. Configure message format
+
+**Example Slack alert:**
+```
+🔴 Sync Failed: Product Feed Campaign
+• 15 campaigns failed to sync
+• Error: "Character limit exceeded"
+• View details: [Link]
+```
+
+## Advanced Automation
+
+### Conditional Syncing
+
+Only sync during business hours:
+
+```yaml
+sync_windows:
+  - days: [monday, tuesday, wednesday, thursday, friday]
+    hours: [9, 10, 11, 12, 13, 14, 15, 16, 17]
+    action: sync_enabled
+  - days: [saturday, sunday]
+    action: sync_disabled
+```
+
+### Pre-Sync Validation
+
+Run checks before syncing:
+
+```yaml
+pre_sync_checks:
+  - name: "Minimum products"
+    condition: row_count >= 10
+    on_fail: abort_sync
+
+  - name: "No empty prices"
+    condition: count(price = null) = 0
+    on_fail: skip_invalid
+```
+
+### Post-Sync Actions
+
+Trigger actions after successful sync:
+
+```yaml
+post_sync_actions:
+  - type: webhook
+    url: "https://yourapp.com/webhooks/sync-complete"
+    payload:
+      campaign_set: \${campaign_set_id}
+      campaigns_synced: \${sync_count}
+
+  - type: email
+    to: "team@company.com"
+    template: "sync_report"
+```
+
+## Troubleshooting
+
+### "Sync stuck in progress"
+
+1. Check platform API status
+2. Review error logs
+3. Cancel and retry: **Actions > Cancel Sync**
+
+### "Changes not detected"
+
+1. Verify data source is refreshing
+2. Check tracked fields configuration
+3. Manually trigger: **Data Sources > Refresh Now**
+
+### "Too many API requests"
+
+1. Reduce sync frequency
+2. Enable delta sync (only changes)
+3. Batch updates instead of real-time
+
+### "Campaigns disappearing"
+
+1. Check deleted row handling settings
+2. Review data source for missing rows
+3. Temporarily disable auto-delete
+
+## Best Practices
+
+### Sync Timing
+
+1. **Off-peak hours** - Schedule heavy syncs overnight
+2. **Consistent timing** - Regular schedules are easier to debug
+3. **Platform limits** - Stay within API rate limits
+
+### Data Hygiene
+
+1. **Validate data** - Use pre-sync checks
+2. **Clean sources** - Remove obsolete rows
+3. **Version control** - Track data source changes
+
+### Monitoring
+
+1. **Daily review** - Check sync status daily
+2. **Alert tuning** - Adjust thresholds based on patterns
+3. **Trend analysis** - Watch for degrading performance
+
+## Next Steps
+
+- [Multi-Platform Strategy](/docs/tutorials/multi-platform/) - Sync across platforms
+- [Rules](/docs/concepts/rules/) - Automate campaign logic
+- [Transforms](/docs/concepts/transforms/) - Pre-process data
