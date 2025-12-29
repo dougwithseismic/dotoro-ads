@@ -5,6 +5,14 @@
  * Supports AWS S3, Cloudflare R2, MinIO, and other S3-compatible services.
  */
 
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+  HeadObjectCommand,
+} from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { formatBytes } from "@repo/core";
 
 /**
@@ -231,13 +239,37 @@ export class MockStorageService implements StorageService {
 
 /**
  * S3 Storage Service implementation
- * Uses AWS SDK for S3-compatible operations
+ * Uses AWS SDK for S3-compatible operations (AWS S3, Cloudflare R2, MinIO, etc.)
  */
 export class S3StorageService implements StorageService {
   private config: StorageConfig;
+  private client: S3Client;
 
   constructor(config: StorageConfig) {
+    // Validate required configuration
+    if (!config.endpoint?.trim()) {
+      throw new Error("Storage configuration error: endpoint is required");
+    }
+    if (!config.bucket?.trim()) {
+      throw new Error("Storage configuration error: bucket is required");
+    }
+    if (!config.accessKey?.trim()) {
+      throw new Error("Storage configuration error: accessKey is required");
+    }
+    if (!config.secretKey?.trim()) {
+      throw new Error("Storage configuration error: secretKey is required");
+    }
+
     this.config = config;
+    this.client = new S3Client({
+      endpoint: config.endpoint,
+      region: config.region ?? "auto",
+      credentials: {
+        accessKeyId: config.accessKey,
+        secretAccessKey: config.secretKey,
+      },
+      forcePathStyle: true,
+    });
   }
 
   async generateUploadUrl(
@@ -263,79 +295,93 @@ export class S3StorageService implements StorageService {
       );
     }
 
-    // In a real implementation, this would use the AWS SDK:
-    // import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-    // import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-    //
-    // const client = new S3Client({
-    //   endpoint: this.config.endpoint,
-    //   region: this.config.region ?? "auto",
-    //   credentials: {
-    //     accessKeyId: this.config.accessKey,
-    //     secretAccessKey: this.config.secretKey,
-    //   },
-    // });
-    //
-    // const command = new PutObjectCommand({
-    //   Bucket: this.config.bucket,
-    //   Key: key,
-    //   ContentType: contentType,
-    //   ContentLength: maxSize,
-    // });
-    //
-    // const url = await getSignedUrl(client, command, {
-    //   expiresIn: DEFAULT_EXPIRATION.upload,
-    // });
+    const command = new PutObjectCommand({
+      Bucket: this.config.bucket,
+      Key: key,
+      ContentType: contentType,
+    });
 
-    const expiresAt = new Date(
-      Date.now() + DEFAULT_EXPIRATION.upload * 1000
-    ).toISOString();
+    try {
+      const url = await getSignedUrl(this.client, command, {
+        expiresIn: DEFAULT_EXPIRATION.upload,
+      });
 
-    // WARNING: This returns a placeholder URL. Install @aws-sdk/client-s3
-    // and implement actual S3 presigned URL generation for production use.
-    console.warn(
-      "S3StorageService.generateUploadUrl: Returning placeholder URL. " +
-        "Install @aws-sdk/client-s3 for production use."
-    );
-    return {
-      url: `${this.config.endpoint}/${this.config.bucket}/${key}?presigned=true`,
-      key,
-      expiresAt,
-    };
+      const expiresAt = new Date(
+        Date.now() + DEFAULT_EXPIRATION.upload * 1000
+      ).toISOString();
+
+      return { url, key, expiresAt };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      throw new Error(`Failed to generate upload URL for key "${key}": ${message}`);
+    }
   }
 
   async generateDownloadUrl(
     key: string,
     expiresIn: number = DEFAULT_EXPIRATION.download
   ): Promise<string> {
-    // If CDN URL is configured, use it for delivery
+    // If CDN URL is configured, use it for public asset delivery
     if (this.config.cdnUrl) {
       return `${this.config.cdnUrl}/${key}`;
     }
 
-    // WARNING: This returns a placeholder URL. Install @aws-sdk/client-s3
-    // and implement actual S3 presigned URL generation for production use.
-    console.warn(
-      "S3StorageService.generateDownloadUrl: Returning placeholder URL. " +
-        "Install @aws-sdk/client-s3 for production use."
-    );
-    return `${this.config.endpoint}/${this.config.bucket}/${key}?presigned=true&expires=${expiresIn}`;
+    const command = new GetObjectCommand({
+      Bucket: this.config.bucket,
+      Key: key,
+    });
+
+    try {
+      return await getSignedUrl(this.client, command, {
+        expiresIn: expiresIn ?? DEFAULT_EXPIRATION.download,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      throw new Error(`Failed to generate download URL for key "${key}": ${message}`);
+    }
   }
 
   async deleteObject(key: string): Promise<void> {
-    throw new Error(
-      "S3StorageService.deleteObject not implemented. " +
-        "Install @aws-sdk/client-s3 and implement S3 operations, " +
-        "or use MockStorageService for development."
-    );
+    try {
+      const command = new DeleteObjectCommand({
+        Bucket: this.config.bucket,
+        Key: key,
+      });
+      await this.client.send(command);
+    } catch (error) {
+      // NotFound is acceptable for delete operations (idempotent)
+      const errorName = (error as { name?: string }).name;
+      if (errorName === "NotFound" || errorName === "NoSuchKey") {
+        return;
+      }
+      const message = error instanceof Error ? error.message : "Unknown error";
+      throw new Error(`Failed to delete object "${key}": ${message}`);
+    }
   }
 
   async headObject(key: string): Promise<ObjectMetadata | null> {
-    throw new Error(
-      "S3StorageService.headObject not implemented. " +
-        "Install @aws-sdk/client-s3 and implement S3 operations, " +
-        "or use MockStorageService for development."
-    );
+    try {
+      const command = new HeadObjectCommand({
+        Bucket: this.config.bucket,
+        Key: key,
+      });
+
+      const response = await this.client.send(command);
+
+      return {
+        contentType: response.ContentType ?? "application/octet-stream",
+        size: response.ContentLength ?? 0,
+        etag: response.ETag?.replace(/"/g, "") ?? "",
+        lastModified: response.LastModified ?? new Date(),
+      };
+    } catch (error) {
+      const errorName = (error as { name?: string }).name;
+      // S3-compatible services may use different error names for 404
+      if (errorName === "NotFound" || errorName === "NoSuchKey") {
+        return null;
+      }
+      throw error;
+    }
   }
 }
 
