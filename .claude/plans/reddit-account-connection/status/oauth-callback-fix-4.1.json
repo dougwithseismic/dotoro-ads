@@ -1,0 +1,71 @@
+{
+  "feature": "oauth-callback-fix",
+  "version": "4.1",
+  "status": "complete",
+  "timestamp": "2025-12-29T09:01:00Z",
+  "summary": {
+    "phase": "code_review_fixes",
+    "phase_complete": true,
+    "implementation_needed": false,
+    "verification_passed": true
+  },
+  "files_changed": [
+    "apps/api/src/__tests__/routes/reddit-oauth-callback.test.ts",
+    ".claude/plans/reddit-account-connection/features/oauth-callback-fix-TODO.md"
+  ],
+  "files_created": [],
+  "tests": {
+    "added": 10,
+    "total": 29,
+    "passing": true,
+    "failures": [],
+    "test_file": "apps/api/src/__tests__/routes/reddit-oauth-callback.test.ts"
+  },
+  "code_review_issues_fixed": {
+    "major_1_authentication_failure": {
+      "fixed": true,
+      "description": "Added test for when validateSession returns null/unauthorized",
+      "tests_added": 2
+    },
+    "major_2_token_encryption": {
+      "fixed": true,
+      "description": "Added tests verifying encrypt() is called on access/refresh tokens before storage",
+      "tests_added": 4
+    },
+    "major_3_transaction_rollback": {
+      "fixed": true,
+      "description": "Added tests simulating partial failure with database error and verifying transaction usage",
+      "tests_added": 2
+    },
+    "minor_4_oauth_user_denial": {
+      "fixed": true,
+      "description": "Added tests for access_denied error from Reddit when user denies OAuth permission",
+      "tests_added": 2
+    }
+  },
+  "verification_results": {
+    "two_step_api_flow": {
+      "verified": true,
+      "details": "AdAccountService.listAdAccounts() is called at line 396"
+    },
+    "correct_ids_stored": {
+      "verified": true,
+      "details": "Line 451 stores redditAccount.id, Line 452 stores redditAccount.name"
+    },
+    "team_slug_redirect": {
+      "verified": true,
+      "details": "Lines 381-387 lookup team slug, Line 471 uses it in redirect URL"
+    },
+    "transaction_atomicity": {
+      "verified": true,
+      "details": "Lines 417-466 wrap all operations in db.transaction()"
+    },
+    "token_encryption": {
+      "verified": true,
+      "details": "storeTokens() calls encrypt() on accessToken and refreshToken before database insert"
+    }
+  },
+  "items_checked_off": 4,
+  "blockers": "none",
+  "next_action": "proceed_to_review"
+}
