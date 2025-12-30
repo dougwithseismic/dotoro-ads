@@ -1,0 +1,58 @@
+/* CharacterCounter Component Styles */
+
+.container {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-geist-mono);
+  font-size: 12px;
+  transition: color 0.2s ease;
+}
+
+/* Status-based colors */
+.container[data-status="ok"] {
+  color: #10b981; /* Green */
+}
+
+.container[data-status="warning"] {
+  color: #f59e0b; /* Yellow/Amber */
+}
+
+.container[data-status="error"] {
+  color: #ef4444; /* Red */
+}
+
+.count {
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.overflowMessage {
+  font-family: var(--font-geist-sans);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .container[data-status="ok"] {
+    color: #34d399;
+  }
+
+  .container[data-status="warning"] {
+    color: #fbbf24;
+  }
+
+  .container[data-status="error"] {
+    color: #f87171;
+  }
+
+  .overflowMessage {
+    background: rgba(248, 113, 113, 0.15);
+    color: #f87171;
+  }
+}
