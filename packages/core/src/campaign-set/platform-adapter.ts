@@ -270,6 +270,18 @@ export interface CampaignSetPlatformAdapter {
    * @returns Platform ad ID if found, null otherwise
    */
   findExistingAd(adGroupId: string, name: string): Promise<string | null>;
+
+  /**
+   * Find an existing keyword on the platform by text, match type, and parent ad group.
+   * Used for deduplication during crash recovery.
+   * Keywords are uniquely identified by (adGroupId, text, matchType), not just name.
+   *
+   * @param adGroupId - The platform ad group ID to search in
+   * @param text - The exact keyword text to match
+   * @param matchType - The keyword match type (broad, phrase, exact)
+   * @returns Platform keyword ID if found, null otherwise
+   */
+  findExistingKeyword?(adGroupId: string, text: string, matchType: string): Promise<string | null>;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
