@@ -40,6 +40,45 @@ import type {
 } from "@repo/reddit-ads";
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Advanced Settings Types (from campaign set config)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Reddit campaign advanced settings from campaign set config
+ */
+interface RedditCampaignAdvancedSettings {
+  startTime?: string;
+  endTime?: string;
+  specialAdCategories?: SpecialAdCategory[];
+  viewThroughAttributionDays?: number;
+  clickThroughAttributionDays?: number;
+}
+
+/**
+ * Reddit ad group advanced settings from campaign set config
+ */
+interface RedditAdGroupAdvancedSettings {
+  startTime?: string;
+  endTime?: string;
+}
+
+/**
+ * Reddit advanced settings structure
+ */
+interface RedditAdvancedSettings {
+  campaign?: RedditCampaignAdvancedSettings;
+  adGroup?: RedditAdGroupAdvancedSettings;
+}
+
+/**
+ * Platform advanced settings from campaign set config
+ * Passed through campaign.campaignData.advancedSettings
+ */
+interface PlatformAdvancedSettings {
+  reddit?: RedditAdvancedSettings;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -48,6 +87,63 @@ import type {
  * Reddit API uses micro-units: $1.00 = 1,000,000 micro-units
  */
 const MICRO_UNITS_MULTIPLIER = 1_000_000;
+
+/**
+ * ISO 8601 datetime regex pattern
+ *
+ * Matches formats like:
+ * - 2025-01-15T09:00:00Z
+ * - 2025-01-15T09:00:00+00:00
+ * - 2025-01-15T09:00:00.000Z
+ * - 2025-06-28T21:00:00-05:00
+ */
+const ISO_8601_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?(Z|[+-]\d{2}:\d{2})$/;
+
+/**
+ * Normalize a datetime value to a valid ISO 8601 string for Reddit API
+ *
+ * Handles various input types:
+ * - Valid ISO 8601 strings: passed through unchanged
+ * - Date objects: converted to ISO string
+ * - Boolean true: converted to current datetime (means "start now")
+ * - Invalid values (false, null, empty string, invalid strings, numbers): returns undefined
+ *
+ * @param value - The datetime value to normalize (can be string, Date, boolean, number, null, undefined)
+ * @returns A valid ISO 8601 datetime string, or undefined if the value is invalid
+ */
+function normalizeDateTime(value: unknown): string | undefined {
+  // Handle null, undefined, empty string, or false
+  if (value === null || value === undefined || value === "" || value === false) {
+    return undefined;
+  }
+
+  // Handle boolean true - means "start now"
+  if (value === true) {
+    return new Date().toISOString();
+  }
+
+  // Handle Date objects
+  if (value instanceof Date) {
+    // Check if the Date is valid
+    if (isNaN(value.getTime())) {
+      return undefined;
+    }
+    return value.toISOString();
+  }
+
+  // Handle strings - validate ISO 8601 format
+  if (typeof value === "string") {
+    // Check if it matches ISO 8601 format
+    if (ISO_8601_REGEX.test(value)) {
+      return value;
+    }
+    // Invalid string format
+    return undefined;
+  }
+
+  // Reject numbers and any other types
+  return undefined;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Configuration Types
@@ -435,6 +531,32 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
     await this.client.delete(`/ad_groups/${platformAdGroupId}`);
   }
 
+  /**
+   * Pause an ad group on Reddit Ads
+   * Note: v3 API uses PATCH method and /ad_groups/{id} path
+   *
+   * Used by orphan handling PAUSE strategy.
+   */
+  async pauseAdGroup(platformAdGroupId: string): Promise<void> {
+    await this.client.patch<RedditApiResponse<AdGroupResponse>>(
+      `/ad_groups/${platformAdGroupId}`,
+      { data: { configured_status: "PAUSED" } }
+    );
+  }
+
+  /**
+   * Resume a paused ad group on Reddit Ads
+   * Note: v3 API uses PATCH method and /ad_groups/{id} path
+   *
+   * Used by orphan handling auto-restore.
+   */
+  async resumeAdGroup(platformAdGroupId: string): Promise<void> {
+    await this.client.patch<RedditApiResponse<AdGroupResponse>>(
+      `/ad_groups/${platformAdGroupId}`,
+      { data: { configured_status: "ACTIVE" } }
+    );
+  }
+
   // ─── Ad Operations ─────────────────────────────────────────────────────────
 
   /**
@@ -501,6 +623,32 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
     await this.client.delete(`/ads/${platformAdId}`);
   }
 
+  /**
+   * Pause an ad on Reddit Ads
+   * Note: v3 API uses PATCH method and /ads/{id} path
+   *
+   * Used by orphan handling PAUSE strategy.
+   */
+  async pauseAd(platformAdId: string): Promise<void> {
+    await this.client.patch<RedditApiResponse<AdResponse>>(
+      `/ads/${platformAdId}`,
+      { data: { configured_status: "PAUSED" } }
+    );
+  }
+
+  /**
+   * Resume a paused ad on Reddit Ads
+   * Note: v3 API uses PATCH method and /ads/{id} path
+   *
+   * Used by orphan handling auto-restore.
+   */
+  async resumeAd(platformAdId: string): Promise<void> {
+    await this.client.patch<RedditApiResponse<AdResponse>>(
+      `/ads/${platformAdId}`,
+      { data: { configured_status: "ACTIVE" } }
+    );
+  }
+
   // ─── Keyword Operations (No-op for Reddit) ─────────────────────────────────
   // Reddit uses subreddit/interest targeting instead of keywords.
   // These methods return success without making API calls.
@@ -544,19 +692,33 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
 
   /**
    * Transform our Campaign type to Reddit v3 API format
+   *
+   * Advanced settings are read from campaign.campaignData.advancedSettings.reddit.campaign
    */
   private transformCampaign(campaign: Campaign): RedditCampaign {
     const campaignData = campaign.campaignData as
-      | { objective?: string; biddingStrategy?: string; specialAdCategories?: SpecialAdCategory[] }
+      | {
+          objective?: string;
+          biddingStrategy?: string;
+          specialAdCategories?: SpecialAdCategory[];
+          advancedSettings?: PlatformAdvancedSettings;
+        }
       | undefined;
 
     const budget = campaign.budget;
+    const advancedSettings = campaignData?.advancedSettings?.reddit?.campaign;
+
+    // Use special ad categories from advanced settings, then legacy location, then default
+    const specialAdCategories =
+      advancedSettings?.specialAdCategories ??
+      campaignData?.specialAdCategories ??
+      ["NONE"];
 
     const redditCampaign: RedditCampaign = {
       name: campaign.name,
       objective: mapObjective(campaignData?.objective),
       configured_status: "ACTIVE", // Required in v3 API
-      special_ad_categories: campaignData?.specialAdCategories ?? ["NONE"], // Required in v3 API
+      special_ad_categories: specialAdCategories, // Required in v3 API
       funding_instrument_id: this.fundingInstrumentId,
     };
 
@@ -567,6 +729,33 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
       } else {
         // daily or default
         redditCampaign.daily_budget_micro = toMicroUnits(budget.amount);
+      }
+    }
+
+    // Apply advanced settings: start_time, end_time, attribution windows
+    if (advancedSettings) {
+      // Start time (ISO 8601 with timezone) - normalized to handle invalid values
+      const normalizedStartTime = normalizeDateTime(advancedSettings.startTime);
+      if (normalizedStartTime) {
+        (redditCampaign as Record<string, unknown>).start_time = normalizedStartTime;
+      }
+
+      // End time (ISO 8601 with timezone) - normalized to handle invalid values
+      const normalizedEndTime = normalizeDateTime(advancedSettings.endTime);
+      if (normalizedEndTime) {
+        (redditCampaign as Record<string, unknown>).end_time = normalizedEndTime;
+      }
+
+      // View-through attribution window (1-30 days)
+      if (advancedSettings.viewThroughAttributionDays !== undefined) {
+        redditCampaign.view_through_attribution_window_days =
+          advancedSettings.viewThroughAttributionDays;
+      }
+
+      // Click-through attribution window (1-30 days)
+      if (advancedSettings.clickThroughAttributionDays !== undefined) {
+        redditCampaign.click_through_attribution_window_days =
+          advancedSettings.clickThroughAttributionDays;
       }
     }
 
@@ -597,6 +786,8 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
 
   /**
    * Transform our AdGroup type to Reddit v3 API format
+   *
+   * Advanced settings are read from adGroup.settings.advancedSettings.reddit.adGroup
    */
   private transformAdGroup(
     adGroup: AdGroup,
@@ -611,9 +802,11 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
     const targeting = settings?.targeting as {
       subreddits?: string[];
       interests?: string[];
-      locations?: string[];
+      locations?: ("FEED" | "COMMENTS_PAGE")[];
       devices?: ("DESKTOP" | "MOBILE" | "TABLET")[];
     } | undefined;
+    const advancedSettings = (settings as { advancedSettings?: PlatformAdvancedSettings } | undefined)
+      ?.advancedSettings?.reddit?.adGroup;
 
     const redditAdGroup: RedditAdGroup = {
       name: adGroup.name,
@@ -641,8 +834,24 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
         subreddits: targeting.subreddits,
         interests: targeting.interests,
         locations: targeting.locations,
-        devices: targeting.devices,
+        // Transform simple device types to DeviceTargeting objects
+        devices: targeting.devices?.map((deviceType) => ({ type: deviceType })),
       };
+    }
+
+    // Apply advanced settings: start_time, end_time - normalized to handle invalid values
+    if (advancedSettings) {
+      // Start time (ISO 8601 with timezone) - normalized to handle invalid values
+      const normalizedStartTime = normalizeDateTime(advancedSettings.startTime);
+      if (normalizedStartTime) {
+        redditAdGroup.start_time = normalizedStartTime;
+      }
+
+      // End time (ISO 8601 with timezone) - normalized to handle invalid values
+      const normalizedEndTime = normalizeDateTime(advancedSettings.endTime);
+      if (normalizedEndTime) {
+        redditAdGroup.end_time = normalizedEndTime;
+      }
     }
 
     return redditAdGroup;
@@ -661,7 +870,7 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
     const targeting = settings?.targeting as {
       subreddits?: string[];
       interests?: string[];
-      locations?: string[];
+      locations?: ("FEED" | "COMMENTS_PAGE")[];
       devices?: ("DESKTOP" | "MOBILE" | "TABLET")[];
     } | undefined;
 
@@ -690,7 +899,8 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
         subreddits: targeting.subreddits,
         interests: targeting.interests,
         locations: targeting.locations,
-        devices: targeting.devices,
+        // Transform simple device types to DeviceTargeting objects
+        devices: targeting.devices?.map((deviceType) => ({ type: deviceType })),
       };
     }
 

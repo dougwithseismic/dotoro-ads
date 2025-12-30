@@ -176,6 +176,8 @@ export {
   validateDateTimeRange,
   isValidUrl,
   validateUrlField,
+  // Platform Defaults Resolver
+  PlatformDefaultsResolver,
 } from "./validation/index.js";
 
 export type {
@@ -189,7 +191,15 @@ export type {
   ValidationOptions,
   AdGroupValidationContext,
   AdValidationContext,
+  // Platform Types (extensible)
+  Platform,
+  KnownPlatform,
+  SupportedPlatform, // deprecated alias for backwards compatibility
+  EntityType,
+  PlatformDefaults,
 } from "./validation/index.js";
+
+export { KNOWN_PLATFORMS } from "./validation/index.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Fallback Ad System Exports
@@ -212,3 +222,17 @@ export type {
   ExtendedSyncResult,
   StrategyEngineConfig,
 } from "./fallback/index.js";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sync Diff Exports (Idempotent Sync Optimization)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Re-export the entire sync-diff module under a namespace for cleaner imports
+export * as syncDiff from "./sync-diff/index.js";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Orphan Handling Exports
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Re-export the entire orphan-handling module under a namespace
+export * as orphanHandling from "./orphan-handling/index.js";
