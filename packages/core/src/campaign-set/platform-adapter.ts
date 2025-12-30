@@ -236,6 +236,40 @@ export interface CampaignSetPlatformAdapter {
    * @throws Error if the delete operation fails
    */
   deleteKeyword(platformKeywordId: string): Promise<void>;
+
+  // ─── Deduplication Queries ────────────────────────────────────────────────
+
+  /**
+   * Find an existing campaign on the platform by name.
+   * Used for deduplication during crash recovery - prevents duplicate
+   * entity creation when sync resumes after a crash that occurred after
+   * Reddit created the entity but before we persisted the platformId.
+   *
+   * @param accountId - The ad account ID to search in
+   * @param name - The exact campaign name to match
+   * @returns Platform campaign ID if found, null otherwise
+   */
+  findExistingCampaign(accountId: string, name: string): Promise<string | null>;
+
+  /**
+   * Find an existing ad group on the platform by name and parent campaign.
+   * Used for deduplication during crash recovery.
+   *
+   * @param campaignId - The platform campaign ID to search in
+   * @param name - The exact ad group name to match
+   * @returns Platform ad group ID if found, null otherwise
+   */
+  findExistingAdGroup(campaignId: string, name: string): Promise<string | null>;
+
+  /**
+   * Find an existing ad on the platform by name/headline and parent ad group.
+   * Used for deduplication during crash recovery.
+   *
+   * @param adGroupId - The platform ad group ID to search in
+   * @param name - The exact ad name/headline to match
+   * @returns Platform ad ID if found, null otherwise
+   */
+  findExistingAd(adGroupId: string, name: string): Promise<string | null>;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -266,6 +300,9 @@ export function isCampaignSetPlatformAdapter(
     typeof adapter.deleteAd === "function" &&
     typeof adapter.createKeyword === "function" &&
     typeof adapter.updateKeyword === "function" &&
-    typeof adapter.deleteKeyword === "function"
+    typeof adapter.deleteKeyword === "function" &&
+    typeof adapter.findExistingCampaign === "function" &&
+    typeof adapter.findExistingAdGroup === "function" &&
+    typeof adapter.findExistingAd === "function"
   );
 }

@@ -156,7 +156,9 @@ describe("RedditAdsAdapter - Type Transformations", () => {
       expect(mockClient.post).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          daily_budget_micro: 100_000_000, // $100 * 1,000,000
+          data: expect.objectContaining({
+            daily_budget_micro: 100_000_000, // $100 * 1,000,000
+          }),
         })
       );
     });
@@ -179,7 +181,9 @@ describe("RedditAdsAdapter - Type Transformations", () => {
       expect(mockClient.post).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          total_budget_micro: 5_000_000_000, // $5000 * 1,000,000
+          data: expect.objectContaining({
+            total_budget_micro: 5_000_000_000, // $5000 * 1,000,000
+          }),
         })
       );
     });
@@ -202,14 +206,16 @@ describe("RedditAdsAdapter - Type Transformations", () => {
       expect(mockClient.post).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          daily_budget_micro: 50_750_000, // $50.75 * 1,000,000
+          data: expect.objectContaining({
+            daily_budget_micro: 50_750_000, // $50.75 * 1,000,000
+          }),
         })
       );
     });
   });
 
   describe("Objective Mapping", () => {
-    it("maps objective AWARENESS correctly", async () => {
+    it("maps objective awareness to IMPRESSIONS correctly (v3 API)", async () => {
       const campaign = createMockCampaign({
         campaignData: {
           objective: "awareness",
@@ -225,12 +231,14 @@ describe("RedditAdsAdapter - Type Transformations", () => {
       expect(mockClient.post).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          objective: "AWARENESS",
+          data: expect.objectContaining({
+            objective: "IMPRESSIONS", // v3 API maps awareness to IMPRESSIONS
+          }),
         })
       );
     });
 
-    it("maps objective CONSIDERATION correctly", async () => {
+    it("maps objective consideration to CLICKS correctly (v3 API)", async () => {
       const campaign = createMockCampaign({
         campaignData: {
           objective: "consideration",
@@ -246,7 +254,9 @@ describe("RedditAdsAdapter - Type Transformations", () => {
       expect(mockClient.post).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          objective: "CONSIDERATION",
+          data: expect.objectContaining({
+            objective: "CLICKS", // v3 API maps consideration to CLICKS
+          }),
         })
       );
     });
@@ -267,12 +277,14 @@ describe("RedditAdsAdapter - Type Transformations", () => {
       expect(mockClient.post).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          objective: "CONVERSIONS",
+          data: expect.objectContaining({
+            objective: "CONVERSIONS",
+          }),
         })
       );
     });
 
-    it("defaults to AWARENESS when objective is not specified", async () => {
+    it("defaults to IMPRESSIONS when objective is not specified (v3 API)", async () => {
       const campaign = createMockCampaign({
         campaignData: {},
       });
@@ -286,14 +298,61 @@ describe("RedditAdsAdapter - Type Transformations", () => {
       expect(mockClient.post).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          objective: "AWARENESS",
+          data: expect.objectContaining({
+            objective: "IMPRESSIONS", // v3 API defaults to IMPRESSIONS
+          }),
+        })
+      );
+    });
+  });
+
+  describe("Special Ad Categories", () => {
+    it("includes special_ad_categories defaulting to NONE", async () => {
+      const campaign = createMockCampaign();
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-campaign-123" },
+      });
+
+      await adapter.createCampaign(campaign);
+
+      expect(mockClient.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            special_ad_categories: ["NONE"],
+          }),
+        })
+      );
+    });
+
+    it("allows custom special_ad_categories", async () => {
+      const campaign = createMockCampaign({
+        campaignData: {
+          objective: "awareness",
+          specialAdCategories: ["HOUSING"],
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-campaign-123" },
+      });
+
+      await adapter.createCampaign(campaign);
+
+      expect(mockClient.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            special_ad_categories: ["HOUSING"],
+          }),
         })
       );
     });
   });
 
   describe("Bidding Strategy Mapping", () => {
-    it("maps bidding strategy AUTOMATIC correctly", async () => {
+    it("maps bidding strategy automatic to MAXIMIZE_VOLUME (v3 API)", async () => {
       const adGroup = createMockAdGroup({
         settings: {
           bidding: {
@@ -311,12 +370,14 @@ describe("RedditAdsAdapter - Type Transformations", () => {
       expect(mockClient.post).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          bid_strategy: "AUTOMATIC",
+          data: expect.objectContaining({
+            bid_strategy: "MAXIMIZE_VOLUME", // v3 API uses MAXIMIZE_VOLUME for automatic
+          }),
         })
       );
     });
 
-    it("maps bidding strategy MANUAL_CPC correctly", async () => {
+    it("maps bidding strategy manual_cpc to MANUAL_BIDDING with bid_value (v3 API)", async () => {
       const adGroup = createMockAdGroup({
         settings: {
           bidding: {
@@ -335,13 +396,15 @@ describe("RedditAdsAdapter - Type Transformations", () => {
       expect(mockClient.post).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          bid_strategy: "MANUAL_CPC",
-          bid_micro: 2_500_000, // $2.50 * 1,000,000
+          data: expect.objectContaining({
+            bid_strategy: "MANUAL_BIDDING", // v3 API uses MANUAL_BIDDING
+            bid_value: 2_500_000, // v3 API uses bid_value, not bid_micro
+          }),
         })
       );
     });
 
-    it("maps bidding strategy MANUAL_CPM correctly", async () => {
+    it("maps bidding strategy manual_cpm to MANUAL_BIDDING with bid_value (v3 API)", async () => {
       const adGroup = createMockAdGroup({
         settings: {
           bidding: {
@@ -360,13 +423,15 @@ describe("RedditAdsAdapter - Type Transformations", () => {
       expect(mockClient.post).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          bid_strategy: "MANUAL_CPM",
-          bid_micro: 10_000_000, // $10.00 * 1,000,000
+          data: expect.objectContaining({
+            bid_strategy: "MANUAL_BIDDING", // v3 API uses MANUAL_BIDDING for CPM too
+            bid_value: 10_000_000, // v3 API uses bid_value
+          }),
         })
       );
     });
 
-    it("defaults to AUTOMATIC when bidding strategy is not specified", async () => {
+    it("defaults to MAXIMIZE_VOLUME when bidding strategy is not specified (v3 API)", async () => {
       const adGroup = createMockAdGroup({
         settings: {},
       });
@@ -380,7 +445,71 @@ describe("RedditAdsAdapter - Type Transformations", () => {
       expect(mockClient.post).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          bid_strategy: "AUTOMATIC",
+          data: expect.objectContaining({
+            bid_strategy: "MAXIMIZE_VOLUME", // v3 API defaults to MAXIMIZE_VOLUME
+          }),
+        })
+      );
+    });
+  });
+
+  describe("Ad Group Budget (goal_type/goal_value)", () => {
+    it("includes goal_type and goal_value for daily budget", async () => {
+      const adGroup = createMockAdGroup({
+        settings: {
+          budget: {
+            type: "daily",
+            amount: 50.00,
+          },
+          bidding: {
+            strategy: "automatic",
+          },
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-adgroup-123" },
+      });
+
+      await adapter.createAdGroup(adGroup, "platform-campaign-123");
+
+      expect(mockClient.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            goal_type: "DAILY_SPEND",
+            goal_value: 50_000_000, // $50 * 1,000,000
+          }),
+        })
+      );
+    });
+
+    it("includes goal_type LIFETIME_SPEND for lifetime budget", async () => {
+      const adGroup = createMockAdGroup({
+        settings: {
+          budget: {
+            type: "lifetime",
+            amount: 1000.00,
+          },
+          bidding: {
+            strategy: "automatic",
+          },
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-adgroup-123" },
+      });
+
+      await adapter.createAdGroup(adGroup, "platform-campaign-123");
+
+      expect(mockClient.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            goal_type: "LIFETIME_SPEND",
+            goal_value: 1_000_000_000, // $1000 * 1,000,000
+          }),
         })
       );
     });
@@ -408,12 +537,14 @@ describe("RedditAdsAdapter - Type Transformations", () => {
       expect(mockClient.post).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          targeting: {
-            subreddits: ["r/technology", "r/programming"],
-            locations: ["US", "CA"],
-            devices: ["DESKTOP", "MOBILE"],
-            interests: ["technology", "software"],
-          },
+          data: expect.objectContaining({
+            targeting: {
+              subreddits: ["r/technology", "r/programming"],
+              locations: ["US", "CA"],
+              devices: ["DESKTOP", "MOBILE"],
+              interests: ["technology", "software"],
+            },
+          }),
         })
       );
     });
@@ -435,8 +566,10 @@ describe("RedditAdsAdapter - Type Transformations", () => {
       expect(mockClient.post).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          headline: "Amazing Product Launch",
-          body: "Discover the future of technology today.",
+          data: expect.objectContaining({
+            headline: "Amazing Product Launch",
+            body: "Discover the future of technology today.",
+          }),
         })
       );
     });
@@ -455,7 +588,9 @@ describe("RedditAdsAdapter - Type Transformations", () => {
       expect(mockClient.post).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          click_url: "https://example.com/product",
+          data: expect.objectContaining({
+            click_url: "https://example.com/product",
+          }),
         })
       );
     });
@@ -474,7 +609,9 @@ describe("RedditAdsAdapter - Type Transformations", () => {
       expect(mockClient.post).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          display_url: "example.com/promo",
+          data: expect.objectContaining({
+            display_url: "example.com/promo",
+          }),
         })
       );
     });
@@ -493,7 +630,9 @@ describe("RedditAdsAdapter - Type Transformations", () => {
       expect(mockClient.post).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          call_to_action: "SHOP_NOW",
+          data: expect.objectContaining({
+            call_to_action: "SHOP_NOW",
+          }),
         })
       );
     });
@@ -512,7 +651,9 @@ describe("RedditAdsAdapter - Type Transformations", () => {
       expect(mockClient.post).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          name: expect.stringContaining("My Awesome Ad Headline"),
+          data: expect.objectContaining({
+            name: expect.stringContaining("My Awesome Ad Headline"),
+          }),
         })
       );
     });
@@ -541,7 +682,7 @@ describe("RedditAdsAdapter - Campaign Operations", () => {
   });
 
   describe("createCampaign", () => {
-    it("calls API with correct endpoint and params", async () => {
+    it("calls API with correct endpoint and params (v3 API wraps in data)", async () => {
       const campaign = createMockCampaign();
 
       mockClient.post.mockResolvedValueOnce({
@@ -553,48 +694,37 @@ describe("RedditAdsAdapter - Campaign Operations", () => {
       expect(mockClient.post).toHaveBeenCalledWith(
         "/ad_accounts/test-account-123/campaigns",
         expect.objectContaining({
-          name: "Test Campaign",
-          funding_instrument_id: "funding-instrument-456",
+          data: expect.objectContaining({
+            name: "Test Campaign",
+            funding_instrument_id: "funding-instrument-456",
+            configured_status: "ACTIVE",
+            special_ad_categories: ["NONE"],
+          }),
         })
       );
       expect(result.success).toBe(true);
       expect(result.platformCampaignId).toBe("reddit-campaign-123");
     });
-
-    it("includes start_date in ISO format", async () => {
-      const campaign = createMockCampaign();
-
-      mockClient.post.mockResolvedValueOnce({
-        data: { id: "reddit-campaign-123" },
-      });
-
-      await adapter.createCampaign(campaign);
-
-      expect(mockClient.post).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          start_date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}/),
-        })
-      );
-    });
   });
 
   describe("updateCampaign", () => {
-    it("uses platformId for API call", async () => {
+    it("uses platformId for API call (v3 API uses PATCH and /campaigns/{id} path)", async () => {
       const campaign = createMockCampaign({
         name: "Updated Campaign Name",
       });
 
-      mockClient.put.mockResolvedValueOnce({
+      mockClient.patch.mockResolvedValueOnce({
         data: { id: "platform-campaign-456" },
       });
 
       const result = await adapter.updateCampaign(campaign, "platform-campaign-456");
 
-      expect(mockClient.put).toHaveBeenCalledWith(
-        "/ad_accounts/test-account-123/campaigns/platform-campaign-456",
+      expect(mockClient.patch).toHaveBeenCalledWith(
+        "/campaigns/platform-campaign-456",
         expect.objectContaining({
-          name: "Updated Campaign Name",
+          data: expect.objectContaining({
+            name: "Updated Campaign Name",
+          }),
         })
       );
       expect(result.success).toBe(true);
@@ -603,47 +733,51 @@ describe("RedditAdsAdapter - Campaign Operations", () => {
   });
 
   describe("pauseCampaign", () => {
-    it("calls service method to pause campaign", async () => {
-      mockClient.put.mockResolvedValueOnce({
-        data: { id: "platform-campaign-123", status: "PAUSED" },
+    it("calls API with configured_status PAUSED (v3 API uses PATCH)", async () => {
+      mockClient.patch.mockResolvedValueOnce({
+        data: { id: "platform-campaign-123", configured_status: "PAUSED" },
       });
 
       await adapter.pauseCampaign("platform-campaign-123");
 
-      expect(mockClient.put).toHaveBeenCalledWith(
-        "/ad_accounts/test-account-123/campaigns/platform-campaign-123",
+      expect(mockClient.patch).toHaveBeenCalledWith(
+        "/campaigns/platform-campaign-123",
         expect.objectContaining({
-          status: "PAUSED",
+          data: expect.objectContaining({
+            configured_status: "PAUSED", // v3 API uses configured_status
+          }),
         })
       );
     });
   });
 
   describe("resumeCampaign", () => {
-    it("calls service method to activate campaign", async () => {
-      mockClient.put.mockResolvedValueOnce({
-        data: { id: "platform-campaign-123", status: "ACTIVE" },
+    it("calls API with configured_status ACTIVE (v3 API uses PATCH)", async () => {
+      mockClient.patch.mockResolvedValueOnce({
+        data: { id: "platform-campaign-123", configured_status: "ACTIVE" },
       });
 
       await adapter.resumeCampaign("platform-campaign-123");
 
-      expect(mockClient.put).toHaveBeenCalledWith(
-        "/ad_accounts/test-account-123/campaigns/platform-campaign-123",
+      expect(mockClient.patch).toHaveBeenCalledWith(
+        "/campaigns/platform-campaign-123",
         expect.objectContaining({
-          status: "ACTIVE",
+          data: expect.objectContaining({
+            configured_status: "ACTIVE", // v3 API uses configured_status
+          }),
         })
       );
     });
   });
 
   describe("deleteCampaign", () => {
-    it("calls delete endpoint", async () => {
+    it("calls delete endpoint (v3 API uses /campaigns/{id} path)", async () => {
       mockClient.delete.mockResolvedValueOnce({});
 
       await adapter.deleteCampaign("platform-campaign-123");
 
       expect(mockClient.delete).toHaveBeenCalledWith(
-        "/ad_accounts/test-account-123/campaigns/platform-campaign-123"
+        "/campaigns/platform-campaign-123"
       );
     });
   });
@@ -671,7 +805,7 @@ describe("RedditAdsAdapter - Ad Group Operations", () => {
   });
 
   describe("createAdGroup", () => {
-    it("calls API with correct endpoint and params", async () => {
+    it("calls API with correct endpoint and params (v3 API wraps in data)", async () => {
       const adGroup = createMockAdGroup();
 
       mockClient.post.mockResolvedValueOnce({
@@ -681,50 +815,38 @@ describe("RedditAdsAdapter - Ad Group Operations", () => {
       const result = await adapter.createAdGroup(adGroup, "platform-campaign-123");
 
       expect(mockClient.post).toHaveBeenCalledWith(
-        "/ad_accounts/test-account-123/adgroups",
+        "/ad_accounts/test-account-123/ad_groups",
         expect.objectContaining({
-          name: "Test Ad Group",
-          campaign_id: "platform-campaign-123",
+          data: expect.objectContaining({
+            name: "Test Ad Group",
+            campaign_id: "platform-campaign-123",
+            configured_status: "ACTIVE",
+          }),
         })
       );
       expect(result.success).toBe(true);
       expect(result.platformAdGroupId).toBe("reddit-adgroup-123");
     });
-
-    it("includes start_date in ISO format", async () => {
-      const adGroup = createMockAdGroup();
-
-      mockClient.post.mockResolvedValueOnce({
-        data: { id: "reddit-adgroup-123" },
-      });
-
-      await adapter.createAdGroup(adGroup, "platform-campaign-123");
-
-      expect(mockClient.post).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          start_date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}/),
-        })
-      );
-    });
   });
 
   describe("updateAdGroup", () => {
-    it("uses platformAdGroupId for API call", async () => {
+    it("uses platformAdGroupId for API call (v3 API uses PATCH and /ad_groups/{id} path)", async () => {
       const adGroup = createMockAdGroup({
         name: "Updated Ad Group",
       });
 
-      mockClient.put.mockResolvedValueOnce({
+      mockClient.patch.mockResolvedValueOnce({
         data: { id: "platform-adgroup-456" },
       });
 
       const result = await adapter.updateAdGroup(adGroup, "platform-adgroup-456");
 
-      expect(mockClient.put).toHaveBeenCalledWith(
-        "/ad_accounts/test-account-123/adgroups/platform-adgroup-456",
+      expect(mockClient.patch).toHaveBeenCalledWith(
+        "/ad_groups/platform-adgroup-456",
         expect.objectContaining({
-          name: "Updated Ad Group",
+          data: expect.objectContaining({
+            name: "Updated Ad Group",
+          }),
         })
       );
       expect(result.success).toBe(true);
@@ -733,13 +855,13 @@ describe("RedditAdsAdapter - Ad Group Operations", () => {
   });
 
   describe("deleteAdGroup", () => {
-    it("calls delete endpoint", async () => {
+    it("calls delete endpoint (v3 API uses /ad_groups/{id} path)", async () => {
       mockClient.delete.mockResolvedValueOnce({});
 
       await adapter.deleteAdGroup("platform-adgroup-123");
 
       expect(mockClient.delete).toHaveBeenCalledWith(
-        "/ad_accounts/test-account-123/adgroups/platform-adgroup-123"
+        "/ad_groups/platform-adgroup-123"
       );
     });
   });
@@ -767,7 +889,7 @@ describe("RedditAdsAdapter - Ad Operations", () => {
   });
 
   describe("createAd", () => {
-    it("calls API with correct endpoint and params", async () => {
+    it("calls API with correct endpoint and params (v3 API wraps in data)", async () => {
       const ad = createMockAd();
 
       mockClient.post.mockResolvedValueOnce({
@@ -779,8 +901,10 @@ describe("RedditAdsAdapter - Ad Operations", () => {
       expect(mockClient.post).toHaveBeenCalledWith(
         "/ad_accounts/test-account-123/ads",
         expect.objectContaining({
-          ad_group_id: "platform-adgroup-123",
-          headline: "Check out our new product!",
+          data: expect.objectContaining({
+            ad_group_id: "platform-adgroup-123",
+            headline: "Check out our new product!",
+          }),
         })
       );
       expect(result.success).toBe(true);
@@ -789,21 +913,23 @@ describe("RedditAdsAdapter - Ad Operations", () => {
   });
 
   describe("updateAd", () => {
-    it("uses platformAdId for API call", async () => {
+    it("uses platformAdId for API call (v3 API uses PATCH and /ads/{id} path)", async () => {
       const ad = createMockAd({
         headline: "Updated Headline",
       });
 
-      mockClient.put.mockResolvedValueOnce({
+      mockClient.patch.mockResolvedValueOnce({
         data: { id: "platform-ad-456" },
       });
 
       const result = await adapter.updateAd(ad, "platform-ad-456");
 
-      expect(mockClient.put).toHaveBeenCalledWith(
-        "/ad_accounts/test-account-123/ads/platform-ad-456",
+      expect(mockClient.patch).toHaveBeenCalledWith(
+        "/ads/platform-ad-456",
         expect.objectContaining({
-          headline: "Updated Headline",
+          data: expect.objectContaining({
+            headline: "Updated Headline",
+          }),
         })
       );
       expect(result.success).toBe(true);
@@ -812,13 +938,13 @@ describe("RedditAdsAdapter - Ad Operations", () => {
   });
 
   describe("deleteAd", () => {
-    it("calls delete endpoint", async () => {
+    it("calls delete endpoint (v3 API uses /ads/{id} path)", async () => {
       mockClient.delete.mockResolvedValueOnce({});
 
       await adapter.deleteAd("platform-ad-123");
 
       expect(mockClient.delete).toHaveBeenCalledWith(
-        "/ad_accounts/test-account-123/ads/platform-ad-123"
+        "/ads/platform-ad-123"
       );
     });
   });
@@ -1037,8 +1163,8 @@ describe("RedditAdsAdapter - Error Handling", () => {
   });
 
   describe("Error in pause/resume/delete operations", () => {
-    it("throws error when pauseCampaign fails", async () => {
-      mockClient.put.mockRejectedValueOnce(
+    it("throws error when pauseCampaign fails (v3 API uses PATCH)", async () => {
+      mockClient.patch.mockRejectedValueOnce(
         new RedditApiException({
           code: "RESOURCE_NOT_FOUND",
           message: "Campaign not found",
@@ -1052,8 +1178,8 @@ describe("RedditAdsAdapter - Error Handling", () => {
       );
     });
 
-    it("throws error when resumeCampaign fails", async () => {
-      mockClient.put.mockRejectedValueOnce(
+    it("throws error when resumeCampaign fails (v3 API uses PATCH)", async () => {
+      mockClient.patch.mockRejectedValueOnce(
         new RedditApiException({
           code: "RESOURCE_NOT_FOUND",
           message: "Campaign not found",
@@ -1141,7 +1267,9 @@ describe("RedditAdsAdapter - Floating Point Precision", () => {
       expect(mockClient.post).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          daily_budget_micro: 100_000, // Exactly 100,000, not 99999 or 100001
+          data: expect.objectContaining({
+            daily_budget_micro: 100_000, // Exactly 100,000, not 99999 or 100001
+          }),
         })
       );
     });
@@ -1164,7 +1292,9 @@ describe("RedditAdsAdapter - Floating Point Precision", () => {
       expect(mockClient.post).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          daily_budget_micro: 10_000, // Exactly 10,000
+          data: expect.objectContaining({
+            daily_budget_micro: 10_000, // Exactly 10,000
+          }),
         })
       );
     });
@@ -1189,7 +1319,9 @@ describe("RedditAdsAdapter - Floating Point Precision", () => {
       expect(mockClient.post).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          daily_budget_micro: 10_000, // 1 cent = 10,000 micro-units
+          data: expect.objectContaining({
+            daily_budget_micro: 10_000, // 1 cent = 10,000 micro-units
+          }),
         })
       );
     });
@@ -1212,7 +1344,9 @@ describe("RedditAdsAdapter - Floating Point Precision", () => {
       expect(mockClient.post).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          daily_budget_micro: 1_110_000, // Exactly 1,110,000
+          data: expect.objectContaining({
+            daily_budget_micro: 1_110_000, // Exactly 1,110,000
+          }),
         })
       );
     });
@@ -1235,12 +1369,14 @@ describe("RedditAdsAdapter - Floating Point Precision", () => {
       expect(mockClient.post).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          daily_budget_micro: 19_990_000, // Exactly 19,990,000
+          data: expect.objectContaining({
+            daily_budget_micro: 19_990_000, // Exactly 19,990,000
+          }),
         })
       );
     });
 
-    it("converts bid amount $0.10 to exactly 100000 micro-units", async () => {
+    it("converts bid amount $0.10 to exactly 100000 micro-units (v3 API uses bid_value)", async () => {
       const adGroup = createMockAdGroup({
         settings: {
           bidding: {
@@ -1259,7 +1395,9 @@ describe("RedditAdsAdapter - Floating Point Precision", () => {
       expect(mockClient.post).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          bid_micro: 100_000, // Exactly 100,000
+          data: expect.objectContaining({
+            bid_value: 100_000, // v3 API uses bid_value, not bid_micro
+          }),
         })
       );
     });
@@ -1412,8 +1550,8 @@ describe("RedditAdsAdapter - NaN Prevention in Bid Amounts", () => {
     vi.clearAllMocks();
   });
 
-  describe("invalid bid amounts should not produce NaN", () => {
-    it("handles empty string maxCpc gracefully (no bid_micro)", async () => {
+  describe("invalid bid amounts should not produce NaN (v3 API uses bid_value)", () => {
+    it("handles empty string maxCpc gracefully (no bid_value)", async () => {
       const adGroup = createMockAdGroup({
         settings: {
           bidding: {
@@ -1429,16 +1567,17 @@ describe("RedditAdsAdapter - NaN Prevention in Bid Amounts", () => {
 
       await adapter.createAdGroup(adGroup, "platform-campaign-123");
 
-      const callArgs = mockClient.post.mock.calls[0]?.[1] as Record<string, unknown> | undefined;
-      // Should NOT have bid_micro set to NaN
-      expect(callArgs?.bid_micro).not.toBe(NaN);
-      // bid_micro should either be undefined or a valid number
-      if (callArgs?.bid_micro !== undefined) {
-        expect(Number.isNaN(callArgs.bid_micro)).toBe(false);
+      const callArgs = mockClient.post.mock.calls[0]?.[1] as { data?: Record<string, unknown> } | undefined;
+      const dataPayload = callArgs?.data;
+      // Should NOT have bid_value set to NaN
+      expect(dataPayload?.bid_value).not.toBe(NaN);
+      // bid_value should either be undefined or a valid number
+      if (dataPayload?.bid_value !== undefined) {
+        expect(Number.isNaN(dataPayload.bid_value)).toBe(false);
       }
     });
 
-    it("handles 'invalid' string maxCpc gracefully (no bid_micro)", async () => {
+    it("handles 'invalid' string maxCpc gracefully (no bid_value)", async () => {
       const adGroup = createMockAdGroup({
         settings: {
           bidding: {
@@ -1454,14 +1593,15 @@ describe("RedditAdsAdapter - NaN Prevention in Bid Amounts", () => {
 
       await adapter.createAdGroup(adGroup, "platform-campaign-123");
 
-      const callArgs = mockClient.post.mock.calls[0]?.[1] as Record<string, unknown> | undefined;
-      // Should NOT have bid_micro set to NaN
-      if (callArgs?.bid_micro !== undefined) {
-        expect(Number.isNaN(callArgs.bid_micro)).toBe(false);
+      const callArgs = mockClient.post.mock.calls[0]?.[1] as { data?: Record<string, unknown> } | undefined;
+      const dataPayload = callArgs?.data;
+      // Should NOT have bid_value set to NaN
+      if (dataPayload?.bid_value !== undefined) {
+        expect(Number.isNaN(dataPayload.bid_value)).toBe(false);
       }
     });
 
-    it("handles 'abc123' string maxCpc gracefully (no bid_micro)", async () => {
+    it("handles 'abc123' string maxCpc gracefully (no bid_value)", async () => {
       const adGroup = createMockAdGroup({
         settings: {
           bidding: {
@@ -1477,13 +1617,14 @@ describe("RedditAdsAdapter - NaN Prevention in Bid Amounts", () => {
 
       await adapter.createAdGroup(adGroup, "platform-campaign-123");
 
-      const callArgs = mockClient.post.mock.calls[0]?.[1] as Record<string, unknown> | undefined;
-      if (callArgs?.bid_micro !== undefined) {
-        expect(Number.isNaN(callArgs.bid_micro)).toBe(false);
+      const callArgs = mockClient.post.mock.calls[0]?.[1] as { data?: Record<string, unknown> } | undefined;
+      const dataPayload = callArgs?.data;
+      if (dataPayload?.bid_value !== undefined) {
+        expect(Number.isNaN(dataPayload.bid_value)).toBe(false);
       }
     });
 
-    it("handles negative bid amount (should not set bid_micro)", async () => {
+    it("handles negative bid amount (should not set bid_value)", async () => {
       const adGroup = createMockAdGroup({
         settings: {
           bidding: {
@@ -1499,14 +1640,15 @@ describe("RedditAdsAdapter - NaN Prevention in Bid Amounts", () => {
 
       await adapter.createAdGroup(adGroup, "platform-campaign-123");
 
-      const callArgs = mockClient.post.mock.calls[0]?.[1] as Record<string, unknown> | undefined;
-      // Negative amounts should not produce a valid bid_micro
-      if (callArgs?.bid_micro !== undefined) {
-        expect(callArgs.bid_micro).toBeGreaterThan(0);
+      const callArgs = mockClient.post.mock.calls[0]?.[1] as { data?: Record<string, unknown> } | undefined;
+      const dataPayload = callArgs?.data;
+      // Negative amounts should not produce a valid bid_value
+      if (dataPayload?.bid_value !== undefined) {
+        expect(dataPayload.bid_value).toBeGreaterThan(0);
       }
     });
 
-    it("handles zero bid amount (should not set bid_micro)", async () => {
+    it("handles zero bid amount (should not set bid_value)", async () => {
       const adGroup = createMockAdGroup({
         settings: {
           bidding: {
@@ -1522,10 +1664,11 @@ describe("RedditAdsAdapter - NaN Prevention in Bid Amounts", () => {
 
       await adapter.createAdGroup(adGroup, "platform-campaign-123");
 
-      const callArgs = mockClient.post.mock.calls[0]?.[1] as Record<string, unknown> | undefined;
-      // Zero amounts should not set bid_micro
-      if (callArgs?.bid_micro !== undefined) {
-        expect(callArgs.bid_micro).toBeGreaterThan(0);
+      const callArgs = mockClient.post.mock.calls[0]?.[1] as { data?: Record<string, unknown> } | undefined;
+      const dataPayload = callArgs?.data;
+      // Zero amounts should not set bid_value
+      if (dataPayload?.bid_value !== undefined) {
+        expect(dataPayload.bid_value).toBeGreaterThan(0);
       }
     });
   });
@@ -1628,10 +1771,11 @@ describe("RedditAdsAdapter - Undefined Budget Handling", () => {
 
       await adapter.createCampaign(campaign);
 
-      const callArgs = mockClient.post.mock.calls[0]?.[1] as Record<string, unknown> | undefined;
+      const callArgs = mockClient.post.mock.calls[0]?.[1] as { data?: Record<string, unknown> } | undefined;
+      const dataPayload = callArgs?.data;
       // Should NOT have budget fields
-      expect(callArgs?.daily_budget_micro).toBeUndefined();
-      expect(callArgs?.total_budget_micro).toBeUndefined();
+      expect(dataPayload?.daily_budget_micro).toBeUndefined();
+      expect(dataPayload?.total_budget_micro).toBeUndefined();
     });
 
     it("updates campaign without budget fields when budget is undefined", async () => {
@@ -1645,9 +1789,10 @@ describe("RedditAdsAdapter - Undefined Budget Handling", () => {
 
       await adapter.updateCampaign(campaign, "platform-campaign-123");
 
-      const callArgs = mockClient.put.mock.calls[0]?.[1] as Record<string, unknown> | undefined;
-      expect(callArgs?.daily_budget_micro).toBeUndefined();
-      expect(callArgs?.total_budget_micro).toBeUndefined();
+      const callArgs = mockClient.put.mock.calls[0]?.[1] as { data?: Record<string, unknown> } | undefined;
+      const dataPayload = callArgs?.data;
+      expect(dataPayload?.daily_budget_micro).toBeUndefined();
+      expect(dataPayload?.total_budget_micro).toBeUndefined();
     });
   });
 });

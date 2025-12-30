@@ -16,6 +16,15 @@ import type {
 import type { Campaign, AdGroup, Ad, Keyword } from "../types.js";
 
 /**
+ * Represents an existing entity on the mock platform for deduplication testing
+ */
+export interface MockExistingEntity {
+  id: string;
+  name: string;
+  parentId?: string;
+}
+
+/**
  * Configuration options for the mock adapter
  */
 export interface MockAdapterOptions {
@@ -42,6 +51,21 @@ export interface MockAdapterOptions {
    * @default false
    */
   verbose?: boolean;
+
+  /**
+   * Pre-seeded existing campaigns for deduplication testing
+   */
+  existingCampaigns?: MockExistingEntity[];
+
+  /**
+   * Pre-seeded existing ad groups for deduplication testing
+   */
+  existingAdGroups?: MockExistingEntity[];
+
+  /**
+   * Pre-seeded existing ads for deduplication testing
+   */
+  existingAds?: MockExistingEntity[];
 }
 
 /**
@@ -68,7 +92,11 @@ export interface MockAdapterOptions {
 export class MockPlatformAdapter implements CampaignSetPlatformAdapter {
   platform = "mock";
 
-  private readonly options: Required<MockAdapterOptions>;
+  private readonly options: Required<Omit<MockAdapterOptions, 'existingCampaigns' | 'existingAdGroups' | 'existingAds'>> & {
+    existingCampaigns: MockExistingEntity[];
+    existingAdGroups: MockExistingEntity[];
+    existingAds: MockExistingEntity[];
+  };
   private operationCount = 0;
 
   constructor(options: MockAdapterOptions = {}) {
@@ -77,6 +105,9 @@ export class MockPlatformAdapter implements CampaignSetPlatformAdapter {
       failureRate: options.failureRate ?? 0,
       failureMessage: options.failureMessage ?? "Mock adapter simulated failure",
       verbose: options.verbose ?? false,
+      existingCampaigns: options.existingCampaigns ?? [],
+      existingAdGroups: options.existingAdGroups ?? [],
+      existingAds: options.existingAds ?? [],
     };
   }
 
@@ -252,6 +283,45 @@ export class MockPlatformAdapter implements CampaignSetPlatformAdapter {
     }
   }
 
+  // ─── Deduplication Queries ────────────────────────────────────────────────
+
+  /**
+   * Find an existing campaign by name for deduplication testing
+   */
+  async findExistingCampaign(_accountId: string, name: string): Promise<string | null> {
+    await this.simulateDelay();
+    this.log("findExistingCampaign", name);
+
+    const existing = this.options.existingCampaigns.find(c => c.name === name);
+    return existing?.id ?? null;
+  }
+
+  /**
+   * Find an existing ad group by name within a campaign for deduplication testing
+   */
+  async findExistingAdGroup(campaignId: string, name: string): Promise<string | null> {
+    await this.simulateDelay();
+    this.log("findExistingAdGroup", name, `parent: ${campaignId}`);
+
+    const existing = this.options.existingAdGroups.find(
+      ag => ag.name === name && ag.parentId === campaignId
+    );
+    return existing?.id ?? null;
+  }
+
+  /**
+   * Find an existing ad by name within an ad group for deduplication testing
+   */
+  async findExistingAd(adGroupId: string, name: string): Promise<string | null> {
+    await this.simulateDelay();
+    this.log("findExistingAd", name, `parent: ${adGroupId}`);
+
+    const existing = this.options.existingAds.find(
+      ad => ad.name === name && ad.parentId === adGroupId
+    );
+    return existing?.id ?? null;
+  }
+
   // ─── Helper Methods ────────────────────────────────────────────────────────
 
   /**
@@ -303,5 +373,35 @@ export class MockPlatformAdapter implements CampaignSetPlatformAdapter {
    */
   getOperationCount(): number {
     return this.operationCount;
+  }
+
+  /**
+   * Add an existing campaign for deduplication testing
+   */
+  addExistingCampaign(entity: MockExistingEntity): void {
+    this.options.existingCampaigns.push(entity);
+  }
+
+  /**
+   * Add an existing ad group for deduplication testing
+   */
+  addExistingAdGroup(entity: MockExistingEntity): void {
+    this.options.existingAdGroups.push(entity);
+  }
+
+  /**
+   * Add an existing ad for deduplication testing
+   */
+  addExistingAd(entity: MockExistingEntity): void {
+    this.options.existingAds.push(entity);
+  }
+
+  /**
+   * Clear all existing entities (useful for test reset)
+   */
+  clearExistingEntities(): void {
+    this.options.existingCampaigns = [];
+    this.options.existingAdGroups = [];
+    this.options.existingAds = [];
   }
 }

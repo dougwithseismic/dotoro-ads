@@ -312,6 +312,21 @@ export class ConfigurableMockAdapter implements CampaignSetPlatformAdapter {
     ]);
   }
 
+  // ─── Deduplication Queries ────────────────────────────────────────────────
+  // These return null as the configurable mock adapter doesn't track existing entities
+
+  async findExistingCampaign(_accountId: string, _name: string): Promise<string | null> {
+    return null;
+  }
+
+  async findExistingAdGroup(_campaignId: string, _name: string): Promise<string | null> {
+    return null;
+  }
+
+  async findExistingAd(_adGroupId: string, _name: string): Promise<string | null> {
+    return null;
+  }
+
   // ─── Configuration Methods ─────────────────────────────────────────────────
 
   /**

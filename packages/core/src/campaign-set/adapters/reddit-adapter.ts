@@ -28,11 +28,15 @@ import type {
   RedditAd,
   CampaignObjective,
   BidStrategy,
+  BidType,
   CallToAction,
   RedditApiResponse,
+  RedditApiListResponse,
   CampaignResponse,
   AdGroupResponse,
   AdResponse,
+  GoalType,
+  SpecialAdCategory,
 } from "@repo/reddit-ads";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -79,42 +83,113 @@ function toMicroUnits(dollars: number): number {
 }
 
 /**
- * Map our objective to Reddit's campaign objective
+ * Map our objective to Reddit's campaign objective (v3 API)
+ *
+ * Reddit v3 API valid objectives:
+ * - APP_INSTALLS, CATALOG_SALES, CLICKS, CONVERSIONS
+ * - IMPRESSIONS, LEAD_GENERATION, VIDEO_VIEWABLE_IMPRESSIONS
  */
 function mapObjective(objective?: string): CampaignObjective {
   const objectiveLower = objective?.toLowerCase();
   switch (objectiveLower) {
+    // Map awareness to impressions (brand visibility)
     case "awareness":
-      return "AWARENESS";
+    case "impressions":
+      return "IMPRESSIONS";
+    // Map consideration to clicks (traffic/engagement)
     case "consideration":
-      return "CONSIDERATION";
+    case "clicks":
+    case "traffic":
+      return "CLICKS";
+    // Map conversions directly
     case "conversions":
       return "CONVERSIONS";
+    case "video_views":
+    case "video":
+      return "VIDEO_VIEWABLE_IMPRESSIONS";
+    case "app_installs":
+      return "APP_INSTALLS";
+    case "lead_generation":
+    case "leads":
+      return "LEAD_GENERATION";
+    case "catalog_sales":
+      return "CATALOG_SALES";
     default:
       if (objective) {
-        console.warn(`[RedditAdapter] Unknown objective "${objective}", defaulting to AWARENESS`);
+        console.warn(`[RedditAdapter] Unknown objective "${objective}", defaulting to IMPRESSIONS`);
       }
-      return "AWARENESS";
+      return "IMPRESSIONS";
   }
 }
 
 /**
- * Map our bidding strategy to Reddit's bid strategy
+ * Map our bidding strategy to Reddit v3 API bid strategy
+ *
+ * Reddit v3 API valid bid strategies:
+ * - BIDLESS: No bid required (for certain objective types)
+ * - MANUAL_BIDDING: Manual bid control
+ * - MAXIMIZE_VOLUME: Automatic optimization for volume
+ * - TARGET_CPX: Target cost per action
  */
 function mapBidStrategy(strategy?: string): BidStrategy {
   const strategyLower = strategy?.toLowerCase();
   switch (strategyLower) {
+    // Map automatic/auto strategies to MAXIMIZE_VOLUME
     case "automatic":
-      return "AUTOMATIC";
+    case "auto":
+    case "maximize_volume":
+      return "MAXIMIZE_VOLUME";
+    // Map manual CPC/CPM to MANUAL_BIDDING
     case "manual_cpc":
-      return "MANUAL_CPC";
     case "manual_cpm":
-      return "MANUAL_CPM";
+    case "manual":
+    case "manual_bidding":
+      return "MANUAL_BIDDING";
+    // Map target CPA/CPX strategies
+    case "target_cpa":
+    case "target_cpx":
+    case "target":
+      return "TARGET_CPX";
+    // Bidless for certain campaign types
+    case "bidless":
+    case "none":
+      return "BIDLESS";
     default:
       if (strategy) {
-        console.warn(`[RedditAdapter] Unknown bid strategy "${strategy}", defaulting to AUTOMATIC`);
+        console.warn(`[RedditAdapter] Unknown bid strategy "${strategy}", defaulting to MAXIMIZE_VOLUME`);
       }
-      return "AUTOMATIC";
+      return "MAXIMIZE_VOLUME";
+  }
+}
+
+/**
+ * Map our bidding strategy to Reddit v3 API bid type
+ *
+ * Reddit v3 API requires bid_type for ad groups:
+ * - CPC: Cost per click (default for most campaigns)
+ * - CPM: Cost per mille (thousand impressions)
+ * - CPV: Cost per view (video campaigns)
+ */
+function mapBidType(strategy?: string): BidType {
+  const strategyLower = strategy?.toLowerCase();
+  switch (strategyLower) {
+    case "manual_cpm":
+    case "cpm":
+      return "CPM";
+    case "cpv":
+    case "video":
+      return "CPV";
+    case "manual_cpc":
+    case "cpc":
+    case "automatic":
+    case "auto":
+    case "maximize_volume":
+    case "manual_bidding":
+    case "target_cpa":
+    case "target_cpx":
+    default:
+      // Default to CPC for most strategies
+      return "CPC";
   }
 }
 
@@ -154,16 +229,6 @@ function mapCallToAction(cta?: string): CallToAction {
   }
 
   return ctaUpper;
-}
-
-/**
- * Get current date as ISO string for start_date
- *
- * Returns date in "YYYY-MM-DD" format using substring instead of split
- * to avoid non-null assertion on array access.
- */
-function getStartDate(): string {
-  return new Date().toISOString().substring(0, 10); // "YYYY-MM-DD"
 }
 
 /**
@@ -243,9 +308,10 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
     try {
       const redditCampaign = this.transformCampaign(campaign);
 
+      // Reddit v3 API requires payload wrapped in "data" object
       const response = await this.client.post<
         RedditApiResponse<CampaignResponse>
-      >(`/ad_accounts/${this.accountId}/campaigns`, redditCampaign);
+      >(`/ad_accounts/${this.accountId}/campaigns`, { data: redditCampaign });
 
       return {
         success: true,
@@ -266,9 +332,10 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
     try {
       const updates = this.transformCampaignUpdate(campaign);
 
-      await this.client.put<RedditApiResponse<CampaignResponse>>(
-        `/ad_accounts/${this.accountId}/campaigns/${platformId}`,
-        updates
+      // Reddit v3 API uses PATCH method and /campaigns/{id} path (not PUT, not under ad_accounts)
+      await this.client.patch<RedditApiResponse<CampaignResponse>>(
+        `/campaigns/${platformId}`,
+        { data: updates }
       );
 
       return {
@@ -282,29 +349,32 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
 
   /**
    * Pause a campaign on Reddit Ads
+   * Note: v3 API uses PATCH method and /campaigns/{id} path
    */
   async pauseCampaign(platformId: string): Promise<void> {
-    await this.client.put<RedditApiResponse<CampaignResponse>>(
-      `/ad_accounts/${this.accountId}/campaigns/${platformId}`,
-      { status: "PAUSED" }
+    await this.client.patch<RedditApiResponse<CampaignResponse>>(
+      `/campaigns/${platformId}`,
+      { data: { configured_status: "PAUSED" } }
     );
   }
 
   /**
    * Resume a paused campaign on Reddit Ads
+   * Note: v3 API uses PATCH method and /campaigns/{id} path
    */
   async resumeCampaign(platformId: string): Promise<void> {
-    await this.client.put<RedditApiResponse<CampaignResponse>>(
-      `/ad_accounts/${this.accountId}/campaigns/${platformId}`,
-      { status: "ACTIVE" }
+    await this.client.patch<RedditApiResponse<CampaignResponse>>(
+      `/campaigns/${platformId}`,
+      { data: { configured_status: "ACTIVE" } }
     );
   }
 
   /**
    * Delete a campaign from Reddit Ads
+   * Note: v3 API uses /campaigns/{id} path (not under ad_accounts)
    */
   async deleteCampaign(platformId: string): Promise<void> {
-    await this.client.delete(`/ad_accounts/${this.accountId}/campaigns/${platformId}`);
+    await this.client.delete(`/campaigns/${platformId}`);
   }
 
   // ─── Ad Group Operations ───────────────────────────────────────────────────
@@ -321,7 +391,7 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
 
       const response = await this.client.post<
         RedditApiResponse<AdGroupResponse>
-      >(`/ad_accounts/${this.accountId}/adgroups`, redditAdGroup);
+      >(`/ad_accounts/${this.accountId}/ad_groups`, { data: redditAdGroup });
 
       return {
         success: true,
@@ -334,6 +404,7 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
 
   /**
    * Update an existing ad group on Reddit Ads
+   * Note: v3 API uses PATCH method and /ad_groups/{id} path (not PUT, not under ad_accounts)
    */
   async updateAdGroup(
     adGroup: AdGroup,
@@ -342,9 +413,9 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
     try {
       const updates = this.transformAdGroupUpdate(adGroup);
 
-      await this.client.put<RedditApiResponse<AdGroupResponse>>(
-        `/ad_accounts/${this.accountId}/adgroups/${platformAdGroupId}`,
-        updates
+      await this.client.patch<RedditApiResponse<AdGroupResponse>>(
+        `/ad_groups/${platformAdGroupId}`,
+        { data: updates }
       );
 
       return {
@@ -358,11 +429,10 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
 
   /**
    * Delete an ad group from Reddit Ads
+   * Note: v3 API uses /ad_groups/{id} path (not under ad_accounts)
    */
   async deleteAdGroup(platformAdGroupId: string): Promise<void> {
-    await this.client.delete(
-      `/ad_accounts/${this.accountId}/adgroups/${platformAdGroupId}`
-    );
+    await this.client.delete(`/ad_groups/${platformAdGroupId}`);
   }
 
   // ─── Ad Operations ─────────────────────────────────────────────────────────
@@ -389,7 +459,7 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
 
       const response = await this.client.post<RedditApiResponse<AdResponse>>(
         `/ad_accounts/${this.accountId}/ads`,
-        redditAd
+        { data: redditAd }
       );
 
       return {
@@ -403,14 +473,15 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
 
   /**
    * Update an existing ad on Reddit Ads
+   * Note: v3 API uses PATCH method and /ads/{id} path (not PUT, not under ad_accounts)
    */
   async updateAd(ad: Ad, platformAdId: string): Promise<PlatformAdResult> {
     try {
       const updates = this.transformAdUpdate(ad);
 
-      await this.client.put<RedditApiResponse<AdResponse>>(
-        `/ad_accounts/${this.accountId}/ads/${platformAdId}`,
-        updates
+      await this.client.patch<RedditApiResponse<AdResponse>>(
+        `/ads/${platformAdId}`,
+        { data: updates }
       );
 
       return {
@@ -424,9 +495,10 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
 
   /**
    * Delete an ad from Reddit Ads
+   * Note: v3 API uses /ads/{id} path (not under ad_accounts)
    */
   async deleteAd(platformAdId: string): Promise<void> {
-    await this.client.delete(`/ad_accounts/${this.accountId}/ads/${platformAdId}`);
+    await this.client.delete(`/ads/${platformAdId}`);
   }
 
   // ─── Keyword Operations (No-op for Reddit) ─────────────────────────────────
@@ -468,14 +540,95 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
     // No-op for Reddit
   }
 
+  // ─── Deduplication Queries ────────────────────────────────────────────────
+
+  /**
+   * Find an existing campaign by name for deduplication.
+   * Used to prevent duplicate entity creation during crash recovery.
+   *
+   * @param accountId - The ad account ID to search in
+   * @param name - The exact campaign name to match
+   * @returns Platform campaign ID if found, null otherwise
+   */
+  async findExistingCampaign(accountId: string, name: string): Promise<string | null> {
+    try {
+      const response = await this.client.get<RedditApiListResponse<CampaignResponse>>(
+        `/ad_accounts/${accountId}/campaigns`
+      );
+
+      const existing = response.data.find(
+        (campaign) => campaign.name === name
+      );
+
+      return existing?.id ?? null;
+    } catch (error) {
+      console.warn(`[RedditAdapter] Failed to query existing campaigns: ${error}`);
+      return null;
+    }
+  }
+
+  /**
+   * Find an existing ad group by name within a campaign for deduplication.
+   * Used to prevent duplicate entity creation during crash recovery.
+   *
+   * @param campaignId - The platform campaign ID to search in
+   * @param name - The exact ad group name to match
+   * @returns Platform ad group ID if found, null otherwise
+   */
+  async findExistingAdGroup(campaignId: string, name: string): Promise<string | null> {
+    try {
+      const response = await this.client.get<RedditApiListResponse<AdGroupResponse>>(
+        `/ad_accounts/${this.accountId}/ad_groups`,
+        { params: { campaign_id: campaignId } }
+      );
+
+      const existing = response.data.find(
+        (adGroup) => adGroup.name === name
+      );
+
+      return existing?.id ?? null;
+    } catch (error) {
+      console.warn(`[RedditAdapter] Failed to query existing ad groups: ${error}`);
+      return null;
+    }
+  }
+
+  /**
+   * Find an existing ad by headline/name within an ad group for deduplication.
+   * Used to prevent duplicate entity creation during crash recovery.
+   *
+   * @param adGroupId - The platform ad group ID to search in
+   * @param name - The exact ad name/headline to match
+   * @returns Platform ad ID if found, null otherwise
+   */
+  async findExistingAd(adGroupId: string, name: string): Promise<string | null> {
+    try {
+      const response = await this.client.get<RedditApiListResponse<AdResponse>>(
+        `/ad_accounts/${this.accountId}/ads`,
+        { params: { ad_group_id: adGroupId } }
+      );
+
+      // Match by headline (Reddit ads use headline as the primary identifier)
+      // Also check name field as fallback
+      const existing = response.data.find(
+        (ad) => ad.headline === name || ad.name === name
+      );
+
+      return existing?.id ?? null;
+    } catch (error) {
+      console.warn(`[RedditAdapter] Failed to query existing ads: ${error}`);
+      return null;
+    }
+  }
+
   // ─── Transformation Methods ────────────────────────────────────────────────
 
   /**
-   * Transform our Campaign type to Reddit API format
+   * Transform our Campaign type to Reddit v3 API format
    */
   private transformCampaign(campaign: Campaign): RedditCampaign {
     const campaignData = campaign.campaignData as
-      | { objective?: string; biddingStrategy?: string }
+      | { objective?: string; biddingStrategy?: string; specialAdCategories?: SpecialAdCategory[] }
       | undefined;
 
     const budget = campaign.budget;
@@ -483,8 +636,9 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
     const redditCampaign: RedditCampaign = {
       name: campaign.name,
       objective: mapObjective(campaignData?.objective),
+      configured_status: "ACTIVE", // Required in v3 API
+      special_ad_categories: campaignData?.specialAdCategories ?? ["NONE"], // Required in v3 API
       funding_instrument_id: this.fundingInstrumentId,
-      start_date: getStartDate(),
     };
 
     // Set budget based on type
@@ -523,7 +677,7 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
   }
 
   /**
-   * Transform our AdGroup type to Reddit API format
+   * Transform our AdGroup type to Reddit v3 API format
    */
   private transformAdGroup(
     adGroup: AdGroup,
@@ -531,6 +685,10 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
   ): RedditAdGroup {
     const settings = adGroup.settings;
     const bidding = settings?.bidding as { strategy?: string } | undefined;
+    const budget = settings?.budget as {
+      type?: "daily" | "lifetime";
+      amount?: number;
+    } | undefined;
     const targeting = settings?.targeting as {
       subreddits?: string[];
       interests?: string[];
@@ -542,13 +700,20 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
       name: adGroup.name,
       campaign_id: platformCampaignId,
       bid_strategy: mapBidStrategy(bidding?.strategy),
-      start_date: getStartDate(),
+      bid_type: mapBidType(bidding?.strategy), // Required in v3 API
+      configured_status: "ACTIVE", // Required in v3 API
     };
 
-    // Add bid amount for manual strategies
+    // Add bid amount for manual strategies (v3 API uses bid_value, not bid_micro)
     const bidAmount = extractBidAmount(settings);
     if (bidAmount !== undefined) {
-      redditAdGroup.bid_micro = bidAmount;
+      redditAdGroup.bid_value = bidAmount;
+    }
+
+    // Add goal_type and goal_value for budget (required in v3 API for ad groups)
+    if (budget && budget.amount !== undefined && budget.amount > 0) {
+      redditAdGroup.goal_type = budget.type === "lifetime" ? "LIFETIME_SPEND" : "DAILY_SPEND";
+      redditAdGroup.goal_value = toMicroUnits(budget.amount);
     }
 
     // Add targeting if present
@@ -570,6 +735,10 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
   private transformAdGroupUpdate(adGroup: AdGroup): Partial<RedditAdGroup> {
     const settings = adGroup.settings;
     const bidding = settings?.bidding as { strategy?: string } | undefined;
+    const budget = settings?.budget as {
+      type?: "daily" | "lifetime";
+      amount?: number;
+    } | undefined;
     const targeting = settings?.targeting as {
       subreddits?: string[];
       interests?: string[];
@@ -585,9 +754,16 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
       updates.bid_strategy = mapBidStrategy(bidding.strategy);
     }
 
+    // v3 API uses bid_value, not bid_micro
     const bidAmount = extractBidAmount(settings);
     if (bidAmount !== undefined) {
-      updates.bid_micro = bidAmount;
+      updates.bid_value = bidAmount;
+    }
+
+    // Update goal_type and goal_value for budget
+    if (budget && budget.amount !== undefined && budget.amount > 0) {
+      updates.goal_type = budget.type === "lifetime" ? "LIFETIME_SPEND" : "DAILY_SPEND";
+      updates.goal_value = toMicroUnits(budget.amount);
     }
 
     if (targeting) {
@@ -663,9 +839,15 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
    */
   private handleError(error: unknown): PlatformCampaignResult {
     if (error instanceof RedditApiException) {
+      // Include API error details in the message for better debugging
+      let errorMessage = error.message;
+      if (error.details) {
+        const detailsStr = JSON.stringify(error.details);
+        errorMessage = `${error.message} - Details: ${detailsStr}`;
+      }
       return {
         success: false,
-        error: error.message,
+        error: errorMessage,
         retryable: error.retryable,
         retryAfter: error.retryAfter,
       };
@@ -684,9 +866,14 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
    */
   private handleAdGroupError(error: unknown): PlatformAdGroupResult {
     if (error instanceof RedditApiException) {
+      let errorMessage = error.message;
+      if (error.details) {
+        const detailsStr = JSON.stringify(error.details);
+        errorMessage = `${error.message} - Details: ${detailsStr}`;
+      }
       return {
         success: false,
-        error: error.message,
+        error: errorMessage,
         retryable: error.retryable,
         retryAfter: error.retryAfter,
       };
@@ -705,9 +892,14 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
    */
   private handleAdError(error: unknown): PlatformAdResult {
     if (error instanceof RedditApiException) {
+      let errorMessage = error.message;
+      if (error.details) {
+        const detailsStr = JSON.stringify(error.details);
+        errorMessage = `${error.message} - Details: ${detailsStr}`;
+      }
       return {
         success: false,
-        error: error.message,
+        error: errorMessage,
         retryable: error.retryable,
         retryAfter: error.retryAfter,
       };
