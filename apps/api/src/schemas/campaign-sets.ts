@@ -314,6 +314,195 @@ export const availableColumnsSchema = z.union([
 export type AvailableColumns = z.infer<typeof availableColumnsSchema>;
 
 // ============================================================================
+// Platform Advanced Settings Schemas
+// ============================================================================
+
+/**
+ * Special Ad Category Schema
+ * Reddit compliance categories for housing, employment, and credit ads
+ */
+export const specialAdCategorySchema = z.enum([
+  "NONE",
+  "HOUSING",
+  "EMPLOYMENT",
+  "CREDIT",
+  "HOUSING_EMPLOYMENT_CREDIT",
+]);
+export type SpecialAdCategory = z.infer<typeof specialAdCategorySchema>;
+
+/**
+ * Reddit Campaign Advanced Settings Schema
+ * Campaign-level settings for Reddit platform
+ */
+export const redditCampaignAdvancedSettingsSchema = z.object({
+  /** Campaign start time in ISO 8601 format with timezone */
+  startTime: z.string().datetime({ offset: true }).optional(),
+  /** Campaign end time in ISO 8601 format with timezone */
+  endTime: z.string().datetime({ offset: true }).optional(),
+  /** Special ad categories for compliance (default: ["NONE"]) */
+  specialAdCategories: z.array(specialAdCategorySchema).optional(),
+  /** View-through attribution window in days (1-30, Reddit default: 1) */
+  viewThroughAttributionDays: z.number().int().min(1).max(30).optional(),
+  /** Click-through attribution window in days (1-30, Reddit default: 1) */
+  clickThroughAttributionDays: z.number().int().min(1).max(30).optional(),
+}).refine(
+  (data) => {
+    // If both times are provided, end must be after start
+    if (data.startTime && data.endTime) {
+      return new Date(data.endTime) > new Date(data.startTime);
+    }
+    return true;
+  },
+  { message: "End time must be after start time" }
+);
+export type RedditCampaignAdvancedSettings = z.infer<typeof redditCampaignAdvancedSettingsSchema>;
+
+/**
+ * Reddit Ad Group Advanced Settings Schema
+ * Ad group-level settings for Reddit platform
+ */
+export const redditAdGroupAdvancedSettingsSchema = z.object({
+  /** Ad group start time in ISO 8601 format with timezone */
+  startTime: z.string().datetime({ offset: true }).optional(),
+  /** Ad group end time in ISO 8601 format with timezone */
+  endTime: z.string().datetime({ offset: true }).optional(),
+}).refine(
+  (data) => {
+    // If both times are provided, end must be after start
+    if (data.startTime && data.endTime) {
+      return new Date(data.endTime) > new Date(data.startTime);
+    }
+    return true;
+  },
+  { message: "End time must be after start time" }
+);
+export type RedditAdGroupAdvancedSettings = z.infer<typeof redditAdGroupAdvancedSettingsSchema>;
+
+/**
+ * Reddit Advanced Settings Schema
+ * All Reddit-specific advanced configuration
+ */
+export const redditAdvancedSettingsSchema = z.object({
+  campaign: redditCampaignAdvancedSettingsSchema.optional(),
+  adGroup: redditAdGroupAdvancedSettingsSchema.optional(),
+});
+export type RedditAdvancedSettings = z.infer<typeof redditAdvancedSettingsSchema>;
+
+/**
+ * Google Campaign Advanced Settings Schema (future expansion)
+ */
+export const googleCampaignAdvancedSettingsSchema = z.object({
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+});
+export type GoogleCampaignAdvancedSettings = z.infer<typeof googleCampaignAdvancedSettingsSchema>;
+
+/**
+ * Google Advanced Settings Schema (future expansion)
+ */
+export const googleAdvancedSettingsSchema = z.object({
+  campaign: googleCampaignAdvancedSettingsSchema.optional(),
+});
+export type GoogleAdvancedSettings = z.infer<typeof googleAdvancedSettingsSchema>;
+
+/**
+ * Platform Advanced Settings Schema
+ * Extensible structure for platform-specific advanced configuration
+ */
+export const platformAdvancedSettingsSchema = z.object({
+  reddit: redditAdvancedSettingsSchema.optional(),
+  google: googleAdvancedSettingsSchema.optional(),
+});
+export type PlatformAdvancedSettings = z.infer<typeof platformAdvancedSettingsSchema>;
+
+// ============================================================================
+// Fallback Ad System Schemas
+// ============================================================================
+
+/**
+ * Campaign Set Fallback Strategy Schema
+ * Strategy for handling ads that fail validation due to field length limits.
+ *
+ * - "skip": Skip the ad entirely (safest, no invalid data sent to platform)
+ * - "truncate": Truncate fields to fit within limits
+ * - "use_fallback": Replace with a pre-defined fallback ad
+ */
+export const campaignSetFallbackStrategySchema = z.enum(["skip", "truncate", "use_fallback"]);
+export type CampaignSetFallbackStrategy = z.infer<typeof campaignSetFallbackStrategySchema>;
+
+/**
+ * Fallback Ad Definition Schema
+ * Static fallback ad definition (no variables allowed).
+ */
+export const fallbackAdDefinitionSchema = z.object({
+  /** Headline text - max 100 chars for Reddit, 30 for Google */
+  headline: z.string().min(1).max(300),
+  /** Description text - max 500 chars for Reddit, 90 for Google */
+  description: z.string().min(1).max(500),
+  /** Display URL - max 25 chars */
+  displayUrl: z.string().max(25).optional(),
+  /** Final URL - must be valid, no truncation allowed */
+  finalUrl: z.string().url(),
+  /** Call to action - must be valid enum value */
+  callToAction: z.string().optional(),
+}).refine(
+  (data) => {
+    // Check for variables in any field
+    const variablePattern = /\{[^}]+\}/;
+    return !variablePattern.test(data.headline) &&
+           !variablePattern.test(data.description) &&
+           (!data.displayUrl || !variablePattern.test(data.displayUrl)) &&
+           !variablePattern.test(data.finalUrl) &&
+           (!data.callToAction || !variablePattern.test(data.callToAction));
+  },
+  { message: "Fallback ad must not contain any variables (e.g., {product_name})" }
+);
+export type FallbackAdDefinition = z.infer<typeof fallbackAdDefinitionSchema>;
+
+/**
+ * Truncation Config Schema
+ * Configuration for truncation behavior.
+ */
+export const truncationConfigSchema = z.object({
+  /** Whether to allow truncating headlines */
+  truncateHeadline: z.boolean().default(true),
+  /** Whether to allow truncating descriptions */
+  truncateDescription: z.boolean().default(true),
+  /** Whether to preserve word boundaries when truncating */
+  preserveWordBoundary: z.boolean().default(true),
+});
+export type TruncationConfig = z.infer<typeof truncationConfigSchema>;
+
+/**
+ * Skipped Ad Record Schema
+ * Record of an ad that was skipped during sync.
+ */
+export const skippedAdRecordSchema = z.object({
+  /** ID of the skipped ad */
+  adId: z.string(),
+  /** ID of the ad group containing this ad */
+  adGroupId: z.string(),
+  /** ID of the campaign containing this ad */
+  campaignId: z.string(),
+  /** Reason for skipping */
+  reason: z.string(),
+  /** Field(s) that caused the skip */
+  fields: z.array(z.string()),
+  /** Overflow amounts per field */
+  overflow: z.record(z.number()),
+  /** Original ad content snapshot */
+  originalAd: z.object({
+    headline: z.string().optional(),
+    description: z.string().optional(),
+    displayUrl: z.string().optional(),
+    finalUrl: z.string().optional(),
+  }),
+  /** Timestamp when the ad was skipped */
+  skippedAt: z.string().datetime(),
+});
+export type SkippedAdRecord = z.infer<typeof skippedAdRecordSchema>;
+
+// ============================================================================
 // Campaign Set Config
 // ============================================================================
 
@@ -364,6 +553,22 @@ export const campaignSetConfigSchema = z.object({
   adAccountId: z.string().optional(),
   /** Reddit Funding Instrument ID - optional for Reddit v3 API */
   fundingInstrumentId: z.string().optional(),
+
+  // Platform-specific advanced settings
+  /**
+   * Advanced settings for platform-specific configuration.
+   * Includes scheduling (start/end times), attribution windows,
+   * special ad categories, and other platform-specific options.
+   */
+  advancedSettings: platformAdvancedSettingsSchema.optional(),
+
+  // Fallback ad system configuration
+  /** Strategy for handling ads that fail validation due to field length limits */
+  fallbackStrategy: campaignSetFallbackStrategySchema.optional(),
+  /** Static fallback ad to use when fallbackStrategy is "use_fallback" */
+  fallbackAd: fallbackAdDefinitionSchema.optional(),
+  /** Configuration for truncation behavior */
+  truncationConfig: truncationConfigSchema.optional(),
 });
 export type CampaignSetConfig = z.infer<typeof campaignSetConfigSchema>;
 
@@ -669,11 +874,20 @@ export type SyncErrorItem = z.infer<typeof syncErrorItemSchema>;
 
 /**
  * Sync Response Schema (for inline sync - kept for backwards compatibility)
+ * Extended to include fallback/skip tracking
  */
 export const syncResponseSchema = z.object({
   synced: z.number().int().nonnegative(),
   failed: z.number().int().nonnegative(),
   skipped: z.number().int().nonnegative(),
+  /** Number of ads that were skipped due to validation */
+  skippedAds: z.number().int().nonnegative().optional(),
+  /** Number of ads that used fallback content */
+  fallbacksUsed: z.number().int().nonnegative().optional(),
+  /** Number of ads that were truncated */
+  truncated: z.number().int().nonnegative().optional(),
+  /** Detailed records of skipped ads */
+  skippedAdRecords: z.array(skippedAdRecordSchema).optional(),
   errors: z.array(syncErrorItemSchema),
 });
 export type SyncResponse = z.infer<typeof syncResponseSchema>;
@@ -741,3 +955,113 @@ export const syncStreamQuerySchema = z.object({
   }),
 });
 export type SyncStreamQuery = z.infer<typeof syncStreamQuerySchema>;
+
+// ============================================================================
+// Validation Schemas (Sync Dry-Run)
+// ============================================================================
+
+/**
+ * Validation Error Code Enum
+ */
+export const validationErrorCodeSchema = z.enum([
+  "REQUIRED_FIELD",
+  "INVALID_DATETIME",
+  "INVALID_URL",
+  "FIELD_TOO_LONG",
+  "INVALID_ENUM_VALUE",
+  "INVALID_BUDGET",
+  "MISSING_DEPENDENCY",
+  "CONSTRAINT_VIOLATION",
+  "VALUE_OUT_OF_RANGE",
+]);
+export type ValidationErrorCode = z.infer<typeof validationErrorCodeSchema>;
+
+/**
+ * Validation Entity Type
+ */
+export const validationEntityTypeSchema = z.enum([
+  "campaign",
+  "adGroup",
+  "ad",
+  "keyword",
+]);
+export type ValidationEntityType = z.infer<typeof validationEntityTypeSchema>;
+
+/**
+ * Single Validation Error
+ */
+export const validationErrorSchema = z.object({
+  entityType: validationEntityTypeSchema,
+  entityId: z.string(),
+  entityName: z.string(),
+  field: z.string(),
+  message: z.string(),
+  code: validationErrorCodeSchema,
+  value: z.unknown().optional(),
+  expected: z.string().optional(),
+});
+export type ValidationErrorOutput = z.infer<typeof validationErrorSchema>;
+
+/**
+ * Entity Validation Result
+ */
+export const entityValidationResultSchema = z.object({
+  entityId: z.string(),
+  entityName: z.string(),
+  isValid: z.boolean(),
+  errors: z.array(validationErrorSchema),
+});
+export type EntityValidationResult = z.infer<typeof entityValidationResultSchema>;
+
+/**
+ * Ad Group Validation Result (extends EntityValidationResult with nested ads/keywords)
+ */
+export const adGroupValidationResultSchema = entityValidationResultSchema.extend({
+  ads: z.array(entityValidationResultSchema),
+  keywords: z.array(entityValidationResultSchema),
+});
+export type AdGroupValidationResult = z.infer<typeof adGroupValidationResultSchema>;
+
+/**
+ * Campaign Validation Result (extends EntityValidationResult with nested ad groups)
+ */
+export const campaignValidationResultSchema = entityValidationResultSchema.extend({
+  adGroups: z.array(adGroupValidationResultSchema),
+});
+export type CampaignValidationResult = z.infer<typeof campaignValidationResultSchema>;
+
+/**
+ * Validation Summary
+ */
+export const validationSummarySchema = z.object({
+  campaignsValidated: z.number().int().nonnegative(),
+  adGroupsValidated: z.number().int().nonnegative(),
+  adsValidated: z.number().int().nonnegative(),
+  keywordsValidated: z.number().int().nonnegative(),
+  campaignsWithErrors: z.number().int().nonnegative(),
+  adGroupsWithErrors: z.number().int().nonnegative(),
+  adsWithErrors: z.number().int().nonnegative(),
+  keywordsWithErrors: z.number().int().nonnegative(),
+});
+export type ValidationSummary = z.infer<typeof validationSummarySchema>;
+
+/**
+ * Complete Validation Result
+ */
+export const validationResultSchema = z.object({
+  isValid: z.boolean(),
+  campaignSetId: z.string(),
+  totalErrors: z.number().int().nonnegative(),
+  campaigns: z.array(campaignValidationResultSchema),
+  summary: validationSummarySchema,
+  validationTimeMs: z.number().int().nonnegative(),
+});
+export type ValidationResultOutput = z.infer<typeof validationResultSchema>;
+
+/**
+ * Validate Campaign Set Request Schema (optional platform filter)
+ */
+export const validateCampaignSetRequestSchema = z.object({
+  platform: z.enum(["reddit", "google"]).optional(),
+});
+export type ValidateCampaignSetRequest = z.infer<typeof validateCampaignSetRequestSchema>;

@@ -154,3 +154,61 @@ export {
   calculateBackoffDelay,
   DEFAULT_BACKOFF_CONFIG,
 } from "./backoff.js";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Validation Exports (Sync Dry-Run)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export {
+  // Types
+  ValidationErrorCode,
+  ValidationFailedError,
+  // Validators
+  CampaignValidator,
+  AdGroupValidator,
+  AdValidator,
+  // Service
+  SyncValidationService,
+  getSyncValidationService,
+  // Utilities
+  isValidRedditDateTime,
+  validateDateTimeField,
+  validateDateTimeRange,
+  isValidUrl,
+  validateUrlField,
+} from "./validation/index.js";
+
+export type {
+  ValidationEntityType,
+  ValidationError,
+  EntityValidationResult,
+  CampaignValidationResult,
+  AdGroupValidationResult,
+  ValidationSummary,
+  ValidationResult,
+  ValidationOptions,
+  AdGroupValidationContext,
+  AdValidationContext,
+} from "./validation/index.js";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Fallback Ad System Exports
+// ─────────────────────────────────────────────────────────────────────────────
+
+export {
+  FallbackStrategyEngine,
+  createStrategyEngine,
+  DEFAULT_TRUNCATION_CONFIG,
+} from "./fallback/index.js";
+
+export type {
+  CampaignSetFallbackStrategy,
+  FallbackAdDefinition,
+  TruncationConfig,
+  SkippedAdRecord,
+  StrategyAction,
+  StrategyResult,
+  StrategyContext,
+  ExtendedSyncResult,
+  StrategyEngineConfig,
+} from "./fallback/index.js";

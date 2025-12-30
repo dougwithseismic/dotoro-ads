@@ -32,6 +32,24 @@ export interface SyncProgressData {
   platformId?: string;
   /** Error message (for campaign_failed/error) */
   error?: string;
+  /** Whether this is a dry run (validation only) */
+  dryRun?: boolean;
+  /** Whether validation passed (for dry run) */
+  isValid?: boolean;
+  /** Total validation errors (for dry run) */
+  totalErrors?: number;
+  /** Validation time in ms (for dry run) */
+  validationTimeMs?: number;
+  /** Whether the error was a validation failure */
+  validationFailed?: boolean;
+  /** Persisted validation result ID for error lookup */
+  validationId?: string;
+  /** Number of ads that were skipped due to validation */
+  skippedAds?: number;
+  /** Number of ads that used fallback content */
+  fallbacksUsed?: number;
+  /** Number of ads that were truncated */
+  truncated?: number;
 }
 
 /**

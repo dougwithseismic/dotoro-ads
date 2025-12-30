@@ -32,6 +32,12 @@ export interface SyncCampaignSetJob {
 
   /** The platform to sync to */
   platform: Platform;
+
+  /**
+   * If true, only validate without executing sync.
+   * Returns validation result instead of sync result.
+   */
+  dryRun?: boolean;
 }
 
 /**
@@ -70,6 +76,34 @@ export interface JobStatus {
 }
 
 /**
+ * Record of an ad that was skipped during sync.
+ * Contains full context for debugging and user review.
+ */
+export interface SkippedAdRecord {
+  /** ID of the skipped ad */
+  adId: string;
+  /** ID of the ad group containing this ad */
+  adGroupId: string;
+  /** ID of the campaign containing this ad */
+  campaignId: string;
+  /** Reason for skipping */
+  reason: string;
+  /** Field(s) that caused the skip */
+  fields: string[];
+  /** Overflow amounts per field */
+  overflow: Record<string, number>;
+  /** Original ad content snapshot */
+  originalAd: {
+    headline?: string;
+    description?: string;
+    displayUrl?: string;
+    finalUrl?: string;
+  };
+  /** Timestamp when the ad was skipped */
+  skippedAt: string;
+}
+
+/**
  * Result of a sync operation.
  */
 export interface SyncResult {
@@ -81,6 +115,18 @@ export interface SyncResult {
 
   /** Number of campaigns skipped */
   skipped: number;
+
+  /** Number of ads that were skipped due to validation */
+  skippedAds?: number;
+
+  /** Number of ads that used fallback content */
+  fallbacksUsed?: number;
+
+  /** Number of ads that were truncated */
+  truncated?: number;
+
+  /** Detailed records of skipped ads */
+  skippedAdRecords?: SkippedAdRecord[];
 
   /** Array of error details for failed campaigns */
   errors: Array<{

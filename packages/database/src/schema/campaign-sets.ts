@@ -247,6 +247,105 @@ export interface DataSourceColumn {
 export type AvailableColumns = string[] | DataSourceColumn[];
 
 // ============================================================================
+// Platform Advanced Settings Types
+// ============================================================================
+
+/** Reddit special ad categories */
+export type SpecialAdCategory = "NONE" | "HOUSING" | "EMPLOYMENT" | "CREDIT" | "HOUSING_EMPLOYMENT_CREDIT";
+
+/** Reddit campaign advanced settings */
+export interface RedditCampaignAdvancedSettings {
+  /** Campaign start time in ISO 8601 format with timezone */
+  startTime?: string;
+  /** Campaign end time in ISO 8601 format with timezone */
+  endTime?: string;
+  /** Special ad categories for compliance (default: ["NONE"]) */
+  specialAdCategories?: SpecialAdCategory[];
+  /** View-through attribution window in days (1-30, Reddit default: 1) */
+  viewThroughAttributionDays?: number;
+  /** Click-through attribution window in days (1-30, Reddit default: 1) */
+  clickThroughAttributionDays?: number;
+}
+
+/** Reddit ad group advanced settings */
+export interface RedditAdGroupAdvancedSettings {
+  /** Ad group start time in ISO 8601 format with timezone */
+  startTime?: string;
+  /** Ad group end time in ISO 8601 format with timezone */
+  endTime?: string;
+}
+
+/** Reddit platform advanced settings */
+export interface RedditAdvancedSettings {
+  campaign?: RedditCampaignAdvancedSettings;
+  adGroup?: RedditAdGroupAdvancedSettings;
+}
+
+/** Google Ads campaign advanced settings (future expansion) */
+export interface GoogleCampaignAdvancedSettings {
+  startDate?: string;
+  endDate?: string;
+}
+
+/** Google platform advanced settings (future expansion) */
+export interface GoogleAdvancedSettings {
+  campaign?: GoogleCampaignAdvancedSettings;
+}
+
+/**
+ * Platform Advanced Settings
+ * Extensible structure for platform-specific advanced configuration options.
+ * Each platform has its own settings namespace.
+ */
+export interface PlatformAdvancedSettings {
+  reddit?: RedditAdvancedSettings;
+  google?: GoogleAdvancedSettings;
+  // Future: meta?: MetaAdvancedSettings;
+}
+
+// ============================================================================
+// Fallback Ad System Types
+// ============================================================================
+
+/**
+ * Strategy for handling ads that fail validation due to field length limits.
+ *
+ * - "skip": Skip the ad entirely (safest, no invalid data sent to platform)
+ * - "truncate": Truncate fields to fit within limits
+ * - "use_fallback": Replace with a pre-defined fallback ad
+ */
+export type CampaignSetFallbackStrategy = "skip" | "truncate" | "use_fallback";
+
+/**
+ * Static fallback ad definition (no variables allowed).
+ * Used when fallbackStrategy is "use_fallback".
+ */
+export interface FallbackAdDefinition {
+  /** Headline text - max 100 chars for Reddit, 30 for Google */
+  headline: string;
+  /** Description text - max 500 chars for Reddit, 90 for Google */
+  description: string;
+  /** Display URL - max 25 chars */
+  displayUrl?: string;
+  /** Final URL - must be valid, no truncation allowed */
+  finalUrl: string;
+  /** Call to action - must be valid enum value */
+  callToAction?: string;
+}
+
+/**
+ * Configuration for truncation behavior.
+ */
+export interface TruncationConfig {
+  /** Whether to allow truncating headlines */
+  truncateHeadline: boolean;
+  /** Whether to allow truncating descriptions */
+  truncateDescription: boolean;
+  /** Whether to preserve word boundaries when truncating */
+  preserveWordBoundary: boolean;
+}
+
+// ============================================================================
 // Campaign Set Config Interface
 // ============================================================================
 
@@ -263,6 +362,8 @@ export interface CampaignSetConfig {
   availableColumns: AvailableColumns;
   /** Selected advertising platforms */
   selectedPlatforms: string[];
+  /** Reddit Ad Account ID - required for Reddit platform sync */
+  adAccountId?: string;
   /** Selected ad types per platform */
   selectedAdTypes: Record<string, string[]>;
   /** Campaign naming and structure configuration */
@@ -302,6 +403,31 @@ export interface CampaignSetConfig {
   // Thread config (for Reddit)
   /** Thread configuration for Reddit organic content */
   threadConfig?: ThreadConfig;
+
+  // Platform-specific advanced settings
+  /**
+   * Advanced settings for platform-specific configuration.
+   * Includes scheduling (start/end times), attribution windows,
+   * special ad categories, and other platform-specific options.
+   */
+  advancedSettings?: PlatformAdvancedSettings;
+
+  // Fallback ad system configuration
+  /**
+   * Strategy for handling ads that fail validation due to field length limits.
+   * Default: "skip" (safest option)
+   */
+  fallbackStrategy?: CampaignSetFallbackStrategy;
+  /**
+   * Static fallback ad to use when fallbackStrategy is "use_fallback".
+   * Must not contain any variables (e.g., {product_name}).
+   */
+  fallbackAd?: FallbackAdDefinition;
+  /**
+   * Configuration for truncation behavior.
+   * Used when fallbackStrategy is "truncate".
+   */
+  truncationConfig?: TruncationConfig;
 }
 
 // Type exports
