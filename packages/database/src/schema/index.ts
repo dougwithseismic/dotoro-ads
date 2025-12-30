@@ -23,6 +23,8 @@ export type {
   JsonFlattenConfig,
   ApiFetchConfig,
   GoogleSheetsConfig,
+  ColumnLengthStat,
+  ColumnLengthStats,
 } from "./data-sources.js";
 
 // Campaign Templates
@@ -272,3 +274,19 @@ export type {
   RowFilter,
   GenerationError,
 } from "./generation-jobs.js";
+
+// Sync Validation Results (validation persistence)
+export {
+  syncValidationResults,
+  syncValidationResultsRelations,
+  validationStatusEnum,
+  validationTriggerEnum,
+} from "./sync-validation-results.js";
+export type {
+  SyncValidationResult,
+  NewSyncValidationResult,
+  StoredValidationError,
+  StoredValidationSummary,
+  ValidationErrorCode,
+  ValidationEntityType,
+} from "./sync-validation-results.js";

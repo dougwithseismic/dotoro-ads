@@ -3,6 +3,18 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 
 /**
+ * Length statistics for a column variable
+ */
+export interface VariableLengthStats {
+  /** Minimum length in the data source */
+  minLength: number;
+  /** Maximum length in the data source */
+  maxLength: number;
+  /** Average length in the data source */
+  avgLength: number;
+}
+
+/**
  * Autocomplete suggestion item
  */
 export interface AutocompleteSuggestion {
@@ -14,6 +26,8 @@ export interface AutocompleteSuggestion {
   type: 'text' | 'image' | 'column';
   /** Optional description */
   description?: string;
+  /** Length statistics for template validation (when available) */
+  lengthStats?: VariableLengthStats;
 }
 
 /**
@@ -148,7 +162,7 @@ export function useVariableAutocomplete(
       selectCallbackRef.current(selected);
     }
     close();
-    return selected;
+    return selected ?? null;
   }, [suggestions, highlightedIndex, close]);
 
   /**

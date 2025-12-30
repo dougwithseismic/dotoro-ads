@@ -1,5 +1,5 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
-import { eq, count, asc, inArray, max } from "drizzle-orm";
+import { eq, count, asc, inArray, max, and } from "drizzle-orm";
 import {
   dataSourceSchema,
   createDataSourceSchema,
@@ -31,6 +31,10 @@ import {
   testConnectionResponseSchema,
   // Sync Job schemas (Phase 2C)
   manualSyncResponseSchema,
+  // Column stats and template validation schemas
+  computeStatsResponseSchema,
+  validateTemplateRequestSchema,
+  validateTemplateResponseSchema,
 } from "../schemas/data-sources.js";
 import { randomBytes } from "crypto";
 import bcrypt from "bcrypt";
@@ -55,12 +59,15 @@ import {
   clearAllStoredData,
 } from "../services/data-ingestion.js";
 import { testApiConnection } from "../services/api-fetch-service.js";
+import { computeColumnLengthStats } from "../services/column-analysis.js";
+import { validateTemplateAgainstData } from "../services/template-validation.js";
 import { getJobQueueReady } from "../jobs/queue.js";
 import { SYNC_API_DATA_SOURCE_JOB, type SyncApiDataSourceJob } from "../jobs/handlers/sync-api-data-source.js";
 import { SYNC_GOOGLE_SHEETS_JOB, type SyncGoogleSheetsJob } from "../jobs/handlers/sync-google-sheets.js";
 import type { ValidationRule } from "@repo/core";
 import { db, dataSources, dataRows, transforms, columnMappings } from "../services/db.js";
 import type { DataSourceStatus } from "../schemas/data-sources.js";
+import { requireTeamAuth, getTeamContext, type TeamAuthVariables } from "../middleware/team-auth.js";
 
 // ============================================================================
 // Helper Functions
@@ -160,8 +167,49 @@ function deriveStatus(
   return "ready";
 }
 
-// Create the OpenAPI Hono app
-export const dataSourcesApp = new OpenAPIHono();
+/**
+ * Verify a data source belongs to the specified team.
+ * Returns the data source if valid, throws 404 if not found or wrong team.
+ * We return 404 instead of 403 to avoid leaking resource existence across teams.
+ */
+async function verifyDataSourceTeamOwnership(
+  id: string,
+  teamId: string
+): Promise<{
+  id: string;
+  userId: string | null;
+  teamId: string | null;
+  name: string;
+  type: "csv" | "api" | "manual" | "google-sheets";
+  config: Record<string, unknown> | null;
+  createdAt: Date;
+  updatedAt: Date;
+}> {
+  const [dataSource] = await db
+    .select()
+    .from(dataSources)
+    .where(eq(dataSources.id, id))
+    .limit(1);
+
+  if (!dataSource) {
+    throw createNotFoundError("Data source", id);
+  }
+
+  // Verify data source belongs to the team
+  if (dataSource.teamId !== teamId) {
+    throw createNotFoundError("Data source", id);
+  }
+
+  return dataSource;
+}
+
+// Create the OpenAPI Hono app with team context
+export const dataSourcesApp = new OpenAPIHono<{ Variables: TeamAuthVariables }>();
+
+// Apply team auth middleware to all data sources routes
+// This validates the X-Team-Id header and verifies team membership
+dataSourcesApp.use("/api/v1/data-sources/*", requireTeamAuth());
+dataSourcesApp.use("/api/v1/data-sources", requireTeamAuth());
 
 // Apply API key auth middleware to bulk insert route
 // This middleware validates X-API-Key header if present, otherwise falls through
@@ -816,16 +864,22 @@ dataSourcesApp.openapi(listDataSourcesRoute, async (c) => {
   const limit = query.limit ?? 20;
   const offset = (page - 1) * limit;
 
-  // Get total count
+  // Get team context from middleware
+  const { team } = getTeamContext(c);
+  const teamId = team.id;
+
+  // Get total count for this team
   const [countResult] = await db
     .select({ count: count() })
-    .from(dataSources);
+    .from(dataSources)
+    .where(eq(dataSources.teamId, teamId));
   const total = countResult?.count ?? 0;
 
-  // Get paginated data
+  // Get paginated data filtered by team
   const sources = await db
     .select()
     .from(dataSources)
+    .where(eq(dataSources.teamId, teamId))
     .limit(limit)
     .offset(offset)
     .orderBy(dataSources.createdAt);
@@ -841,6 +895,7 @@ dataSourcesApp.openapi(listDataSourcesRoute, async (c) => {
     return {
       id: source.id,
       userId: source.userId,
+      teamId: source.teamId,
       name: source.name,
       type: source.type,
       config: source.config,
@@ -857,12 +912,17 @@ dataSourcesApp.openapi(listDataSourcesRoute, async (c) => {
 dataSourcesApp.openapi(createDataSourceRoute, async (c) => {
   const body = c.req.valid("json");
 
+  // Get team context from middleware
+  const { team } = getTeamContext(c);
+  const teamId = team.id;
+
   const [newDataSource] = await db
     .insert(dataSources)
     .values({
       name: body.name,
       type: body.type,
       config: body.config ?? null,
+      teamId, // Set team ID from context
     })
     .returning();
 
@@ -915,6 +975,7 @@ dataSourcesApp.openapi(createDataSourceRoute, async (c) => {
     {
       id: newDataSource.id,
       userId: newDataSource.userId,
+      teamId: newDataSource.teamId,
       name: newDataSource.name,
       type: newDataSource.type,
       config: newDataSource.config,
@@ -931,6 +992,10 @@ dataSourcesApp.openapi(getDataSourceRoute, async (c) => {
   const { id } = c.req.valid("param");
   const PREVIEW_LIMIT = 20;
 
+  // Get team context from middleware
+  const { team } = getTeamContext(c);
+  const teamId = team.id;
+
   const [dataSource] = await db
     .select()
     .from(dataSources)
@@ -938,6 +1003,11 @@ dataSourcesApp.openapi(getDataSourceRoute, async (c) => {
     .limit(1);
 
   if (!dataSource) {
+    throw createNotFoundError("Data source", id);
+  }
+
+  // Verify data source belongs to the team (return 404 to avoid leaking existence)
+  if (dataSource.teamId !== teamId) {
     throw createNotFoundError("Data source", id);
   }
 
@@ -1008,6 +1078,7 @@ dataSourcesApp.openapi(getDataSourceRoute, async (c) => {
     {
       id: dataSource.id,
       userId: dataSource.userId,
+      teamId: dataSource.teamId,
       name: dataSource.name,
       type: dataSource.type,
       config: dataSource.config,
@@ -1027,16 +1098,12 @@ dataSourcesApp.openapi(updateDataSourceRoute, async (c) => {
   const { id } = c.req.valid("param");
   const body = c.req.valid("json");
 
-  // Check if data source exists
-  const [existing] = await db
-    .select()
-    .from(dataSources)
-    .where(eq(dataSources.id, id))
-    .limit(1);
+  // Get team context from middleware
+  const { team } = getTeamContext(c);
+  const teamId = team.id;
 
-  if (!existing) {
-    throw createNotFoundError("Data source", id);
-  }
+  // Verify data source exists and belongs to team
+  const existing = await verifyDataSourceTeamOwnership(id, teamId);
 
   // Build update object
   const updates: Partial<{
@@ -1076,6 +1143,7 @@ dataSourcesApp.openapi(updateDataSourceRoute, async (c) => {
     {
       id: updatedDataSource.id,
       userId: updatedDataSource.userId,
+      teamId: updatedDataSource.teamId,
       name: updatedDataSource.name,
       type: updatedDataSource.type,
       config: updatedDataSource.config,
@@ -1093,16 +1161,12 @@ dataSourcesApp.openapi(patchDataSourceRoute, async (c) => {
   const { id } = c.req.valid("param");
   const body = c.req.valid("json");
 
-  // Check if data source exists
-  const [existing] = await db
-    .select()
-    .from(dataSources)
-    .where(eq(dataSources.id, id))
-    .limit(1);
+  // Get team context from middleware
+  const { team } = getTeamContext(c);
+  const teamId = team.id;
 
-  if (!existing) {
-    throw createNotFoundError("Data source", id);
-  }
+  // Verify data source exists and belongs to team
+  const existing = await verifyDataSourceTeamOwnership(id, teamId);
 
   // Build update object
   const updates: Partial<{
@@ -1142,6 +1206,7 @@ dataSourcesApp.openapi(patchDataSourceRoute, async (c) => {
     {
       id: updatedDataSource.id,
       userId: updatedDataSource.userId,
+      teamId: updatedDataSource.teamId,
       name: updatedDataSource.name,
       type: updatedDataSource.type,
       config: updatedDataSource.config,
@@ -1159,16 +1224,12 @@ dataSourcesApp.openapi(deleteDataSourceRoute, async (c) => {
   const query = c.req.valid("query");
   const force = query.force === "true";
 
-  // Check if data source exists
-  const [dataSource] = await db
-    .select()
-    .from(dataSources)
-    .where(eq(dataSources.id, id))
-    .limit(1);
+  // Get team context from middleware
+  const { team } = getTeamContext(c);
+  const teamId = team.id;
 
-  if (!dataSource) {
-    throw createNotFoundError("Data source", id);
-  }
+  // Verify data source exists and belongs to team
+  await verifyDataSourceTeamOwnership(id, teamId);
 
   // Check if this data source is used as a source for any transforms
   const dependentTransforms = await db
@@ -1210,16 +1271,12 @@ dataSourcesApp.openapi(getDataRowsRoute, async (c) => {
   const limit = query.limit ?? 20;
   const offset = (page - 1) * limit;
 
-  // Check if data source exists
-  const [dataSource] = await db
-    .select()
-    .from(dataSources)
-    .where(eq(dataSources.id, id))
-    .limit(1);
+  // Get team context from middleware
+  const { team } = getTeamContext(c);
+  const teamId = team.id;
 
-  if (!dataSource) {
-    throw createNotFoundError("Data source", id);
-  }
+  // Verify data source exists and belongs to team
+  await verifyDataSourceTeamOwnership(id, teamId);
 
   // Try to get rows from stored data first (uploaded CSV data that hasn't been persisted yet)
   if (hasStoredData(id)) {
@@ -1265,16 +1322,12 @@ dataSourcesApp.openapi(previewDataSourceRoute, async (c) => {
   const body = c.req.valid("json");
   const limit = body.limit ?? 10;
 
-  // Check if data source exists
-  const [dataSource] = await db
-    .select()
-    .from(dataSources)
-    .where(eq(dataSources.id, id))
-    .limit(1);
+  // Get team context from middleware
+  const { team } = getTeamContext(c);
+  const teamId = team.id;
 
-  if (!dataSource) {
-    throw createNotFoundError("Data source", id);
-  }
+  // Verify data source exists and belongs to team
+  await verifyDataSourceTeamOwnership(id, teamId);
 
   // Try to get preview from stored data first
   if (hasStoredData(id)) {
@@ -1317,16 +1370,12 @@ dataSourcesApp.openapi(previewDataSourceRoute, async (c) => {
 dataSourcesApp.openapi(uploadDataSourceRoute, async (c) => {
   const { id } = c.req.valid("param");
 
-  // Check if data source exists
-  const [dataSource] = await db
-    .select()
-    .from(dataSources)
-    .where(eq(dataSources.id, id))
-    .limit(1);
+  // Get team context from middleware
+  const { team } = getTeamContext(c);
+  const teamId = team.id;
 
-  if (!dataSource) {
-    throw createNotFoundError("Data source", id);
-  }
+  // Verify data source exists and belongs to team
+  const dataSource = await verifyDataSourceTeamOwnership(id, teamId);
 
   // Handle multipart form data upload
   const contentType = c.req.header("content-type") ?? "";
@@ -1446,16 +1495,12 @@ dataSourcesApp.openapi(validateDataSourceRoute, async (c) => {
   const { id } = c.req.valid("param");
   const body = c.req.valid("json");
 
-  // Check if data source exists
-  const [dataSource] = await db
-    .select()
-    .from(dataSources)
-    .where(eq(dataSources.id, id))
-    .limit(1);
+  // Get team context from middleware
+  const { team } = getTeamContext(c);
+  const teamId = team.id;
 
-  if (!dataSource) {
-    throw createNotFoundError("Data source", id);
-  }
+  // Verify data source exists and belongs to team
+  await verifyDataSourceTeamOwnership(id, teamId);
 
   // Check if we have stored data (in-memory from recent upload)
   if (!hasStoredData(id)) {
@@ -1510,16 +1555,12 @@ dataSourcesApp.openapi(validateDataSourceRoute, async (c) => {
 dataSourcesApp.openapi(analyzeDataSourceRoute, async (c) => {
   const { id } = c.req.valid("param");
 
-  // Check if data source exists
-  const [dataSource] = await db
-    .select()
-    .from(dataSources)
-    .where(eq(dataSources.id, id))
-    .limit(1);
+  // Get team context from middleware
+  const { team } = getTeamContext(c);
+  const teamId = team.id;
 
-  if (!dataSource) {
-    throw createNotFoundError("Data source", id);
-  }
+  // Verify data source exists and belongs to team
+  await verifyDataSourceTeamOwnership(id, teamId);
 
   // Check if we have stored data
   if (!hasStoredData(id)) {
@@ -1561,16 +1602,12 @@ dataSourcesApp.openapi(getSampleRoute, async (c) => {
   const { id } = c.req.valid("param");
   const { limit } = c.req.valid("query");
 
-  // Check if data source exists
-  const [dataSource] = await db
-    .select()
-    .from(dataSources)
-    .where(eq(dataSources.id, id))
-    .limit(1);
+  // Get team context from middleware
+  const { team } = getTeamContext(c);
+  const teamId = team.id;
 
-  if (!dataSource) {
-    throw createNotFoundError("Data source", id);
-  }
+  // Verify data source exists and belongs to team
+  await verifyDataSourceTeamOwnership(id, teamId);
 
   // Try to get sample from in-memory stored data first (recent uploads)
   if (hasStoredData(id)) {
@@ -1601,16 +1638,12 @@ dataSourcesApp.openapi(getSampleRoute, async (c) => {
 dataSourcesApp.openapi(getColumnsRoute, async (c) => {
   const { id } = c.req.valid("param");
 
-  // Check if data source exists
-  const [dataSource] = await db
-    .select()
-    .from(dataSources)
-    .where(eq(dataSources.id, id))
-    .limit(1);
+  // Get team context from middleware
+  const { team } = getTeamContext(c);
+  const teamId = team.id;
 
-  if (!dataSource) {
-    throw createNotFoundError("Data source", id);
-  }
+  // Verify data source exists and belongs to team
+  await verifyDataSourceTeamOwnership(id, teamId);
 
   // Try to get columns from in-memory stored data first (recent uploads with column analysis)
   if (hasStoredData(id)) {
@@ -1691,16 +1724,12 @@ dataSourcesApp.openapi(bulkInsertItemsRoute, async (c) => {
   const body = c.req.valid("json");
   const { items, mode } = body;
 
-  // Check if data source exists
-  const [dataSource] = await db
-    .select()
-    .from(dataSources)
-    .where(eq(dataSources.id, id))
-    .limit(1);
+  // Get team context from middleware
+  const { team } = getTeamContext(c);
+  const teamId = team.id;
 
-  if (!dataSource) {
-    throw createNotFoundError("Data source", id);
-  }
+  // Verify data source exists and belongs to team
+  await verifyDataSourceTeamOwnership(id, teamId);
 
   // Get current row count for append mode validation
   let currentRowCount = 0;
@@ -1781,16 +1810,12 @@ dataSourcesApp.openapi(updateItemRoute, async (c) => {
   const body = c.req.valid("json");
   const { data } = body;
 
-  // Check if data source exists
-  const [dataSource] = await db
-    .select()
-    .from(dataSources)
-    .where(eq(dataSources.id, id))
-    .limit(1);
+  // Get team context from middleware
+  const { team } = getTeamContext(c);
+  const teamId = team.id;
 
-  if (!dataSource) {
-    throw createNotFoundError("Data source", id);
-  }
+  // Verify data source exists and belongs to team
+  await verifyDataSourceTeamOwnership(id, teamId);
 
   // Check if item exists and belongs to this data source
   const [existingItem] = await db
@@ -1834,16 +1859,12 @@ dataSourcesApp.openapi(updateItemRoute, async (c) => {
 dataSourcesApp.openapi(deleteItemRoute, async (c) => {
   const { id, itemId } = c.req.valid("param");
 
-  // Check if data source exists
-  const [dataSource] = await db
-    .select()
-    .from(dataSources)
-    .where(eq(dataSources.id, id))
-    .limit(1);
+  // Get team context from middleware
+  const { team } = getTeamContext(c);
+  const teamId = team.id;
 
-  if (!dataSource) {
-    throw createNotFoundError("Data source", id);
-  }
+  // Verify data source exists and belongs to team
+  await verifyDataSourceTeamOwnership(id, teamId);
 
   // Check if item exists and belongs to this data source
   const [existingItem] = await db
@@ -2153,6 +2174,111 @@ dataSourcesApp.openapi(triggerSyncRoute, async (c) => {
     },
     200
   );
+});
+
+// ============================================================================
+// Column Stats Route Definitions
+// ============================================================================
+
+// POST /api/v1/data-sources/:id/compute-stats - Compute column length statistics
+const computeStatsRoute = createRoute({
+  method: "post",
+  path: "/api/v1/data-sources/{id}/compute-stats",
+  tags: ["Data Sources"],
+  summary: "Compute column length statistics",
+  description:
+    "Analyzes all rows in a data source to compute min/max/avg character lengths for each column. " +
+    "Results are cached in the data source config for use in template validation.",
+  request: {
+    params: idParamSchema,
+  },
+  responses: {
+    200: {
+      description: "Column statistics computed successfully",
+      content: {
+        "application/json": {
+          schema: computeStatsResponseSchema,
+        },
+      },
+    },
+    ...commonResponses,
+  },
+});
+
+// POST /api/v1/data-sources/:id/validate-template - Validate template against data
+const validateTemplateRoute = createRoute({
+  method: "post",
+  path: "/api/v1/data-sources/{id}/validate-template",
+  tags: ["Data Sources"],
+  summary: "Validate template against data",
+  description:
+    "Validates a template string against all rows in a data source. " +
+    "Returns details about which rows will exceed platform character limits when the template is expanded.",
+  request: {
+    params: idParamSchema,
+    body: {
+      content: {
+        "application/json": {
+          schema: validateTemplateRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Template validation results",
+      content: {
+        "application/json": {
+          schema: validateTemplateResponseSchema,
+        },
+      },
+    },
+    ...commonResponses,
+  },
+});
+
+// ============================================================================
+// Column Stats Route Handlers
+// ============================================================================
+
+// POST /api/v1/data-sources/:id/compute-stats - Compute column length statistics
+dataSourcesApp.openapi(computeStatsRoute, async (c) => {
+  const { id } = c.req.valid("param");
+
+  // Get team context from middleware
+  const { team } = getTeamContext(c);
+  const teamId = team.id;
+
+  // Verify data source exists and belongs to team
+  await verifyDataSourceTeamOwnership(id, teamId);
+
+  // Compute column statistics
+  const result = await computeColumnLengthStats(id);
+
+  return c.json(result, 200);
+});
+
+// POST /api/v1/data-sources/:id/validate-template - Validate template against data
+dataSourcesApp.openapi(validateTemplateRoute, async (c) => {
+  const { id } = c.req.valid("param");
+  const body = c.req.valid("json");
+
+  // Get team context from middleware
+  const { team } = getTeamContext(c);
+  const teamId = team.id;
+
+  // Verify data source exists and belongs to team
+  await verifyDataSourceTeamOwnership(id, teamId);
+
+  // Validate template against data
+  const result = await validateTemplateAgainstData(
+    id,
+    body.template,
+    body.field,
+    body.platform
+  );
+
+  return c.json(result, 200);
 });
 
 // Error handler for API exceptions

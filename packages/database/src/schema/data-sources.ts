@@ -267,6 +267,31 @@ export interface ApiFetchConfig {
 }
 
 /**
+ * Length statistics for a single column
+ */
+export interface ColumnLengthStat {
+  /** Minimum string length in this column */
+  minLength: number;
+  /** Maximum string length in this column */
+  maxLength: number;
+  /** Average string length in this column */
+  avgLength: number;
+  /** Example value at maximum length */
+  sampleLongest: string;
+  /** Example value at minimum length */
+  sampleShortest: string;
+  /** ISO timestamp when stats were computed */
+  computedAt: string;
+}
+
+/**
+ * Column length statistics for all columns in a data source
+ */
+export interface ColumnLengthStats {
+  [columnName: string]: ColumnLengthStat;
+}
+
+/**
  * Data Source Config interface with API key, API fetch, and Google Sheets support
  */
 export interface DataSourceConfig {
@@ -285,6 +310,9 @@ export interface DataSourceConfig {
 
   // Google Sheets configuration (for type: 'google-sheets' data sources)
   googleSheets?: GoogleSheetsConfig;
+
+  // Column length statistics for template validation
+  columnStats?: ColumnLengthStats;
 
   // Additional dynamic properties
   [key: string]: unknown;

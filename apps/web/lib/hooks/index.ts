@@ -51,3 +51,16 @@ export type {
   UseDesignTemplateReturn,
   UpsertVariantInput,
 } from "./useDesignTemplates";
+export {
+  useTemplateLengthEstimation,
+  extractVariables,
+  getFieldLimit,
+  PLATFORM_LIMITS,
+} from "./useTemplateLengthEstimation";
+export type {
+  Platform,
+  ColumnLengthStat,
+  ColumnLengthStats,
+  VariableLengthContribution,
+  LengthEstimation,
+} from "./useTemplateLengthEstimation";

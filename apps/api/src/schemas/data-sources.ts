@@ -455,3 +455,109 @@ export const manualSyncResponseSchema = z.object({
 });
 
 export type ManualSyncResponse = z.infer<typeof manualSyncResponseSchema>;
+
+// ============================================================================
+// Column Length Stats Schemas (Dynamic Content Length Estimation)
+// ============================================================================
+
+/**
+ * Column Length Stat Schema
+ * Statistics for a single column
+ */
+export const columnLengthStatSchema = z.object({
+  minLength: z.number().int().min(0),
+  maxLength: z.number().int().min(0),
+  avgLength: z.number().min(0),
+  sampleShortest: z.string(),
+  sampleLongest: z.string(),
+  computedAt: z.string().datetime(),
+});
+
+export type ColumnLengthStatResponse = z.infer<typeof columnLengthStatSchema>;
+
+/**
+ * Column Length Stats Schema
+ * Statistics for all columns in a data source
+ */
+export const columnLengthStatsSchema = z.record(z.string(), columnLengthStatSchema);
+
+export type ColumnLengthStatsResponse = z.infer<typeof columnLengthStatsSchema>;
+
+/**
+ * Compute Stats Response Schema
+ * Returned after computing column length statistics
+ */
+export const computeStatsResponseSchema = z.object({
+  success: z.boolean(),
+  stats: columnLengthStatsSchema.optional(),
+  rowCount: z.number().int().min(0).optional(),
+  duration: z.number().min(0).optional(),
+  error: z.string().optional(),
+});
+
+export type ComputeStatsResponse = z.infer<typeof computeStatsResponseSchema>;
+
+// ============================================================================
+// Template Validation Schemas (Batch Row Warning System)
+// ============================================================================
+
+/**
+ * Platform enum for validation
+ */
+export const validationPlatformSchema = z.enum(["google", "facebook", "reddit"]);
+export type ValidationPlatform = z.infer<typeof validationPlatformSchema>;
+
+/**
+ * Field enum for validation
+ */
+export const validationFieldSchema = z.enum([
+  "headline",
+  "description",
+  "displayUrl",
+  "primaryText",
+  "title",
+  "text",
+]);
+export type ValidationField = z.infer<typeof validationFieldSchema>;
+
+/**
+ * Validate Template Request Schema
+ * Used for POST /api/v1/data-sources/:id/validate-template
+ */
+export const validateTemplateRequestSchema = z.object({
+  template: z.string().min(1, "Template is required"),
+  field: validationFieldSchema,
+  platform: validationPlatformSchema,
+});
+
+export type ValidateTemplateRequest = z.infer<typeof validateTemplateRequestSchema>;
+
+/**
+ * Invalid Row Detail Schema
+ * Details about a single row that exceeds the limit
+ */
+export const invalidRowDetailSchema = z.object({
+  rowIndex: z.number().int().min(0),
+  generatedLength: z.number().int().min(0),
+  limit: z.number().int().min(0),
+  overflow: z.number().int().min(0),
+  generatedValue: z.string(),
+});
+
+export type InvalidRowDetailResponse = z.infer<typeof invalidRowDetailSchema>;
+
+/**
+ * Validate Template Response Schema
+ * Returned after validating a template against data source
+ */
+export const validateTemplateResponseSchema = z.object({
+  success: z.boolean(),
+  error: z.string().optional(),
+  totalRows: z.number().int().min(0),
+  validRows: z.number().int().min(0),
+  invalidRows: z.number().int().min(0),
+  invalidRowDetails: z.array(invalidRowDetailSchema),
+  summary: z.string(),
+});
+
+export type ValidateTemplateResponse = z.infer<typeof validateTemplateResponseSchema>;
