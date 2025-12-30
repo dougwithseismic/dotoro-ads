@@ -261,7 +261,9 @@ export class DefaultCampaignSetSyncService implements CampaignSetSyncService {
 
         if (result.success) {
           synced++;
-          // Update platform IDs in database
+          // Update platform IDs in database.
+          // Note: syncSingleCampaign already persists the ID immediately after creation,
+          // but we keep this call as a safety net for updates and to ensure consistency.
           if (result.platformCampaignId) {
             await this.repository.updateCampaignPlatformId(
               campaign.id,
@@ -354,6 +356,8 @@ export class DefaultCampaignSetSyncService implements CampaignSetSyncService {
     try {
       const result = await this.syncSingleCampaign(campaign, adapter);
       if (result.success && result.platformCampaignId) {
+        // Note: syncSingleCampaign already persists the ID immediately after creation,
+        // but we keep this call as a safety net for updates and to ensure consistency.
         await this.repository.updateCampaignPlatformId(
           campaignId,
           result.platformCampaignId
@@ -539,6 +543,13 @@ export class DefaultCampaignSetSyncService implements CampaignSetSyncService {
         };
       }
       platformCampaignId = result.platformCampaignId;
+
+      // IMMEDIATELY persist platform ID before syncing children.
+      // This ensures the ID is saved even if child entity sync fails,
+      // preventing duplicate campaign creation on retry.
+      if (platformCampaignId) {
+        await this.repository.updateCampaignPlatformId(campaign.id, platformCampaignId);
+      }
     }
 
     // Sync ad groups

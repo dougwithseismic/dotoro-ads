@@ -350,7 +350,10 @@ describe("Sync Service Integration Tests", () => {
       await service.syncCampaignSet("set-1");
 
       // Assert - verify platform IDs were stored
-      expect(repository.updateCampaignPlatformId).toHaveBeenCalledTimes(25);
+      // Note: Campaign IDs are persisted twice per campaign:
+      // 1. Immediately after creation (for idempotent retry)
+      // 2. In the success handler (safety net)
+      expect(repository.updateCampaignPlatformId).toHaveBeenCalledTimes(50); // 25 campaigns * 2 calls
       expect(repository.updateAdGroupPlatformId).toHaveBeenCalledTimes(25);
       expect(repository.updateAdPlatformId).toHaveBeenCalledTimes(25);
       expect(repository.updateKeywordPlatformId).toHaveBeenCalledTimes(25);

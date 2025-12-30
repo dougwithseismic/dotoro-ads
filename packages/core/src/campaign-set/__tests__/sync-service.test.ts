@@ -568,6 +568,134 @@ describe("CampaignSetSyncService", () => {
     });
   });
 
+  describe("immediate platform ID persistence", () => {
+    it("should persist campaign platform ID before syncing ad groups", async () => {
+      // This test verifies the core fix: campaign ID is saved BEFORE child sync
+      const adGroup = createMockAdGroup();
+      const campaign = createMockCampaign({ adGroups: [adGroup] });
+      const campaignSet = createMockCampaignSet({ campaigns: [campaign] });
+      mockRepository.getCampaignSetWithRelations.mockResolvedValue(campaignSet);
+
+      // Campaign creation succeeds
+      (mockAdapter.createCampaign as ReturnType<typeof vi.fn>).mockResolvedValue({
+        success: true,
+        platformCampaignId: "t3_abc123",
+      });
+
+      // Ad group creation fails
+      (mockAdapter.createAdGroup as ReturnType<typeof vi.fn>).mockResolvedValue({
+        success: false,
+        error: "Rate limit exceeded",
+      });
+
+      const result = await service.syncCampaignSet("set-1");
+
+      // Sync should fail overall
+      expect(result.success).toBe(false);
+      expect(result.failed).toBe(1);
+
+      // BUT the campaign platform ID should still be persisted
+      expect(mockRepository.updateCampaignPlatformId).toHaveBeenCalledWith(
+        "campaign-1",
+        "t3_abc123"
+      );
+    });
+
+    it("should persist campaign ID even when ad sync fails", async () => {
+      const ad = createMockAd();
+      const adGroup = createMockAdGroup({ ads: [ad] });
+      const campaign = createMockCampaign({ adGroups: [adGroup] });
+      const campaignSet = createMockCampaignSet({ campaigns: [campaign] });
+      mockRepository.getCampaignSetWithRelations.mockResolvedValue(campaignSet);
+
+      // Campaign and ad group creation succeed
+      (mockAdapter.createCampaign as ReturnType<typeof vi.fn>).mockResolvedValue({
+        success: true,
+        platformCampaignId: "t3_campaign_ok",
+      });
+      (mockAdapter.createAdGroup as ReturnType<typeof vi.fn>).mockResolvedValue({
+        success: true,
+        platformAdGroupId: "t3_adgroup_ok",
+      });
+
+      // Ad creation fails
+      (mockAdapter.createAd as ReturnType<typeof vi.fn>).mockResolvedValue({
+        success: false,
+        error: "Invalid creative format",
+      });
+
+      const result = await service.syncCampaignSet("set-1");
+
+      expect(result.success).toBe(false);
+
+      // Both campaign and ad group IDs should be persisted
+      expect(mockRepository.updateCampaignPlatformId).toHaveBeenCalledWith(
+        "campaign-1",
+        "t3_campaign_ok"
+      );
+      expect(mockRepository.updateAdGroupPlatformId).toHaveBeenCalledWith(
+        "adgroup-1",
+        "t3_adgroup_ok"
+      );
+    });
+
+    it("should persist all IDs on full success", async () => {
+      const keyword = createMockKeyword();
+      const ad = createMockAd();
+      const adGroup = createMockAdGroup({ ads: [ad], keywords: [keyword] });
+      const campaign = createMockCampaign({ adGroups: [adGroup] });
+      const campaignSet = createMockCampaignSet({ campaigns: [campaign] });
+      mockRepository.getCampaignSetWithRelations.mockResolvedValue(campaignSet);
+
+      const result = await service.syncCampaignSet("set-1");
+
+      expect(result.success).toBe(true);
+
+      // All platform IDs should be persisted
+      expect(mockRepository.updateCampaignPlatformId).toHaveBeenCalled();
+      expect(mockRepository.updateAdGroupPlatformId).toHaveBeenCalled();
+      expect(mockRepository.updateAdPlatformId).toHaveBeenCalled();
+      expect(mockRepository.updateKeywordPlatformId).toHaveBeenCalled();
+    });
+
+    it("should NOT persist campaign ID when campaign creation fails", async () => {
+      const campaign = createMockCampaign();
+      const campaignSet = createMockCampaignSet({ campaigns: [campaign] });
+      mockRepository.getCampaignSetWithRelations.mockResolvedValue(campaignSet);
+
+      (mockAdapter.createCampaign as ReturnType<typeof vi.fn>).mockResolvedValue({
+        success: false,
+        error: "Insufficient budget",
+      });
+
+      const result = await service.syncCampaignSet("set-1");
+
+      expect(result.success).toBe(false);
+
+      // No platform ID should be persisted because campaign creation failed
+      expect(mockRepository.updateCampaignPlatformId).not.toHaveBeenCalled();
+    });
+
+    it("should allow retry sync to use existing platform ID", async () => {
+      // Simulate a retry where the campaign already has a platform ID from previous partial sync
+      const adGroup = createMockAdGroup();
+      const campaign = createMockCampaign({
+        platformCampaignId: "existing_platform_id",
+        adGroups: [adGroup],
+      });
+      const campaignSet = createMockCampaignSet({ campaigns: [campaign] });
+      mockRepository.getCampaignSetWithRelations.mockResolvedValue(campaignSet);
+
+      const result = await service.syncCampaignSet("set-1");
+
+      expect(result.success).toBe(true);
+
+      // Should use updateCampaign (not createCampaign) because platformCampaignId exists
+      expect(mockAdapter.updateCampaign).toHaveBeenCalledTimes(1);
+      expect(mockAdapter.createCampaign).not.toHaveBeenCalled();
+    });
+  });
+
   describe("edge cases", () => {
     it("should handle concurrent sync requests gracefully", async () => {
       const campaign = createMockCampaign();
