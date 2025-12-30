@@ -2,6 +2,7 @@ import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import type { Context } from "hono";
 import { streamSSE } from "hono/streaming";
 import { eq, and, count, asc, sql } from "drizzle-orm";
+import { requireTeamAuth, getTeamContext, type TeamAuthVariables } from "../middleware/team-auth.js";
 import {
   // Schema types
   campaignSetStatusSchema,
@@ -23,14 +24,24 @@ import {
   campaignsListResponseSchema,
   updateCampaignRequestSchema,
   syncStreamQuerySchema,
+  validationResultSchema,
+  validateCampaignSetRequestSchema,
+  syncPreviewResponseSchema,
   type CampaignSetConfig,
+  type SyncPreviewResponse,
+  type ValidAdInfo,
+  type FallbackAdInfo,
+  type SkippedAdInfo,
 } from "../schemas/campaign-sets.js";
+import { getSyncValidationService } from "@repo/core/campaign-set";
+import { DrizzleCampaignSetRepository } from "../repositories/campaign-set-repository.js";
 import { commonResponses, createPaginatedResponse } from "../lib/openapi.js";
-import { createNotFoundError, createUnauthorizedError, createValidationError, ApiException, ErrorCode } from "../lib/errors.js";
+import { createNotFoundError, createValidationError, ApiException, ErrorCode } from "../lib/errors.js";
 import {
   db,
   campaignSets,
   generatedCampaigns,
+  syncRecords,
   adGroups,
   ads,
   keywords,
@@ -47,19 +58,34 @@ import type { SyncCampaignSetJob } from "../jobs/types.js";
 type Platform = "google" | "reddit" | "facebook";
 
 // ============================================================================
-// Authorization Helper
+// Team Ownership Verification Helper
 // ============================================================================
 
 /**
- * Extracts and validates user ID from request headers.
- * TODO: Replace with actual auth middleware when available.
+ * Verify a campaign set belongs to the specified team.
+ * Returns the campaign set if valid, throws 404 if not found or wrong team.
+ * We return 404 instead of 403 to avoid leaking resource existence across teams.
  */
-function getUserId(c: Context): string {
-  const userId = c.req.header("x-user-id") || "";
-  if (!userId) {
-    throw createUnauthorizedError("User ID required");
+async function verifyCampaignSetTeamOwnership(
+  id: string,
+  teamId: string
+): Promise<typeof campaignSets.$inferSelect> {
+  const [campaignSet] = await db
+    .select()
+    .from(campaignSets)
+    .where(eq(campaignSets.id, id))
+    .limit(1);
+
+  if (!campaignSet) {
+    throw createNotFoundError("Campaign set", id);
   }
-  return userId;
+
+  // Return 404 instead of 403 to avoid leaking resource existence
+  if (campaignSet.teamId !== teamId) {
+    throw createNotFoundError("Campaign set", id);
+  }
+
+  return campaignSet;
 }
 
 // ============================================================================
@@ -123,6 +149,11 @@ interface AdGroupWithChildren {
 }
 
 /**
+ * Sync status type for campaigns
+ */
+type CampaignSyncStatus = "pending" | "syncing" | "synced" | "failed" | "conflict";
+
+/**
  * Campaign with full hierarchy for response formatting.
  */
 interface CampaignWithHierarchy {
@@ -135,10 +166,10 @@ interface CampaignWithHierarchy {
   dataRowId: string | null;
   campaignData: Record<string, unknown> | null;
   status: CampaignStatus;
-  syncStatus: "pending";
-  lastSyncedAt: undefined;
-  syncError: undefined;
-  platformCampaignId: undefined;
+  syncStatus: CampaignSyncStatus;
+  lastSyncedAt: string | undefined;
+  syncError: string | undefined;
+  platformCampaignId: string | undefined;
   platformData: undefined;
   adGroups: AdGroupWithChildren[];
   budget: { type: "daily" | "lifetime" | "shared"; amount: number; currency: string } | undefined;
@@ -167,6 +198,49 @@ function toMatchType(matchType: string): MatchType {
  */
 function nullToUndefined(value: string | null): string | undefined {
   return value ?? undefined;
+}
+
+/**
+ * Sync status data for a campaign
+ */
+interface CampaignSyncInfo {
+  syncStatus: CampaignSyncStatus;
+  lastSyncedAt: string | undefined;
+  syncError: string | undefined;
+  platformCampaignId: string | undefined;
+}
+
+/**
+ * Fetches sync record for a campaign.
+ * Returns actual sync status, error, and platform ID from the sync_records table.
+ */
+async function fetchCampaignSyncInfo(campaignId: string): Promise<CampaignSyncInfo> {
+  const [syncRecord] = await db
+    .select({
+      syncStatus: syncRecords.syncStatus,
+      lastSyncedAt: syncRecords.lastSyncedAt,
+      errorLog: syncRecords.errorLog,
+      platformId: syncRecords.platformId,
+    })
+    .from(syncRecords)
+    .where(eq(syncRecords.generatedCampaignId, campaignId))
+    .limit(1);
+
+  if (!syncRecord) {
+    return {
+      syncStatus: "pending",
+      lastSyncedAt: undefined,
+      syncError: undefined,
+      platformCampaignId: undefined,
+    };
+  }
+
+  return {
+    syncStatus: syncRecord.syncStatus,
+    lastSyncedAt: syncRecord.lastSyncedAt?.toISOString(),
+    syncError: syncRecord.errorLog ?? undefined,
+    platformCampaignId: syncRecord.platformId ?? undefined,
+  };
 }
 
 /**
@@ -233,12 +307,17 @@ async function fetchAdGroupsWithChildren(campaignId: string): Promise<AdGroupWit
 
 /**
  * Fetches a campaign with its full hierarchy (ad groups, ads, keywords).
+ * Now includes actual sync status, errors, and platform IDs from sync_records.
  */
 async function fetchCampaignWithHierarchy(
   campaign: typeof generatedCampaigns.$inferSelect,
   fallbackSetId: string
 ): Promise<CampaignWithHierarchy> {
-  const adGroupsWithChildren = await fetchAdGroupsWithChildren(campaign.id);
+  // Fetch ad groups and sync info in parallel
+  const [adGroupsWithChildren, syncInfo] = await Promise.all([
+    fetchAdGroupsWithChildren(campaign.id),
+    fetchCampaignSyncInfo(campaign.id),
+  ]);
 
   const campaignData = campaign.campaignData as Record<string, unknown> | null;
   const platform = ((campaignData?.platform as string) ?? "google") as Platform;
@@ -259,10 +338,10 @@ async function fetchCampaignWithHierarchy(
     dataRowId: campaign.dataRowId,
     campaignData,
     status,
-    syncStatus: "pending" as const,
-    lastSyncedAt: undefined,
-    syncError: undefined,
-    platformCampaignId: undefined,
+    syncStatus: syncInfo.syncStatus,
+    lastSyncedAt: syncInfo.lastSyncedAt,
+    syncError: syncInfo.syncError,
+    platformCampaignId: syncInfo.platformCampaignId,
     platformData: undefined,
     adGroups: adGroupsWithChildren,
     budget: (campaignData?.budget as { type: "daily" | "lifetime" | "shared"; amount: number; currency: string }) ?? undefined,
@@ -271,8 +350,13 @@ async function fetchCampaignWithHierarchy(
   };
 }
 
-// Create the OpenAPI Hono app
-export const campaignSetsApp = new OpenAPIHono();
+// Create the OpenAPI Hono app with team context
+export const campaignSetsApp = new OpenAPIHono<{ Variables: TeamAuthVariables }>();
+
+// Apply team auth middleware to all campaign sets routes
+// This validates the X-Team-Id header and verifies team membership
+campaignSetsApp.use("/api/v1/campaign-sets/*", requireTeamAuth());
+campaignSetsApp.use("/api/v1/campaign-sets", requireTeamAuth());
 
 // ============================================================================
 // Route Definitions - CRUD Operations
@@ -473,6 +557,72 @@ const syncCampaignsRoute = createRoute({
 });
 
 /**
+ * Validate Campaign Set (Dry-Run)
+ *
+ * Validates the campaign set against Reddit v3 API requirements
+ * without making any API calls. Returns all validation errors.
+ */
+const validateCampaignSetRoute = createRoute({
+  method: "post",
+  path: "/api/v1/campaign-sets/{setId}/validate",
+  tags: ["Campaign Sets"],
+  summary: "Validate campaign set",
+  description: "Validates the campaign set against platform API requirements. Returns all validation errors without making any API calls. Use this before syncing to catch all data issues.",
+  request: {
+    params: setIdParamSchema,
+    body: {
+      required: false,
+      content: {
+        "application/json": {
+          schema: validateCampaignSetRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Validation completed",
+      content: {
+        "application/json": {
+          schema: validationResultSchema,
+        },
+      },
+    },
+    ...commonResponses,
+  },
+});
+
+/**
+ * Preview Sync (Pre-Sync Validation)
+ *
+ * Returns a preview of what will happen during sync, including:
+ * - Breakdown of valid, fallback, and skipped ads
+ * - Detailed information about each ad's status
+ * - Warnings and suggestions
+ */
+const previewSyncRoute = createRoute({
+  method: "post",
+  path: "/api/v1/campaign-sets/{setId}/preview-sync",
+  tags: ["Campaign Sets"],
+  summary: "Preview sync results",
+  description: "Returns a preview of what will happen during sync without executing it. Shows breakdown of valid, fallback, and skipped ads with detailed error information.",
+  request: {
+    params: setIdParamSchema,
+  },
+  responses: {
+    200: {
+      description: "Sync preview",
+      content: {
+        "application/json": {
+          schema: syncPreviewResponseSchema,
+        },
+      },
+    },
+    ...commonResponses,
+  },
+});
+
+/**
  * Pause Campaigns
  */
 const pauseCampaignsRoute = createRoute({
@@ -656,14 +806,17 @@ const deleteCampaignFromSetRoute = createRoute({
 // ============================================================================
 
 campaignSetsApp.openapi(listCampaignSetsRoute, async (c) => {
-  const userId = getUserId(c);
+  // Get team context from middleware
+  const { team } = getTeamContext(c);
+  const teamId = team.id;
+
   const query = c.req.valid("query");
   const page = query.page ?? 1;
   const limit = query.limit ?? 20;
   const offset = (page - 1) * limit;
 
-  // Build where conditions - always filter by userId
-  const conditions = [eq(campaignSets.userId, userId)];
+  // Build where conditions - always filter by teamId
+  const conditions = [eq(campaignSets.teamId, teamId)];
   if (query.status) {
     conditions.push(eq(campaignSets.status, query.status));
   }
@@ -673,7 +826,7 @@ campaignSetsApp.openapi(listCampaignSetsRoute, async (c) => {
 
   const whereClause = and(...conditions);
 
-  // Get total count for user's campaign sets
+  // Get total count for team's campaign sets
   const [countResult] = await db
     .select({ count: count() })
     .from(campaignSets)
@@ -759,6 +912,7 @@ campaignSetsApp.openapi(listCampaignSetsRoute, async (c) => {
   // Build summaries
   const summaries = sets.map((set) => ({
     id: set.id,
+    teamId: set.teamId,
     name: set.name,
     description: set.description,
     status: set.status,
@@ -775,7 +929,10 @@ campaignSetsApp.openapi(listCampaignSetsRoute, async (c) => {
 });
 
 campaignSetsApp.openapi(createCampaignSetRoute, async (c) => {
-  const userId = getUserId(c);
+  // Get team context from middleware
+  const { team } = getTeamContext(c);
+  const teamId = team.id;
+
   const body = c.req.valid("json");
 
   // Convert config dates to proper format for storage
@@ -789,7 +946,7 @@ campaignSetsApp.openapi(createCampaignSetRoute, async (c) => {
   const [newSet] = await db
     .insert(campaignSets)
     .values({
-      userId,
+      teamId, // Set team ID from context
       name: body.name,
       description: body.description,
       dataSourceId: body.dataSourceId,
@@ -808,6 +965,7 @@ campaignSetsApp.openapi(createCampaignSetRoute, async (c) => {
     {
       id: newSet.id,
       userId: newSet.userId,
+      teamId: newSet.teamId,
       name: newSet.name,
       description: newSet.description,
       dataSourceId: newSet.dataSourceId,
@@ -825,18 +983,14 @@ campaignSetsApp.openapi(createCampaignSetRoute, async (c) => {
 });
 
 campaignSetsApp.openapi(getCampaignSetRoute, async (c) => {
-  const userId = getUserId(c);
+  // Get team context from middleware
+  const { team } = getTeamContext(c);
+  const teamId = team.id;
+
   const { setId } = c.req.valid("param");
 
-  const [set] = await db
-    .select()
-    .from(campaignSets)
-    .where(and(eq(campaignSets.id, setId), eq(campaignSets.userId, userId)))
-    .limit(1);
-
-  if (!set) {
-    throw createNotFoundError("Campaign set", setId);
-  }
+  // Verify campaign set exists and belongs to team
+  const set = await verifyCampaignSetTeamOwnership(setId, teamId);
 
   // Get campaigns with full hierarchy using helper function
   const campaignsInSet = await db
@@ -853,6 +1007,7 @@ campaignSetsApp.openapi(getCampaignSetRoute, async (c) => {
     {
       id: set.id,
       userId: set.userId,
+      teamId: set.teamId,
       name: set.name,
       description: set.description,
       dataSourceId: set.dataSourceId,
@@ -870,20 +1025,15 @@ campaignSetsApp.openapi(getCampaignSetRoute, async (c) => {
 });
 
 campaignSetsApp.openapi(updateCampaignSetRoute, async (c) => {
-  const userId = getUserId(c);
+  // Get team context from middleware
+  const { team } = getTeamContext(c);
+  const teamId = team.id;
+
   const { setId } = c.req.valid("param");
   const body = c.req.valid("json");
 
-  // Check if set exists and belongs to user
-  const [existing] = await db
-    .select()
-    .from(campaignSets)
-    .where(and(eq(campaignSets.id, setId), eq(campaignSets.userId, userId)))
-    .limit(1);
-
-  if (!existing) {
-    throw createNotFoundError("Campaign set", setId);
-  }
+  // Verify campaign set exists and belongs to team
+  await verifyCampaignSetTeamOwnership(setId, teamId);
 
   // Build update object
   const updates: Record<string, unknown> = {};
@@ -898,7 +1048,7 @@ campaignSetsApp.openapi(updateCampaignSetRoute, async (c) => {
   const [updated] = await db
     .update(campaignSets)
     .set(updates)
-    .where(and(eq(campaignSets.id, setId), eq(campaignSets.userId, userId)))
+    .where(eq(campaignSets.id, setId))
     .returning();
 
   if (!updated) {
@@ -910,6 +1060,7 @@ campaignSetsApp.openapi(updateCampaignSetRoute, async (c) => {
     {
       id: updated.id,
       userId: updated.userId,
+      teamId: updated.teamId,
       name: updated.name,
       description: updated.description,
       dataSourceId: updated.dataSourceId,
@@ -927,22 +1078,17 @@ campaignSetsApp.openapi(updateCampaignSetRoute, async (c) => {
 });
 
 campaignSetsApp.openapi(deleteCampaignSetRoute, async (c) => {
-  const userId = getUserId(c);
+  // Get team context from middleware
+  const { team } = getTeamContext(c);
+  const teamId = team.id;
+
   const { setId } = c.req.valid("param");
 
-  // Check if set exists and belongs to user
-  const [existing] = await db
-    .select()
-    .from(campaignSets)
-    .where(and(eq(campaignSets.id, setId), eq(campaignSets.userId, userId)))
-    .limit(1);
-
-  if (!existing) {
-    throw createNotFoundError("Campaign set", setId);
-  }
+  // Verify campaign set exists and belongs to team
+  await verifyCampaignSetTeamOwnership(setId, teamId);
 
   // Delete will cascade to campaigns due to foreign key constraint
-  await db.delete(campaignSets).where(and(eq(campaignSets.id, setId), eq(campaignSets.userId, userId)));
+  await db.delete(campaignSets).where(eq(campaignSets.id, setId));
 
   return c.body(null, 204);
 });
@@ -952,20 +1098,15 @@ campaignSetsApp.openapi(deleteCampaignSetRoute, async (c) => {
 // ============================================================================
 
 campaignSetsApp.openapi(generateCampaignsRoute, async (c) => {
-  const userId = getUserId(c);
+  // Get team context from middleware
+  const { team } = getTeamContext(c);
+  const teamId = team.id;
+
   const { setId } = c.req.valid("param");
   const body = c.req.valid("json");
 
-  // Check if set exists and belongs to user
-  const [set] = await db
-    .select()
-    .from(campaignSets)
-    .where(and(eq(campaignSets.id, setId), eq(campaignSets.userId, userId)))
-    .limit(1);
-
-  if (!set) {
-    throw createNotFoundError("Campaign set", setId);
-  }
+  // Verify campaign set exists and belongs to team
+  const set = await verifyCampaignSetTeamOwnership(setId, teamId);
 
   // Validate that the campaign set has the required config
   const config = set.config as DbCampaignSetConfig | null;
@@ -989,8 +1130,8 @@ campaignSetsApp.openapi(generateCampaignsRoute, async (c) => {
     throw createValidationError("Campaign set has no hierarchy configuration");
   }
 
-  // CRITICAL: Verify data source exists and user has access
-  // Allow access if: data source belongs to user OR is a demo data source (userId is null)
+  // CRITICAL: Verify data source exists and belongs to the same team
+  // Allow access if: data source belongs to team OR is a demo data source (teamId is null)
   const [dataSource] = await db
     .select()
     .from(dataSources)
@@ -1001,9 +1142,10 @@ campaignSetsApp.openapi(generateCampaignsRoute, async (c) => {
     throw createValidationError("Data source not found");
   }
 
-  // Check authorization: user must own the data source OR it's a demo data source
-  if (dataSource.userId !== null && dataSource.userId !== userId) {
-    throw createValidationError("Access denied to this data source");
+  // Check authorization: team must own the data source OR it's a demo data source
+  // Return same error as "not found" to avoid leaking resource existence across teams
+  if (dataSource.teamId !== null && dataSource.teamId !== teamId) {
+    throw createValidationError("Data source not found");
   }
 
   // Import and use the campaign generation service
@@ -1039,19 +1181,14 @@ campaignSetsApp.openapi(generateCampaignsRoute, async (c) => {
 });
 
 campaignSetsApp.openapi(syncCampaignsRoute, async (c) => {
-  const userId = getUserId(c);
+  // Get team context from middleware
+  const { team } = getTeamContext(c);
+  const teamId = team.id;
+
   const { setId } = c.req.valid("param");
 
-  // Check if set exists and belongs to user
-  const [set] = await db
-    .select()
-    .from(campaignSets)
-    .where(and(eq(campaignSets.id, setId), eq(campaignSets.userId, userId)))
-    .limit(1);
-
-  if (!set) {
-    throw createNotFoundError("Campaign set", setId);
-  }
+  // Verify campaign set exists and belongs to team
+  const set = await verifyCampaignSetTeamOwnership(setId, teamId);
 
   // Get configuration to determine platform
   const config = set.config as DbCampaignSetConfig | null;
@@ -1077,13 +1214,13 @@ campaignSetsApp.openapi(syncCampaignsRoute, async (c) => {
     );
   }
 
-  // Validate ad account exists and belongs to user (security check)
+  // Validate ad account exists and belongs to team (security check)
   const [adAccount] = await db
     .select()
     .from(adAccounts)
     .where(and(
       eq(adAccounts.id, adAccountId),
-      eq(adAccounts.userId, userId)
+      eq(adAccounts.teamId, teamId)
     ))
     .limit(1);
 
@@ -1121,7 +1258,7 @@ campaignSetsApp.openapi(syncCampaignsRoute, async (c) => {
 
     const jobData: SyncCampaignSetJob = {
       campaignSetId: setId,
-      userId,
+      teamId, // Use teamId instead of userId
       adAccountId,
       fundingInstrumentId, // Optional in v3
       platform: "reddit",
@@ -1167,20 +1304,229 @@ campaignSetsApp.openapi(syncCampaignsRoute, async (c) => {
   }
 });
 
-campaignSetsApp.openapi(pauseCampaignsRoute, async (c) => {
-  const userId = getUserId(c);
+// ============================================================================
+// Route Handlers - Validation (Dry-Run)
+// ============================================================================
+
+campaignSetsApp.openapi(validateCampaignSetRoute, async (c) => {
+  // Get team context from middleware
+  const { team } = getTeamContext(c);
+  const teamId = team.id;
+
   const { setId } = c.req.valid("param");
 
-  // Check if set exists and belongs to user
-  const [set] = await db
-    .select()
-    .from(campaignSets)
-    .where(and(eq(campaignSets.id, setId), eq(campaignSets.userId, userId)))
-    .limit(1);
+  // Parse optional body (may be empty)
+  let body: { platform?: "reddit" | "google" } = {};
+  try {
+    const jsonBody = await c.req.json();
+    body = jsonBody ?? {};
+  } catch {
+    // Empty body is fine
+  }
 
-  if (!set) {
+  // Verify campaign set exists and belongs to team
+  await verifyCampaignSetTeamOwnership(setId, teamId);
+
+  // Load campaign set with full hierarchy for validation
+  const repository = new DrizzleCampaignSetRepository(db);
+  const campaignSet = await repository.getCampaignSetWithRelations(setId);
+
+  if (!campaignSet) {
     throw createNotFoundError("Campaign set", setId);
   }
+
+  // Run validation
+  const validationService = getSyncValidationService();
+  const result = validationService.validateCampaignSet(campaignSet, {
+    platform: body.platform,
+  });
+
+  console.log(
+    `[Validate] Campaign set ${setId}: ` +
+      `${result.isValid ? "VALID" : "INVALID"} ` +
+      `(${result.totalErrors} errors, ${result.validationTimeMs}ms)`
+  );
+
+  return c.json(result, 200);
+});
+
+// ============================================================================
+// Route Handlers - Preview Sync
+// ============================================================================
+
+campaignSetsApp.openapi(previewSyncRoute, async (c) => {
+  // Get team context from middleware
+  const { team } = getTeamContext(c);
+  const teamId = team.id;
+
+  const { setId } = c.req.valid("param");
+
+  // Verify campaign set exists and belongs to team
+  await verifyCampaignSetTeamOwnership(setId, teamId);
+
+  const startTime = performance.now();
+
+  // Load campaign set with full hierarchy for validation
+  const repository = new DrizzleCampaignSetRepository(db);
+  const campaignSet = await repository.getCampaignSetWithRelations(setId);
+
+  if (!campaignSet) {
+    throw createNotFoundError("Campaign set", setId);
+  }
+
+  // Get fallback strategy from config
+  // The config JSON may contain fallbackStrategy which is an optional property
+  type ConfigWithFallback = {
+    fallbackStrategy?: "skip" | "truncate" | "use_fallback";
+    [key: string]: unknown;
+  };
+  const config = campaignSet.config as ConfigWithFallback | null;
+  const fallbackStrategy = config?.fallbackStrategy ?? "skip";
+
+  // Run validation to get all errors
+  const validationService = getSyncValidationService();
+  const validationResult = validationService.validateCampaignSet(campaignSet);
+
+  // Collect all ads and classify them
+  const validAds: ValidAdInfo[] = [];
+  const fallbackAds: FallbackAdInfo[] = [];
+  const skippedAds: SkippedAdInfo[] = [];
+  const warnings: string[] = [];
+
+  // Build a map of entity IDs to their errors
+  const errorsByEntityId = new Map<string, Array<{ field: string; message: string; code: string; value?: unknown; expected?: string }>>();
+  for (const campaign of validationResult.campaigns) {
+    for (const error of campaign.errors) {
+      const existing = errorsByEntityId.get(error.entityId) || [];
+      existing.push({ field: error.field, message: error.message, code: error.code, value: error.value, expected: error.expected });
+      errorsByEntityId.set(error.entityId, existing);
+    }
+    for (const adGroup of campaign.adGroups) {
+      for (const error of adGroup.errors) {
+        const existing = errorsByEntityId.get(error.entityId) || [];
+        existing.push({ field: error.field, message: error.message, code: error.code, value: error.value, expected: error.expected });
+        errorsByEntityId.set(error.entityId, existing);
+      }
+      for (const adResult of adGroup.ads) {
+        for (const error of adResult.errors) {
+          const existing = errorsByEntityId.get(error.entityId) || [];
+          existing.push({ field: error.field, message: error.message, code: error.code, value: error.value, expected: error.expected });
+          errorsByEntityId.set(error.entityId, existing);
+        }
+      }
+    }
+  }
+
+  // Process all ads and classify them
+  for (const campaign of campaignSet.campaigns) {
+    for (const adGroup of campaign.adGroups) {
+      for (const ad of adGroup.ads) {
+        const adErrors = errorsByEntityId.get(ad.id) || [];
+
+        if (adErrors.length === 0) {
+          // Ad is valid
+          validAds.push({
+            adId: ad.id,
+            adGroupId: adGroup.id,
+            campaignId: campaign.id,
+            name: ad.headline || `Ad ${ad.id.slice(0, 8)}`,
+          });
+        } else {
+          // Check if errors can be handled by fallback strategy
+          const canUseFallback = adErrors.every(
+            (err) => err.code === "FIELD_TOO_LONG" && (fallbackStrategy === "truncate" || fallbackStrategy === "use_fallback")
+          );
+
+          if (canUseFallback && fallbackStrategy !== "skip") {
+            // Ad will use fallback
+            const reason = adErrors.map((e) => e.message).join("; ");
+            fallbackAds.push({
+              adId: ad.id,
+              adGroupId: adGroup.id,
+              campaignId: campaign.id,
+              name: ad.headline || `Ad ${ad.id.slice(0, 8)}`,
+              reason:
+                fallbackStrategy === "truncate"
+                  ? `Text will be truncated: ${reason}`
+                  : `Will use fallback ad: ${reason}`,
+              fallbackAdId: fallbackStrategy === "use_fallback" ? "fallback" : undefined,
+            });
+          } else {
+            // Ad will be skipped
+            const firstError = adErrors[0];
+            skippedAds.push({
+              adId: ad.id,
+              adGroupId: adGroup.id,
+              campaignId: campaign.id,
+              name: ad.headline || `Ad ${ad.id.slice(0, 8)}`,
+              productName: (ad as unknown as { productName?: string }).productName,
+              reason: firstError?.message || "Validation failed",
+              errorCode: firstError?.code || "UNKNOWN",
+              field: firstError?.field || "unknown",
+              value: firstError?.value,
+              expected: firstError?.expected,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // Generate warnings
+  const totalAds = validAds.length + fallbackAds.length + skippedAds.length;
+  const skipRate = totalAds > 0 ? (skippedAds.length / totalAds) * 100 : 0;
+
+  if (skipRate > 20) {
+    warnings.push(
+      `High skip rate (${skipRate.toFixed(1)}%): ${skippedAds.length} of ${totalAds} ads will be skipped. Consider reviewing your campaign set configuration.`
+    );
+  }
+
+  if (fallbackAds.length > 0) {
+    warnings.push(
+      `${fallbackAds.length} ads will use fallback content. Original content exceeded platform limits.`
+    );
+  }
+
+  // Determine if sync can proceed (at least one valid or fallback ad)
+  const canProceed = validAds.length > 0 || fallbackAds.length > 0;
+
+  const endTime = performance.now();
+
+  const response: SyncPreviewResponse = {
+    campaignSetId: setId,
+    totalAds,
+    breakdown: {
+      valid: validAds.length,
+      fallback: fallbackAds.length,
+      skipped: skippedAds.length,
+    },
+    validAds,
+    fallbackAds,
+    skippedAds,
+    canProceed,
+    warnings,
+    validationTimeMs: Math.round(endTime - startTime),
+  };
+
+  console.log(
+    `[PreviewSync] Campaign set ${setId}: ` +
+      `${validAds.length} valid, ${fallbackAds.length} fallback, ${skippedAds.length} skipped ` +
+      `(${response.validationTimeMs}ms)`
+  );
+
+  return c.json(response, 200);
+});
+
+campaignSetsApp.openapi(pauseCampaignsRoute, async (c) => {
+  // Get team context from middleware
+  const { team } = getTeamContext(c);
+  const teamId = team.id;
+
+  const { setId } = c.req.valid("param");
+
+  // Verify campaign set exists and belongs to team
+  await verifyCampaignSetTeamOwnership(setId, teamId);
 
   // Update all campaigns in set to paused
   const result = await db
@@ -1193,7 +1539,7 @@ campaignSetsApp.openapi(pauseCampaignsRoute, async (c) => {
   await db
     .update(campaignSets)
     .set({ status: "paused" })
-    .where(and(eq(campaignSets.id, setId), eq(campaignSets.userId, userId)));
+    .where(eq(campaignSets.id, setId));
 
   return c.json(
     {
@@ -1204,19 +1550,14 @@ campaignSetsApp.openapi(pauseCampaignsRoute, async (c) => {
 });
 
 campaignSetsApp.openapi(resumeCampaignsRoute, async (c) => {
-  const userId = getUserId(c);
+  // Get team context from middleware
+  const { team } = getTeamContext(c);
+  const teamId = team.id;
+
   const { setId } = c.req.valid("param");
 
-  // Check if set exists and belongs to user
-  const [set] = await db
-    .select()
-    .from(campaignSets)
-    .where(and(eq(campaignSets.id, setId), eq(campaignSets.userId, userId)))
-    .limit(1);
-
-  if (!set) {
-    throw createNotFoundError("Campaign set", setId);
-  }
+  // Verify campaign set exists and belongs to team
+  await verifyCampaignSetTeamOwnership(setId, teamId);
 
   // Update all paused campaigns in set to active
   const result = await db
@@ -1234,7 +1575,7 @@ campaignSetsApp.openapi(resumeCampaignsRoute, async (c) => {
   await db
     .update(campaignSets)
     .set({ status: "active" })
-    .where(and(eq(campaignSets.id, setId), eq(campaignSets.userId, userId)));
+    .where(eq(campaignSets.id, setId));
 
   return c.json(
     {
@@ -1249,19 +1590,14 @@ campaignSetsApp.openapi(resumeCampaignsRoute, async (c) => {
 // ============================================================================
 
 campaignSetsApp.openapi(listCampaignsInSetRoute, async (c) => {
-  const userId = getUserId(c);
+  // Get team context from middleware
+  const { team } = getTeamContext(c);
+  const teamId = team.id;
+
   const { setId } = c.req.valid("param");
 
-  // Check if set exists and belongs to user
-  const [set] = await db
-    .select()
-    .from(campaignSets)
-    .where(and(eq(campaignSets.id, setId), eq(campaignSets.userId, userId)))
-    .limit(1);
-
-  if (!set) {
-    throw createNotFoundError("Campaign set", setId);
-  }
+  // Verify campaign set exists and belongs to team
+  await verifyCampaignSetTeamOwnership(setId, teamId);
 
   // Get campaigns with full hierarchy using helper function
   const campaignsInSet = await db
@@ -1278,19 +1614,14 @@ campaignSetsApp.openapi(listCampaignsInSetRoute, async (c) => {
 });
 
 campaignSetsApp.openapi(getCampaignInSetRoute, async (c) => {
-  const userId = getUserId(c);
+  // Get team context from middleware
+  const { team } = getTeamContext(c);
+  const teamId = team.id;
+
   const { setId, campaignId } = c.req.valid("param");
 
-  // Check if set exists and belongs to user
-  const [set] = await db
-    .select()
-    .from(campaignSets)
-    .where(and(eq(campaignSets.id, setId), eq(campaignSets.userId, userId)))
-    .limit(1);
-
-  if (!set) {
-    throw createNotFoundError("Campaign set", setId);
-  }
+  // Verify campaign set exists and belongs to team
+  await verifyCampaignSetTeamOwnership(setId, teamId);
 
   // Get the campaign
   const [campaign] = await db
@@ -1315,20 +1646,15 @@ campaignSetsApp.openapi(getCampaignInSetRoute, async (c) => {
 });
 
 campaignSetsApp.openapi(updateCampaignInSetRoute, async (c) => {
-  const userId = getUserId(c);
+  // Get team context from middleware
+  const { team } = getTeamContext(c);
+  const teamId = team.id;
+
   const { setId, campaignId } = c.req.valid("param");
   const body = c.req.valid("json");
 
-  // Check if set exists and belongs to user
-  const [set] = await db
-    .select()
-    .from(campaignSets)
-    .where(and(eq(campaignSets.id, setId), eq(campaignSets.userId, userId)))
-    .limit(1);
-
-  if (!set) {
-    throw createNotFoundError("Campaign set", setId);
-  }
+  // Verify campaign set exists and belongs to team
+  await verifyCampaignSetTeamOwnership(setId, teamId);
 
   // Check if campaign exists in set
   const [existing] = await db
@@ -1401,19 +1727,14 @@ campaignSetsApp.openapi(updateCampaignInSetRoute, async (c) => {
 });
 
 campaignSetsApp.openapi(deleteCampaignFromSetRoute, async (c) => {
-  const userId = getUserId(c);
+  // Get team context from middleware
+  const { team } = getTeamContext(c);
+  const teamId = team.id;
+
   const { setId, campaignId } = c.req.valid("param");
 
-  // Check if set exists and belongs to user
-  const [set] = await db
-    .select()
-    .from(campaignSets)
-    .where(and(eq(campaignSets.id, setId), eq(campaignSets.userId, userId)))
-    .limit(1);
-
-  if (!set) {
-    throw createNotFoundError("Campaign set", setId);
-  }
+  // Verify campaign set exists and belongs to team
+  await verifyCampaignSetTeamOwnership(setId, teamId);
 
   // Check if campaign exists in set
   const [existing] = await db
@@ -1448,8 +1769,10 @@ campaignSetsApp.openapi(deleteCampaignFromSetRoute, async (c) => {
  * by the OpenAPI specification.
  */
 campaignSetsApp.get("/api/v1/campaign-sets/:setId/sync-stream", async (c) => {
-  // Authenticate user
-  const userId = getUserId(c);
+  // Get team context from middleware
+  const { team } = getTeamContext(c);
+  const teamId = team.id;
+
   const setId = c.req.param("setId");
   const jobIdRaw = c.req.query("jobId");
 
@@ -1470,18 +1793,10 @@ campaignSetsApp.get("/api/v1/campaign-sets/:setId/sync-stream", async (c) => {
   }
   const jobId = jobIdResult.data.jobId;
 
-  // Verify campaign set exists and belongs to user
-  const [set] = await db
-    .select()
-    .from(campaignSets)
-    .where(and(eq(campaignSets.id, setId), eq(campaignSets.userId, userId)))
-    .limit(1);
+  // Verify campaign set exists and belongs to team
+  await verifyCampaignSetTeamOwnership(setId, teamId);
 
-  if (!set) {
-    throw createNotFoundError("Campaign set", setId);
-  }
-
-  // SECURITY: Validate job exists AND belongs to this campaign set and user
+  // SECURITY: Validate job exists AND belongs to this campaign set and team
   const boss = await getJobQueueReady();
   const job = await boss.getJobById(SYNC_CAMPAIGN_SET_JOB, jobId);
 
@@ -1489,9 +1804,9 @@ campaignSetsApp.get("/api/v1/campaign-sets/:setId/sync-stream", async (c) => {
     throw new ApiException(404, ErrorCode.NOT_FOUND, "Job not found");
   }
 
-  const jobData = job.data as { campaignSetId?: string; userId?: string };
-  if (jobData.campaignSetId !== setId || jobData.userId !== userId) {
-    console.log(`[SSE] Access denied: job ${jobId} belongs to campaignSet ${jobData.campaignSetId}/${jobData.userId}, requested by ${setId}/${userId}`);
+  const jobData = job.data as { campaignSetId?: string; teamId?: string };
+  if (jobData.campaignSetId !== setId || jobData.teamId !== teamId) {
+    console.log(`[SSE] Access denied: job ${jobId} belongs to campaignSet ${jobData.campaignSetId}/${jobData.teamId}, requested by ${setId}/${teamId}`);
     throw new ApiException(403, ErrorCode.FORBIDDEN, "Access denied to this job");
   }
 

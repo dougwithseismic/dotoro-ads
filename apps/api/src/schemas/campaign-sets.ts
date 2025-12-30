@@ -1065,3 +1065,79 @@ export const validateCampaignSetRequestSchema = z.object({
   platform: z.enum(["reddit", "google"]).optional(),
 });
 export type ValidateCampaignSetRequest = z.infer<typeof validateCampaignSetRequestSchema>;
+
+// ============================================================================
+// Pre-Sync Validation Preview Schemas
+// ============================================================================
+
+/**
+ * Valid Ad Info Schema
+ * Information about an ad that will sync successfully
+ */
+export const validAdInfoSchema = z.object({
+  adId: z.string(),
+  adGroupId: z.string(),
+  campaignId: z.string(),
+  name: z.string(),
+});
+export type ValidAdInfo = z.infer<typeof validAdInfoSchema>;
+
+/**
+ * Fallback Ad Info Schema
+ * Information about an ad that will use fallback content
+ */
+export const fallbackAdInfoSchema = z.object({
+  adId: z.string(),
+  adGroupId: z.string(),
+  campaignId: z.string(),
+  name: z.string(),
+  reason: z.string(),
+  fallbackAdId: z.string().optional(),
+});
+export type FallbackAdInfo = z.infer<typeof fallbackAdInfoSchema>;
+
+/**
+ * Skipped Ad Info Schema
+ * Information about an ad that will be skipped during sync
+ */
+export const skippedAdInfoSchema = z.object({
+  adId: z.string(),
+  adGroupId: z.string(),
+  campaignId: z.string(),
+  name: z.string(),
+  productName: z.string().optional(),
+  reason: z.string(),
+  errorCode: z.string(),
+  field: z.string(),
+  value: z.unknown().optional(),
+  expected: z.string().optional(),
+});
+export type SkippedAdInfo = z.infer<typeof skippedAdInfoSchema>;
+
+/**
+ * Sync Preview Breakdown Schema
+ * Count breakdown of ads by validation status
+ */
+export const syncPreviewBreakdownSchema = z.object({
+  valid: z.number().int().nonnegative(),
+  fallback: z.number().int().nonnegative(),
+  skipped: z.number().int().nonnegative(),
+});
+export type SyncPreviewBreakdown = z.infer<typeof syncPreviewBreakdownSchema>;
+
+/**
+ * Sync Preview Response Schema
+ * Complete preview of what will happen during sync
+ */
+export const syncPreviewResponseSchema = z.object({
+  campaignSetId: z.string(),
+  totalAds: z.number().int().nonnegative(),
+  breakdown: syncPreviewBreakdownSchema,
+  validAds: z.array(validAdInfoSchema),
+  fallbackAds: z.array(fallbackAdInfoSchema),
+  skippedAds: z.array(skippedAdInfoSchema),
+  canProceed: z.boolean(),
+  warnings: z.array(z.string()),
+  validationTimeMs: z.number().int().nonnegative(),
+});
+export type SyncPreviewResponse = z.infer<typeof syncPreviewResponseSchema>;
