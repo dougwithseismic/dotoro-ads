@@ -1,6 +1,6 @@
 # Dotoro - Programmatic Ad Campaign Builder
 
-![Lines of Code](https://img.shields.io/badge/LOC-392.9k-blue)
+![Lines of Code](https://img.shields.io/badge/LOC-409.3k-blue)
 
 An internal programmatic ad campaign generation tool that enables marketing teams to create, manage, and deploy thousands of ad variations across multiple advertising platforms from a single data source.
 
