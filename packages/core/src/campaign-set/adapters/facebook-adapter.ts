@@ -332,31 +332,4 @@ export class FacebookAdsAdapter implements CampaignSetPlatformAdapter {
   //   }
   // }
 
-  // ─── Deduplication Queries ────────────────────────────────────────────────
-  // Note: Facebook/Meta Ads deduplication is out of scope for this feature.
-  // These methods return null (no match found) as placeholders.
-
-  /**
-   * Find an existing campaign by name (placeholder - not implemented for Facebook)
-   */
-  async findExistingCampaign(_accountId: string, _name: string): Promise<string | null> {
-    // Facebook Ads deduplication will be implemented separately
-    return null;
-  }
-
-  /**
-   * Find an existing ad group by name (placeholder - not implemented for Facebook)
-   */
-  async findExistingAdGroup(_campaignId: string, _name: string): Promise<string | null> {
-    // Facebook Ads deduplication will be implemented separately
-    return null;
-  }
-
-  /**
-   * Find an existing ad by name (placeholder - not implemented for Facebook)
-   */
-  async findExistingAd(_adGroupId: string, _name: string): Promise<string | null> {
-    // Facebook Ads deduplication will be implemented separately
-    return null;
-  }
 }

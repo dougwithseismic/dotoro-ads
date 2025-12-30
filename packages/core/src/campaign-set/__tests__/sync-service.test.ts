@@ -71,10 +71,6 @@ function createMockAdapter(): CampaignSetPlatformAdapter {
       platformKeywordId: "mock_keyword_123",
     }),
     deleteKeyword: vi.fn().mockResolvedValue(undefined),
-    // Deduplication methods (return null by default - no existing entities found)
-    findExistingCampaign: vi.fn().mockResolvedValue(null),
-    findExistingAdGroup: vi.fn().mockResolvedValue(null),
-    findExistingAd: vi.fn().mockResolvedValue(null),
   };
 }
 

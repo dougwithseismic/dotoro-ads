@@ -507,67 +507,23 @@ export class DefaultCampaignSetSyncService implements CampaignSetSyncService {
   // ─── Private Helper Methods ────────────────────────────────────────────────
 
   /**
-   * Extract the ad account ID from campaign's platform data.
-   * Used for scoping deduplication queries to the correct account.
-   */
-  private getAdAccountId(campaign: Campaign): string | undefined {
-    // Check platformData for the account ID (varies by platform)
-    const platformData = campaign.platformData as Record<string, unknown> | undefined;
-    if (platformData) {
-      // Reddit uses 'adAccountId'
-      if (typeof platformData.adAccountId === 'string') {
-        return platformData.adAccountId;
-      }
-      // Google uses 'customerId'
-      if (typeof platformData.customerId === 'string') {
-        return platformData.customerId;
-      }
-      // Generic fallback
-      if (typeof platformData.accountId === 'string') {
-        return platformData.accountId;
-      }
-    }
-    return undefined;
-  }
-
-  /**
    * Sync a single campaign with all its child entities.
    *
-   * This method implements resume-aware sync with deduplication:
-   * 1. Check if we have a stored platform ID
-   * 2. If not, try to find an existing entity on the platform (deduplication)
-   * 3. If found, recover and persist the ID, then update
-   * 4. If not found, create a new entity
+   * Uses pure ID-based sync:
+   * - Have platformId? -> UPDATE
+   * - No platformId? -> CREATE (with immediate persistence)
    *
-   * This ensures idempotent behavior - running the same sync multiple times
-   * produces the same result without creating duplicate entities.
+   * The immediate persistence after CREATE is the key protection against
+   * duplicate creation on retry - the ID is saved before syncing children.
    */
   private async syncSingleCampaign(
     campaign: Campaign,
     adapter: CampaignSetPlatformAdapter
   ): Promise<CampaignSyncResult> {
-    // Step 1: Start with stored platform ID (may be undefined)
-    let platformCampaignId = campaign.platformCampaignId;
+    const platformCampaignId = campaign.platformCampaignId;
 
-    // Step 2: If no stored ID, try to find existing on platform (deduplication)
-    if (!platformCampaignId && adapter.findExistingCampaign) {
-      const adAccountId = this.getAdAccountId(campaign);
-      if (adAccountId) {
-        try {
-          platformCampaignId = await adapter.findExistingCampaign(adAccountId, campaign.name) ?? undefined;
+    let finalPlatformId: string | undefined;
 
-          // Step 3: If found, persist the recovered ID immediately
-          if (platformCampaignId) {
-            await this.repository.updateCampaignPlatformId(campaign.id, platformCampaignId);
-          }
-        } catch (error) {
-          // Log but continue - dedup lookup failure shouldn't block sync
-          // The sync will proceed with create path, which is safe
-        }
-      }
-    }
-
-    // Step 4: Route to UPDATE or CREATE based on whether we have an ID
     if (platformCampaignId) {
       // UPDATE path - entity already exists on platform
       const result = await adapter.updateCampaign(campaign, platformCampaignId);
@@ -579,10 +535,10 @@ export class DefaultCampaignSetSyncService implements CampaignSetSyncService {
           error: result.error,
         };
       }
+      finalPlatformId = result.platformCampaignId ?? platformCampaignId;
       // Update ID if platform changed it (rare but possible)
       if (result.platformCampaignId && result.platformCampaignId !== platformCampaignId) {
         await this.repository.updateCampaignPlatformId(campaign.id, result.platformCampaignId);
-        platformCampaignId = result.platformCampaignId;
       }
     } else {
       // CREATE path - new entity
@@ -595,13 +551,13 @@ export class DefaultCampaignSetSyncService implements CampaignSetSyncService {
           error: result.error,
         };
       }
-      platformCampaignId = result.platformCampaignId;
+      finalPlatformId = result.platformCampaignId;
 
       // IMMEDIATELY persist platform ID before syncing children.
       // This ensures the ID is saved even if child entity sync fails,
       // preventing duplicate campaign creation on retry.
-      if (platformCampaignId) {
-        await this.repository.updateCampaignPlatformId(campaign.id, platformCampaignId);
+      if (finalPlatformId) {
+        await this.repository.updateCampaignPlatformId(campaign.id, finalPlatformId);
       }
     }
 
@@ -609,7 +565,7 @@ export class DefaultCampaignSetSyncService implements CampaignSetSyncService {
     for (const adGroup of campaign.adGroups) {
       const adGroupResult = await this.syncAdGroup(
         adGroup,
-        platformCampaignId!,
+        finalPlatformId!,
         adapter
       );
       if (!adGroupResult.success) {
@@ -617,7 +573,7 @@ export class DefaultCampaignSetSyncService implements CampaignSetSyncService {
           campaignId: campaign.id,
           platform: campaign.platform,
           success: false,
-          platformCampaignId,
+          platformCampaignId: finalPlatformId,
           error: `Failed to sync ad group ${adGroup.id}: ${adGroupResult.error}`,
         };
       }
@@ -627,53 +583,36 @@ export class DefaultCampaignSetSyncService implements CampaignSetSyncService {
       campaignId: campaign.id,
       platform: campaign.platform,
       success: true,
-      platformCampaignId,
+      platformCampaignId: finalPlatformId,
     };
   }
 
   /**
    * Sync an ad group with all its child entities.
    *
-   * Implements resume-aware sync with deduplication:
-   * 1. Check if we have a stored platform ID
-   * 2. If not, try to find existing on platform (deduplication)
-   * 3. If found, recover and persist the ID, then update
-   * 4. If not found, create a new entity
+   * Uses pure ID-based sync:
+   * - Have platformAdGroupId? -> UPDATE
+   * - No platformAdGroupId? -> CREATE (with immediate persistence)
    */
   private async syncAdGroup(
     adGroup: AdGroup,
     platformCampaignId: string,
     adapter: CampaignSetPlatformAdapter
   ): Promise<{ success: boolean; platformAdGroupId?: string; error?: string }> {
-    // Step 1: Start with stored platform ID
-    let platformAdGroupId = adGroup.platformAdGroupId;
+    const platformAdGroupId = adGroup.platformAdGroupId;
 
-    // Step 2: If no stored ID, try to find existing on platform (deduplication)
-    if (!platformAdGroupId && adapter.findExistingAdGroup) {
-      try {
-        platformAdGroupId = await adapter.findExistingAdGroup(platformCampaignId, adGroup.name) ?? undefined;
+    let finalPlatformId: string | undefined;
 
-        // Step 3: If found, persist the recovered ID immediately
-        if (platformAdGroupId) {
-          await this.repository.updateAdGroupPlatformId(adGroup.id, platformAdGroupId);
-        }
-      } catch (error) {
-        // Log but continue - dedup lookup failure shouldn't block sync
-        // The sync will proceed with create path, which is safe
-      }
-    }
-
-    // Step 4: Route to UPDATE or CREATE based on whether we have an ID
     if (platformAdGroupId) {
       // UPDATE path
       const result = await adapter.updateAdGroup(adGroup, platformAdGroupId);
       if (!result.success) {
         return { success: false, error: result.error };
       }
+      finalPlatformId = result.platformAdGroupId ?? platformAdGroupId;
       // Update the platform ID in DB if it changed (e.g., platform reassigned ID)
       if (result.platformAdGroupId && result.platformAdGroupId !== platformAdGroupId) {
         await this.repository.updateAdGroupPlatformId(adGroup.id, result.platformAdGroupId);
-        platformAdGroupId = result.platformAdGroupId;
       }
     } else {
       // CREATE path
@@ -681,18 +620,20 @@ export class DefaultCampaignSetSyncService implements CampaignSetSyncService {
       if (!result.success) {
         return { success: false, error: result.error };
       }
-      platformAdGroupId = result.platformAdGroupId;
+      finalPlatformId = result.platformAdGroupId;
       // Immediately persist platform ID before syncing children
-      await this.repository.updateAdGroupPlatformId(adGroup.id, platformAdGroupId!);
+      if (finalPlatformId) {
+        await this.repository.updateAdGroupPlatformId(adGroup.id, finalPlatformId);
+      }
     }
 
     // Sync ads
     for (const ad of adGroup.ads) {
-      const adResult = await this.syncAd(ad, platformAdGroupId!, adapter);
+      const adResult = await this.syncAd(ad, finalPlatformId!, adapter);
       if (!adResult.success) {
         return {
           success: false,
-          platformAdGroupId,
+          platformAdGroupId: finalPlatformId,
           error: `Failed to sync ad ${ad.id}: ${adResult.error}`,
         };
       }
@@ -702,57 +643,35 @@ export class DefaultCampaignSetSyncService implements CampaignSetSyncService {
     for (const keyword of adGroup.keywords) {
       const keywordResult = await this.syncKeyword(
         keyword,
-        platformAdGroupId!,
+        finalPlatformId!,
         adapter
       );
       if (!keywordResult.success) {
         return {
           success: false,
-          platformAdGroupId,
+          platformAdGroupId: finalPlatformId,
           error: `Failed to sync keyword ${keyword.id}: ${keywordResult.error}`,
         };
       }
     }
 
-    return { success: true, platformAdGroupId };
+    return { success: true, platformAdGroupId: finalPlatformId };
   }
 
   /**
    * Sync an individual ad.
    *
-   * Implements resume-aware sync with deduplication:
-   * 1. Check if we have a stored platform ID
-   * 2. If not, try to find existing on platform (deduplication)
-   * 3. If found, recover and persist the ID, then update
-   * 4. If not found, create a new entity
+   * Uses pure ID-based sync:
+   * - Have platformAdId? -> UPDATE
+   * - No platformAdId? -> CREATE (with immediate persistence)
    */
   private async syncAd(
     ad: Ad,
     platformAdGroupId: string,
     adapter: CampaignSetPlatformAdapter
   ): Promise<{ success: boolean; platformAdId?: string; error?: string }> {
-    // Step 1: Start with stored platform ID
-    let platformAdId = ad.platformAdId;
+    const platformAdId = ad.platformAdId;
 
-    // Step 2: If no stored ID, try to find existing on platform (deduplication)
-    // Use headline as the unique identifier for ads
-    if (!platformAdId && adapter.findExistingAd) {
-      const adName = ad.headline || ad.description || '';
-      if (adName) {
-        try {
-          platformAdId = await adapter.findExistingAd(platformAdGroupId, adName) ?? undefined;
-
-          // Step 3: If found, persist the recovered ID immediately
-          if (platformAdId) {
-            await this.repository.updateAdPlatformId(ad.id, platformAdId);
-          }
-        } catch (error) {
-          // Log but continue - dedup lookup failure shouldn't block sync
-        }
-      }
-    }
-
-    // Step 4: Route to UPDATE or CREATE based on whether we have an ID
     if (platformAdId) {
       // UPDATE path
       const result = await adapter.updateAd(ad, platformAdId);
@@ -763,7 +682,7 @@ export class DefaultCampaignSetSyncService implements CampaignSetSyncService {
       if (result.platformAdId && result.platformAdId !== platformAdId) {
         await this.repository.updateAdPlatformId(ad.id, result.platformAdId);
       }
-      return { success: true, platformAdId: result.platformAdId };
+      return { success: true, platformAdId: result.platformAdId ?? platformAdId };
     } else {
       // CREATE path
       const result = await adapter.createAd(ad, platformAdGroupId);
@@ -771,7 +690,9 @@ export class DefaultCampaignSetSyncService implements CampaignSetSyncService {
         return { success: false, error: result.error };
       }
       // Immediately persist platform ID
-      await this.repository.updateAdPlatformId(ad.id, result.platformAdId!);
+      if (result.platformAdId) {
+        await this.repository.updateAdPlatformId(ad.id, result.platformAdId);
+      }
       return { success: true, platformAdId: result.platformAdId };
     }
   }
@@ -779,43 +700,17 @@ export class DefaultCampaignSetSyncService implements CampaignSetSyncService {
   /**
    * Sync an individual keyword.
    *
-   * Implements resume-aware sync with deduplication:
-   * 1. Check if we have a stored platform ID
-   * 2. If not, try to find existing on platform (deduplication)
-   * 3. If found, recover and persist the ID, then update
-   * 4. If not found, create a new entity
-   *
-   * Note: Keywords are uniquely identified by (adGroupId, text, matchType),
-   * not just name like other entities.
+   * Uses pure ID-based sync:
+   * - Have platformKeywordId? -> UPDATE
+   * - No platformKeywordId? -> CREATE (with immediate persistence)
    */
   private async syncKeyword(
     keyword: Keyword,
     platformAdGroupId: string,
     adapter: CampaignSetPlatformAdapter
   ): Promise<{ success: boolean; platformKeywordId?: string; error?: string }> {
-    // Step 1: Start with stored platform ID
-    let platformKeywordId = keyword.platformKeywordId;
+    const platformKeywordId = keyword.platformKeywordId;
 
-    // Step 2: If no stored ID, try to find existing on platform (deduplication)
-    // Keywords use text + matchType for unique identification
-    if (!platformKeywordId && adapter.findExistingKeyword) {
-      try {
-        platformKeywordId = await adapter.findExistingKeyword(
-          platformAdGroupId,
-          keyword.keyword,
-          keyword.matchType
-        ) ?? undefined;
-
-        // Step 3: If found, persist the recovered ID immediately
-        if (platformKeywordId) {
-          await this.repository.updateKeywordPlatformId(keyword.id, platformKeywordId);
-        }
-      } catch (error) {
-        // Log but continue - dedup lookup failure shouldn't block sync
-      }
-    }
-
-    // Step 4: Route to UPDATE or CREATE based on whether we have an ID
     if (platformKeywordId) {
       // UPDATE path
       const result = await adapter.updateKeyword(keyword, platformKeywordId);
@@ -826,7 +721,7 @@ export class DefaultCampaignSetSyncService implements CampaignSetSyncService {
       if (result.platformKeywordId && result.platformKeywordId !== platformKeywordId) {
         await this.repository.updateKeywordPlatformId(keyword.id, result.platformKeywordId);
       }
-      return { success: true, platformKeywordId: result.platformKeywordId };
+      return { success: true, platformKeywordId: result.platformKeywordId ?? platformKeywordId };
     } else {
       // CREATE path
       const result = await adapter.createKeyword(keyword, platformAdGroupId);
@@ -834,10 +729,9 @@ export class DefaultCampaignSetSyncService implements CampaignSetSyncService {
         return { success: false, error: result.error };
       }
       // Immediately persist platform ID
-      await this.repository.updateKeywordPlatformId(
-        keyword.id,
-        result.platformKeywordId!
-      );
+      if (result.platformKeywordId) {
+        await this.repository.updateKeywordPlatformId(keyword.id, result.platformKeywordId);
+      }
       return { success: true, platformKeywordId: result.platformKeywordId };
     }
   }

@@ -1,13 +1,12 @@
 /**
- * Campaign Set Sync Service - Resume-Aware Tests
+ * Campaign Set Sync Service - ID-Based Sync Tests
  *
- * Tests for the resume-aware sync functionality that enables idempotent
- * sync operations with deduplication. These tests verify that:
+ * Tests for the ID-based sync functionality that ensures:
  *
- * 1. Interrupted syncs can be safely re-run without creating duplicates
- * 2. Entities created on platform but not saved locally are recovered via dedup
- * 3. Recovered platform IDs are immediately persisted
- * 4. Sync operations are idempotent
+ * 1. Entities with platform IDs are updated (not recreated)
+ * 2. New entities are created and IDs are immediately persisted
+ * 3. Immediate persistence prevents duplicates on retry after partial failure
+ * 4. Sync operations are idempotent when IDs are stored
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -27,12 +26,7 @@ import type {
 // Test Helpers
 // ============================================================================
 
-function createMockAdapter(): CampaignSetPlatformAdapter & {
-  findExistingCampaign: ReturnType<typeof vi.fn>;
-  findExistingAdGroup: ReturnType<typeof vi.fn>;
-  findExistingAd: ReturnType<typeof vi.fn>;
-  findExistingKeyword: ReturnType<typeof vi.fn>;
-} {
+function createMockAdapter(): CampaignSetPlatformAdapter {
   return {
     platform: "mock",
     createCampaign: vi.fn().mockResolvedValue({
@@ -73,11 +67,6 @@ function createMockAdapter(): CampaignSetPlatformAdapter & {
       platformKeywordId: "updated_keyword_123",
     }),
     deleteKeyword: vi.fn().mockResolvedValue(undefined),
-    // Deduplication methods
-    findExistingCampaign: vi.fn().mockResolvedValue(null),
-    findExistingAdGroup: vi.fn().mockResolvedValue(null),
-    findExistingAd: vi.fn().mockResolvedValue(null),
-    findExistingKeyword: vi.fn().mockResolvedValue(null),
   };
 }
 
@@ -191,7 +180,7 @@ function createMockKeyword(overrides: Partial<Keyword> = {}): Keyword {
 // Tests
 // ============================================================================
 
-describe("Resume-Aware Sync", () => {
+describe("ID-Based Sync", () => {
   let mockAdapter: ReturnType<typeof createMockAdapter>;
   let mockRepository: ReturnType<typeof createMockRepository>;
   let service: DefaultCampaignSetSyncService;
@@ -204,57 +193,20 @@ describe("Resume-Aware Sync", () => {
     service = new DefaultCampaignSetSyncService(adapters, mockRepository);
   });
 
-  describe("Campaign Deduplication Recovery", () => {
-    it("should recover campaign platform ID via dedup when not stored in DB", async () => {
-      // Scenario: Campaign was created on platform but crash happened before ID was saved
+  describe("Campaign Sync", () => {
+    it("should create campaign when no platform ID exists", async () => {
       const campaign = createMockCampaign({ platformCampaignId: undefined });
       const campaignSet = createMockCampaignSet({ campaigns: [campaign] });
       mockRepository.getCampaignSetWithRelations.mockResolvedValue(campaignSet);
 
-      const recoveredId = "recovered_campaign_456";
-      mockAdapter.findExistingCampaign.mockResolvedValue(recoveredId);
-      mockAdapter.updateCampaign.mockResolvedValue({
-        success: true,
-        platformCampaignId: recoveredId,
-      });
-
       const result = await service.syncCampaignSet("set-1");
 
       expect(result.success).toBe(true);
-      // Should have called findExistingCampaign
-      expect(mockAdapter.findExistingCampaign).toHaveBeenCalledWith(
-        "account_123",
-        "Test Campaign"
-      );
-      // Should have persisted the recovered ID
-      expect(mockRepository.updateCampaignPlatformId).toHaveBeenCalledWith(
-        "campaign-1",
-        recoveredId
-      );
-      // Should have called update (not create) since we found existing
-      expect(mockAdapter.updateCampaign).toHaveBeenCalled();
-      expect(mockAdapter.createCampaign).not.toHaveBeenCalled();
-    });
-
-    it("should create campaign when dedup finds nothing", async () => {
-      const campaign = createMockCampaign({ platformCampaignId: undefined });
-      const campaignSet = createMockCampaignSet({ campaigns: [campaign] });
-      mockRepository.getCampaignSetWithRelations.mockResolvedValue(campaignSet);
-
-      // Dedup returns null (no existing entity)
-      mockAdapter.findExistingCampaign.mockResolvedValue(null);
-
-      const result = await service.syncCampaignSet("set-1");
-
-      expect(result.success).toBe(true);
-      // Should have attempted dedup
-      expect(mockAdapter.findExistingCampaign).toHaveBeenCalled();
-      // Should have created new campaign
       expect(mockAdapter.createCampaign).toHaveBeenCalled();
       expect(mockAdapter.updateCampaign).not.toHaveBeenCalled();
     });
 
-    it("should skip dedup when campaign already has platform ID", async () => {
+    it("should update campaign when platform ID exists", async () => {
       const campaign = createMockCampaign({
         platformCampaignId: "existing_id_789",
       });
@@ -264,89 +216,34 @@ describe("Resume-Aware Sync", () => {
       const result = await service.syncCampaignSet("set-1");
 
       expect(result.success).toBe(true);
-      // Should NOT have called findExistingCampaign (already have ID)
-      expect(mockAdapter.findExistingCampaign).not.toHaveBeenCalled();
-      // Should have called update directly
       expect(mockAdapter.updateCampaign).toHaveBeenCalledWith(
         expect.anything(),
         "existing_id_789"
       );
+      expect(mockAdapter.createCampaign).not.toHaveBeenCalled();
     });
 
-    it("should continue with create if dedup lookup fails", async () => {
+    it("should immediately persist platform ID after campaign creation", async () => {
       const campaign = createMockCampaign({ platformCampaignId: undefined });
       const campaignSet = createMockCampaignSet({ campaigns: [campaign] });
       mockRepository.getCampaignSetWithRelations.mockResolvedValue(campaignSet);
 
-      // Dedup throws an error
-      mockAdapter.findExistingCampaign.mockRejectedValue(new Error("API timeout"));
+      await service.syncCampaignSet("set-1");
 
-      const result = await service.syncCampaignSet("set-1");
-
-      expect(result.success).toBe(true);
-      // Should have tried dedup
-      expect(mockAdapter.findExistingCampaign).toHaveBeenCalled();
-      // Should have fallen back to create
-      expect(mockAdapter.createCampaign).toHaveBeenCalled();
-    });
-
-    it("should skip dedup if no ad account ID available", async () => {
-      const campaign = createMockCampaign({
-        platformCampaignId: undefined,
-        platformData: undefined, // No platform data means no ad account ID
-      });
-      const campaignSet = createMockCampaignSet({ campaigns: [campaign] });
-      mockRepository.getCampaignSetWithRelations.mockResolvedValue(campaignSet);
-
-      const result = await service.syncCampaignSet("set-1");
-
-      expect(result.success).toBe(true);
-      // Should NOT have called findExistingCampaign (no account ID)
-      expect(mockAdapter.findExistingCampaign).not.toHaveBeenCalled();
-      // Should have created directly
-      expect(mockAdapter.createCampaign).toHaveBeenCalled();
+      // Verify immediate persistence was called with the new ID
+      expect(mockRepository.updateCampaignPlatformId).toHaveBeenCalledWith(
+        "campaign-1",
+        "new_campaign_123"
+      );
     });
   });
 
-  describe("Ad Group Deduplication Recovery", () => {
-    it("should recover ad group platform ID via dedup when not stored in DB", async () => {
+  describe("Ad Group Sync", () => {
+    it("should create ad group when no platform ID exists", async () => {
       const adGroup = createMockAdGroup({ platformAdGroupId: undefined });
       const campaign = createMockCampaign({ adGroups: [adGroup] });
       const campaignSet = createMockCampaignSet({ campaigns: [campaign] });
       mockRepository.getCampaignSetWithRelations.mockResolvedValue(campaignSet);
-
-      const recoveredId = "recovered_adgroup_456";
-      mockAdapter.findExistingAdGroup.mockResolvedValue(recoveredId);
-      mockAdapter.updateAdGroup.mockResolvedValue({
-        success: true,
-        platformAdGroupId: recoveredId,
-      });
-
-      const result = await service.syncCampaignSet("set-1");
-
-      expect(result.success).toBe(true);
-      // Should have called findExistingAdGroup
-      expect(mockAdapter.findExistingAdGroup).toHaveBeenCalledWith(
-        "new_campaign_123", // parent platform campaign ID
-        "Test Ad Group"
-      );
-      // Should have persisted the recovered ID
-      expect(mockRepository.updateAdGroupPlatformId).toHaveBeenCalledWith(
-        "adgroup-1",
-        recoveredId
-      );
-      // Should have called update (not create)
-      expect(mockAdapter.updateAdGroup).toHaveBeenCalled();
-      expect(mockAdapter.createAdGroup).not.toHaveBeenCalled();
-    });
-
-    it("should create ad group when dedup finds nothing", async () => {
-      const adGroup = createMockAdGroup({ platformAdGroupId: undefined });
-      const campaign = createMockCampaign({ adGroups: [adGroup] });
-      const campaignSet = createMockCampaignSet({ campaigns: [campaign] });
-      mockRepository.getCampaignSetWithRelations.mockResolvedValue(campaignSet);
-
-      mockAdapter.findExistingAdGroup.mockResolvedValue(null);
 
       const result = await service.syncCampaignSet("set-1");
 
@@ -355,7 +252,7 @@ describe("Resume-Aware Sync", () => {
       expect(mockAdapter.updateAdGroup).not.toHaveBeenCalled();
     });
 
-    it("should skip dedup when ad group already has platform ID", async () => {
+    it("should update ad group when platform ID exists", async () => {
       const adGroup = createMockAdGroup({
         platformAdGroupId: "existing_adgroup_789",
       });
@@ -366,128 +263,83 @@ describe("Resume-Aware Sync", () => {
       const result = await service.syncCampaignSet("set-1");
 
       expect(result.success).toBe(true);
-      expect(mockAdapter.findExistingAdGroup).not.toHaveBeenCalled();
       expect(mockAdapter.updateAdGroup).toHaveBeenCalledWith(
         expect.anything(),
         "existing_adgroup_789"
       );
+      expect(mockAdapter.createAdGroup).not.toHaveBeenCalled();
+    });
+
+    it("should immediately persist platform ID after ad group creation", async () => {
+      const adGroup = createMockAdGroup({ platformAdGroupId: undefined });
+      const campaign = createMockCampaign({ adGroups: [adGroup] });
+      const campaignSet = createMockCampaignSet({ campaigns: [campaign] });
+      mockRepository.getCampaignSetWithRelations.mockResolvedValue(campaignSet);
+
+      await service.syncCampaignSet("set-1");
+
+      expect(mockRepository.updateAdGroupPlatformId).toHaveBeenCalledWith(
+        "adgroup-1",
+        "new_adgroup_123"
+      );
     });
   });
 
-  describe("Ad Deduplication Recovery", () => {
-    it("should recover ad platform ID via dedup when not stored in DB", async () => {
+  describe("Ad Sync", () => {
+    it("should create ad when no platform ID exists", async () => {
       const ad = createMockAd({ platformAdId: undefined });
       const adGroup = createMockAdGroup({ ads: [ad] });
       const campaign = createMockCampaign({ adGroups: [adGroup] });
       const campaignSet = createMockCampaignSet({ campaigns: [campaign] });
       mockRepository.getCampaignSetWithRelations.mockResolvedValue(campaignSet);
 
-      const recoveredId = "recovered_ad_456";
-      mockAdapter.findExistingAd.mockResolvedValue(recoveredId);
-      mockAdapter.updateAd.mockResolvedValue({
-        success: true,
-        platformAdId: recoveredId,
-      });
+      const result = await service.syncCampaignSet("set-1");
+
+      expect(result.success).toBe(true);
+      expect(mockAdapter.createAd).toHaveBeenCalled();
+      expect(mockAdapter.updateAd).not.toHaveBeenCalled();
+    });
+
+    it("should update ad when platform ID exists", async () => {
+      const ad = createMockAd({ platformAdId: "existing_ad_789" });
+      const adGroup = createMockAdGroup({ ads: [ad] });
+      const campaign = createMockCampaign({ adGroups: [adGroup] });
+      const campaignSet = createMockCampaignSet({ campaigns: [campaign] });
+      mockRepository.getCampaignSetWithRelations.mockResolvedValue(campaignSet);
 
       const result = await service.syncCampaignSet("set-1");
 
       expect(result.success).toBe(true);
-      // Should have called findExistingAd with headline
-      expect(mockAdapter.findExistingAd).toHaveBeenCalledWith(
-        "new_adgroup_123", // parent platform ad group ID
-        "Test Headline"
+      expect(mockAdapter.updateAd).toHaveBeenCalledWith(
+        expect.anything(),
+        "existing_ad_789"
       );
-      // Should have persisted the recovered ID
-      expect(mockRepository.updateAdPlatformId).toHaveBeenCalledWith(
-        "ad-1",
-        recoveredId
-      );
-      // Should have called update (not create)
-      expect(mockAdapter.updateAd).toHaveBeenCalled();
       expect(mockAdapter.createAd).not.toHaveBeenCalled();
     });
 
-    it("should use description for dedup if headline is missing", async () => {
-      const ad = createMockAd({
-        platformAdId: undefined,
-        headline: undefined,
-        description: "Fallback Description",
-      });
+    it("should immediately persist platform ID after ad creation", async () => {
+      const ad = createMockAd({ platformAdId: undefined });
       const adGroup = createMockAdGroup({ ads: [ad] });
       const campaign = createMockCampaign({ adGroups: [adGroup] });
       const campaignSet = createMockCampaignSet({ campaigns: [campaign] });
       mockRepository.getCampaignSetWithRelations.mockResolvedValue(campaignSet);
 
-      mockAdapter.findExistingAd.mockResolvedValue(null);
-
       await service.syncCampaignSet("set-1");
 
-      expect(mockAdapter.findExistingAd).toHaveBeenCalledWith(
-        expect.any(String),
-        "Fallback Description"
+      expect(mockRepository.updateAdPlatformId).toHaveBeenCalledWith(
+        "ad-1",
+        "new_ad_123"
       );
-    });
-
-    it("should skip dedup if ad has no headline or description", async () => {
-      const ad = createMockAd({
-        platformAdId: undefined,
-        headline: undefined,
-        description: undefined,
-      });
-      const adGroup = createMockAdGroup({ ads: [ad] });
-      const campaign = createMockCampaign({ adGroups: [adGroup] });
-      const campaignSet = createMockCampaignSet({ campaigns: [campaign] });
-      mockRepository.getCampaignSetWithRelations.mockResolvedValue(campaignSet);
-
-      await service.syncCampaignSet("set-1");
-
-      // Should NOT call findExistingAd when no name available
-      expect(mockAdapter.findExistingAd).not.toHaveBeenCalled();
-      // Should create directly
-      expect(mockAdapter.createAd).toHaveBeenCalled();
     });
   });
 
-  describe("Keyword Deduplication Recovery", () => {
-    it("should recover keyword platform ID via dedup when not stored in DB", async () => {
+  describe("Keyword Sync", () => {
+    it("should create keyword when no platform ID exists", async () => {
       const keyword = createMockKeyword({ platformKeywordId: undefined });
       const adGroup = createMockAdGroup({ keywords: [keyword] });
       const campaign = createMockCampaign({ adGroups: [adGroup] });
       const campaignSet = createMockCampaignSet({ campaigns: [campaign] });
       mockRepository.getCampaignSetWithRelations.mockResolvedValue(campaignSet);
-
-      const recoveredId = "recovered_keyword_456";
-      mockAdapter.findExistingKeyword.mockResolvedValue(recoveredId);
-      mockAdapter.updateKeyword.mockResolvedValue({
-        success: true,
-        platformKeywordId: recoveredId,
-      });
-
-      const result = await service.syncCampaignSet("set-1");
-
-      expect(result.success).toBe(true);
-      // Keywords use text + matchType for dedup
-      expect(mockAdapter.findExistingKeyword).toHaveBeenCalledWith(
-        "new_adgroup_123",
-        "test keyword",
-        "broad"
-      );
-      expect(mockRepository.updateKeywordPlatformId).toHaveBeenCalledWith(
-        "keyword-1",
-        recoveredId
-      );
-      expect(mockAdapter.updateKeyword).toHaveBeenCalled();
-      expect(mockAdapter.createKeyword).not.toHaveBeenCalled();
-    });
-
-    it("should create keyword when dedup finds nothing", async () => {
-      const keyword = createMockKeyword({ platformKeywordId: undefined });
-      const adGroup = createMockAdGroup({ keywords: [keyword] });
-      const campaign = createMockCampaign({ adGroups: [adGroup] });
-      const campaignSet = createMockCampaignSet({ campaigns: [campaign] });
-      mockRepository.getCampaignSetWithRelations.mockResolvedValue(campaignSet);
-
-      mockAdapter.findExistingKeyword.mockResolvedValue(null);
 
       const result = await service.syncCampaignSet("set-1");
 
@@ -495,11 +347,44 @@ describe("Resume-Aware Sync", () => {
       expect(mockAdapter.createKeyword).toHaveBeenCalled();
       expect(mockAdapter.updateKeyword).not.toHaveBeenCalled();
     });
+
+    it("should update keyword when platform ID exists", async () => {
+      const keyword = createMockKeyword({
+        platformKeywordId: "existing_keyword_789",
+      });
+      const adGroup = createMockAdGroup({ keywords: [keyword] });
+      const campaign = createMockCampaign({ adGroups: [adGroup] });
+      const campaignSet = createMockCampaignSet({ campaigns: [campaign] });
+      mockRepository.getCampaignSetWithRelations.mockResolvedValue(campaignSet);
+
+      const result = await service.syncCampaignSet("set-1");
+
+      expect(result.success).toBe(true);
+      expect(mockAdapter.updateKeyword).toHaveBeenCalledWith(
+        expect.anything(),
+        "existing_keyword_789"
+      );
+      expect(mockAdapter.createKeyword).not.toHaveBeenCalled();
+    });
+
+    it("should immediately persist platform ID after keyword creation", async () => {
+      const keyword = createMockKeyword({ platformKeywordId: undefined });
+      const adGroup = createMockAdGroup({ keywords: [keyword] });
+      const campaign = createMockCampaign({ adGroups: [adGroup] });
+      const campaignSet = createMockCampaignSet({ campaigns: [campaign] });
+      mockRepository.getCampaignSetWithRelations.mockResolvedValue(campaignSet);
+
+      await service.syncCampaignSet("set-1");
+
+      expect(mockRepository.updateKeywordPlatformId).toHaveBeenCalledWith(
+        "keyword-1",
+        "new_keyword_123"
+      );
+    });
   });
 
-  describe("Full Sync Resume After Partial Failure", () => {
-    it("should resume correctly after partial failure - campaign exists but children not", async () => {
-      // Scenario: Previous sync created campaign but crashed before ad group was created
+  describe("Immediate Persistence for Retry Safety", () => {
+    it("should persist campaign ID before syncing child ad groups", async () => {
       const adGroup = createMockAdGroup({ platformAdGroupId: undefined });
       const campaign = createMockCampaign({
         platformCampaignId: undefined,
@@ -508,71 +393,46 @@ describe("Resume-Aware Sync", () => {
       const campaignSet = createMockCampaignSet({ campaigns: [campaign] });
       mockRepository.getCampaignSetWithRelations.mockResolvedValue(campaignSet);
 
-      // Campaign exists on platform (recovered via dedup)
-      const recoveredCampaignId = "recovered_campaign_abc";
-      mockAdapter.findExistingCampaign.mockResolvedValue(recoveredCampaignId);
-      mockAdapter.updateCampaign.mockResolvedValue({
-        success: true,
-        platformCampaignId: recoveredCampaignId,
+      // Make ad group creation fail
+      (mockAdapter.createAdGroup as ReturnType<typeof vi.fn>).mockResolvedValue({
+        success: false,
+        error: "Ad group creation failed",
       });
-
-      // Ad group does NOT exist (not recovered)
-      mockAdapter.findExistingAdGroup.mockResolvedValue(null);
 
       const result = await service.syncCampaignSet("set-1");
 
-      expect(result.success).toBe(true);
-      // Campaign should be updated (recovered)
-      expect(mockAdapter.updateCampaign).toHaveBeenCalled();
-      expect(mockAdapter.createCampaign).not.toHaveBeenCalled();
-      // Ad group should be created (not found)
-      expect(mockAdapter.createAdGroup).toHaveBeenCalled();
+      expect(result.success).toBe(false);
+      // Campaign ID should still have been persisted before the failure
+      expect(mockRepository.updateCampaignPlatformId).toHaveBeenCalledWith(
+        "campaign-1",
+        "new_campaign_123"
+      );
     });
 
-    it("should handle mixed recovery - some entities found, some not", async () => {
-      const keyword = createMockKeyword({ platformKeywordId: undefined });
+    it("should persist ad group ID before syncing child ads", async () => {
       const ad = createMockAd({ platformAdId: undefined });
       const adGroup = createMockAdGroup({
         platformAdGroupId: undefined,
         ads: [ad],
-        keywords: [keyword],
       });
-      const campaign = createMockCampaign({
-        platformCampaignId: undefined,
-        adGroups: [adGroup],
-      });
+      const campaign = createMockCampaign({ adGroups: [adGroup] });
       const campaignSet = createMockCampaignSet({ campaigns: [campaign] });
       mockRepository.getCampaignSetWithRelations.mockResolvedValue(campaignSet);
 
-      // Campaign: found via dedup
-      mockAdapter.findExistingCampaign.mockResolvedValue("recovered_campaign");
-      mockAdapter.updateCampaign.mockResolvedValue({
-        success: true,
-        platformCampaignId: "recovered_campaign",
+      // Make ad creation fail
+      (mockAdapter.createAd as ReturnType<typeof vi.fn>).mockResolvedValue({
+        success: false,
+        error: "Ad creation failed",
       });
-
-      // Ad Group: found via dedup
-      mockAdapter.findExistingAdGroup.mockResolvedValue("recovered_adgroup");
-      mockAdapter.updateAdGroup.mockResolvedValue({
-        success: true,
-        platformAdGroupId: "recovered_adgroup",
-      });
-
-      // Ad: NOT found
-      mockAdapter.findExistingAd.mockResolvedValue(null);
-
-      // Keyword: NOT found
-      mockAdapter.findExistingKeyword.mockResolvedValue(null);
 
       const result = await service.syncCampaignSet("set-1");
 
-      expect(result.success).toBe(true);
-      // Campaign & AdGroup recovered
-      expect(mockAdapter.updateCampaign).toHaveBeenCalled();
-      expect(mockAdapter.updateAdGroup).toHaveBeenCalled();
-      // Ad & Keyword created new
-      expect(mockAdapter.createAd).toHaveBeenCalled();
-      expect(mockAdapter.createKeyword).toHaveBeenCalled();
+      expect(result.success).toBe(false);
+      // Ad group ID should still have been persisted before the failure
+      expect(mockRepository.updateAdGroupPlatformId).toHaveBeenCalledWith(
+        "adgroup-1",
+        "new_adgroup_123"
+      );
     });
   });
 
@@ -603,96 +463,6 @@ describe("Resume-Aware Sync", () => {
       // Should NOT have created again
       expect(mockAdapter.createCampaign).toHaveBeenCalledTimes(1); // Still just 1
     });
-
-    it("should not create duplicates when retrying after crash with dedup", async () => {
-      // Simulate crash scenario where entity was created but ID not saved
-      const campaign = createMockCampaign({ platformCampaignId: undefined });
-      const campaignSet = createMockCampaignSet({ campaigns: [campaign] });
-      mockRepository.getCampaignSetWithRelations.mockResolvedValue(campaignSet);
-
-      // Dedup finds the existing entity
-      mockAdapter.findExistingCampaign.mockResolvedValue("existing_on_platform");
-      mockAdapter.updateCampaign.mockResolvedValue({
-        success: true,
-        platformCampaignId: "existing_on_platform",
-      });
-
-      const result = await service.syncCampaignSet("set-1");
-
-      expect(result.success).toBe(true);
-      // Should NOT have created (would be duplicate)
-      expect(mockAdapter.createCampaign).not.toHaveBeenCalled();
-      // Should have updated existing
-      expect(mockAdapter.updateCampaign).toHaveBeenCalled();
-    });
-  });
-
-  describe("Backward Compatibility", () => {
-    it("should work when adapter does not implement findExisting methods", async () => {
-      // Create adapter without dedup methods
-      const basicAdapter: CampaignSetPlatformAdapter = {
-        platform: "basic",
-        createCampaign: vi.fn().mockResolvedValue({
-          success: true,
-          platformCampaignId: "basic_campaign_123",
-        }),
-        updateCampaign: vi.fn().mockResolvedValue({
-          success: true,
-          platformCampaignId: "basic_campaign_123",
-        }),
-        pauseCampaign: vi.fn(),
-        resumeCampaign: vi.fn(),
-        deleteCampaign: vi.fn(),
-        createAdGroup: vi.fn().mockResolvedValue({
-          success: true,
-          platformAdGroupId: "basic_adgroup_123",
-        }),
-        updateAdGroup: vi.fn().mockResolvedValue({
-          success: true,
-          platformAdGroupId: "basic_adgroup_123",
-        }),
-        deleteAdGroup: vi.fn(),
-        createAd: vi.fn().mockResolvedValue({
-          success: true,
-          platformAdId: "basic_ad_123",
-        }),
-        updateAd: vi.fn().mockResolvedValue({
-          success: true,
-          platformAdId: "basic_ad_123",
-        }),
-        deleteAd: vi.fn(),
-        createKeyword: vi.fn().mockResolvedValue({
-          success: true,
-          platformKeywordId: "basic_keyword_123",
-        }),
-        updateKeyword: vi.fn().mockResolvedValue({
-          success: true,
-          platformKeywordId: "basic_keyword_123",
-        }),
-        deleteKeyword: vi.fn(),
-        // NOTE: No findExisting* methods - simulating old adapter
-        findExistingCampaign: vi.fn().mockResolvedValue(null),
-        findExistingAdGroup: vi.fn().mockResolvedValue(null),
-        findExistingAd: vi.fn().mockResolvedValue(null),
-      };
-
-      const adapters = new Map<string, CampaignSetPlatformAdapter>();
-      adapters.set("basic", basicAdapter);
-      const basicService = new DefaultCampaignSetSyncService(adapters, mockRepository);
-
-      const campaign = createMockCampaign({
-        platform: "basic",
-        platformCampaignId: undefined,
-      });
-      const campaignSet = createMockCampaignSet({ campaigns: [campaign] });
-      mockRepository.getCampaignSetWithRelations.mockResolvedValue(campaignSet);
-
-      const result = await basicService.syncCampaignSet("set-1");
-
-      expect(result.success).toBe(true);
-      // Should work fine with create path
-      expect(basicAdapter.createCampaign).toHaveBeenCalled();
-    });
   });
 
   describe("Platform ID Change Handling", () => {
@@ -704,7 +474,7 @@ describe("Resume-Aware Sync", () => {
       mockRepository.getCampaignSetWithRelations.mockResolvedValue(campaignSet);
 
       // Platform returns a different ID (rare but possible)
-      mockAdapter.updateCampaign.mockResolvedValue({
+      (mockAdapter.updateCampaign as ReturnType<typeof vi.fn>).mockResolvedValue({
         success: true,
         platformCampaignId: "new_platform_id_from_platform",
       });
@@ -717,6 +487,38 @@ describe("Resume-Aware Sync", () => {
         "campaign-1",
         "new_platform_id_from_platform"
       );
+    });
+  });
+
+  describe("Full Hierarchy Sync", () => {
+    it("should sync complete hierarchy: campaign -> ad groups -> ads + keywords", async () => {
+      const keyword = createMockKeyword({ platformKeywordId: undefined });
+      const ad = createMockAd({ platformAdId: undefined });
+      const adGroup = createMockAdGroup({
+        platformAdGroupId: undefined,
+        ads: [ad],
+        keywords: [keyword],
+      });
+      const campaign = createMockCampaign({
+        platformCampaignId: undefined,
+        adGroups: [adGroup],
+      });
+      const campaignSet = createMockCampaignSet({ campaigns: [campaign] });
+      mockRepository.getCampaignSetWithRelations.mockResolvedValue(campaignSet);
+
+      const result = await service.syncCampaignSet("set-1");
+
+      expect(result.success).toBe(true);
+      expect(mockAdapter.createCampaign).toHaveBeenCalled();
+      expect(mockAdapter.createAdGroup).toHaveBeenCalled();
+      expect(mockAdapter.createAd).toHaveBeenCalled();
+      expect(mockAdapter.createKeyword).toHaveBeenCalled();
+
+      // All IDs should be persisted
+      expect(mockRepository.updateCampaignPlatformId).toHaveBeenCalled();
+      expect(mockRepository.updateAdGroupPlatformId).toHaveBeenCalled();
+      expect(mockRepository.updateAdPlatformId).toHaveBeenCalled();
+      expect(mockRepository.updateKeywordPlatformId).toHaveBeenCalled();
     });
   });
 });

@@ -639,32 +639,4 @@ export class GoogleAdsAdapter implements CampaignSetPlatformAdapter {
     };
   }
 
-  // ─── Deduplication Queries ────────────────────────────────────────────────
-  // Note: Google Ads deduplication is out of scope for this feature.
-  // These methods return null (no match found) as placeholders.
-
-  /**
-   * Find an existing campaign by name (placeholder - not implemented for Google)
-   */
-  async findExistingCampaign(_accountId: string, _name: string): Promise<string | null> {
-    // Google Ads deduplication will be implemented separately
-    // For now, return null to indicate no existing entity found
-    return null;
-  }
-
-  /**
-   * Find an existing ad group by name (placeholder - not implemented for Google)
-   */
-  async findExistingAdGroup(_campaignId: string, _name: string): Promise<string | null> {
-    // Google Ads deduplication will be implemented separately
-    return null;
-  }
-
-  /**
-   * Find an existing ad by name (placeholder - not implemented for Google)
-   */
-  async findExistingAd(_adGroupId: string, _name: string): Promise<string | null> {
-    // Google Ads deduplication will be implemented separately
-    return null;
-  }
 }
