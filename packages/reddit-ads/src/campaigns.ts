@@ -36,6 +36,7 @@ export class CampaignService {
 
   /**
    * Create a new campaign
+   * Note: Reddit v3 API requires the payload to be wrapped in a "data" object
    */
   async createCampaign(
     accountId: string,
@@ -44,8 +45,8 @@ export class CampaignService {
     this.validateCampaign(campaign);
 
     const response = await this.client.post<RedditApiResponse<CampaignResponse>>(
-      `/accounts/${accountId}/campaigns`,
-      campaign
+      `/ad_accounts/${accountId}/campaigns`,
+      { data: campaign }
     );
 
     return response.data;
@@ -53,13 +54,14 @@ export class CampaignService {
 
   /**
    * Get a campaign by ID
+   * Note: Reddit v3 API uses /campaigns/{id} path (not under ad_accounts)
    */
   async getCampaign(
-    accountId: string,
+    _accountId: string,
     campaignId: string
   ): Promise<CampaignResponse> {
     const response = await this.client.get<RedditApiResponse<CampaignResponse>>(
-      `/accounts/${accountId}/campaigns/${campaignId}`
+      `/campaigns/${campaignId}`
     );
 
     return response.data;
@@ -67,9 +69,10 @@ export class CampaignService {
 
   /**
    * Update a campaign
+   * Note: Reddit v3 API uses PATCH method and /campaigns/{id} path (not PUT, not under ad_accounts)
    */
   async updateCampaign(
-    accountId: string,
+    _accountId: string,
     campaignId: string,
     updates: UpdateCampaign
   ): Promise<CampaignResponse> {
@@ -77,9 +80,9 @@ export class CampaignService {
       this.validateCampaignName(updates.name);
     }
 
-    const response = await this.client.put<RedditApiResponse<CampaignResponse>>(
-      `/accounts/${accountId}/campaigns/${campaignId}`,
-      updates
+    const response = await this.client.patch<RedditApiResponse<CampaignResponse>>(
+      `/campaigns/${campaignId}`,
+      { data: updates }
     );
 
     return response.data;
@@ -87,9 +90,10 @@ export class CampaignService {
 
   /**
    * Delete a campaign
+   * Note: Reddit v3 API uses /campaigns/{id} path (not under ad_accounts)
    */
-  async deleteCampaign(accountId: string, campaignId: string): Promise<void> {
-    await this.client.delete(`/accounts/${accountId}/campaigns/${campaignId}`);
+  async deleteCampaign(_accountId: string, campaignId: string): Promise<void> {
+    await this.client.delete(`/campaigns/${campaignId}`);
   }
 
   /**
@@ -102,7 +106,7 @@ export class CampaignService {
     const params = this.buildQueryParams(filters);
 
     const response = await this.client.get<RedditApiListResponse<CampaignResponse>>(
-      `/accounts/${accountId}/campaigns`,
+      `/ad_accounts/${accountId}/campaigns`,
       { params }
     );
 
@@ -111,26 +115,29 @@ export class CampaignService {
 
   /**
    * Pause an active campaign
+   * Note: Reddit v3 API uses configured_status instead of status
    */
   async pauseCampaign(
     accountId: string,
     campaignId: string
   ): Promise<CampaignResponse> {
-    return this.updateCampaign(accountId, campaignId, { status: "PAUSED" });
+    return this.updateCampaign(accountId, campaignId, { configured_status: "PAUSED" });
   }
 
   /**
    * Activate a paused campaign
+   * Note: Reddit v3 API uses configured_status instead of status
    */
   async activateCampaign(
     accountId: string,
     campaignId: string
   ): Promise<CampaignResponse> {
-    return this.updateCampaign(accountId, campaignId, { status: "ACTIVE" });
+    return this.updateCampaign(accountId, campaignId, { configured_status: "ACTIVE" });
   }
 
   /**
-   * Validate campaign data
+   * Validate campaign data for Reddit v3 API
+   * Note: v3 API uses configured_status instead of start_date
    */
   private validateCampaign(campaign: RedditCampaign): void {
     this.validateCampaignName(campaign.name);
@@ -144,19 +151,10 @@ export class CampaignService {
       });
     }
 
-    if (!campaign.funding_instrument_id) {
+    if (!campaign.configured_status) {
       throw new RedditApiException({
         code: "VALIDATION_ERROR",
-        message: "Funding instrument ID is required",
-        statusCode: 400,
-        retryable: false,
-      });
-    }
-
-    if (!campaign.start_date) {
-      throw new RedditApiException({
-        code: "VALIDATION_ERROR",
-        message: "Start date is required",
+        message: "Configured status is required",
         statusCode: 400,
         retryable: false,
       });

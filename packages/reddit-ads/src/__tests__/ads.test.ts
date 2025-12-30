@@ -13,7 +13,7 @@ describe("AdService", () => {
   let mockClient: {
     get: ReturnType<typeof vi.fn>;
     post: ReturnType<typeof vi.fn>;
-    put: ReturnType<typeof vi.fn>;
+    patch: ReturnType<typeof vi.fn>;
     delete: ReturnType<typeof vi.fn>;
   };
 
@@ -38,7 +38,7 @@ describe("AdService", () => {
     mockClient = {
       get: vi.fn(),
       post: vi.fn(),
-      put: vi.fn(),
+      patch: vi.fn(),
       delete: vi.fn(),
     };
 
@@ -60,9 +60,10 @@ describe("AdService", () => {
 
       const result = await adService.createAd("acc_456", newAd);
 
+      // v3 API wraps payload in { data: ... }
       expect(mockClient.post).toHaveBeenCalledWith(
-        "/accounts/acc_456/ads",
-        newAd
+        "/ad_accounts/acc_456/ads",
+        { data: newAd }
       );
       expect(result).toEqual(mockAdResponse);
     });
@@ -110,40 +111,43 @@ describe("AdService", () => {
 
       await adService.createAd("acc_456", adWithBody);
 
+      // v3 API wraps payload in { data: ... }
       expect(mockClient.post).toHaveBeenCalledWith(
-        "/accounts/acc_456/ads",
-        adWithBody
+        "/ad_accounts/acc_456/ads",
+        { data: adWithBody }
       );
     });
   });
 
   describe("getAd", () => {
-    it("should fetch an ad by ID", async () => {
+    it("should fetch an ad by ID using /ads/{id} path", async () => {
       mockClient.get.mockResolvedValueOnce({ data: mockAdResponse });
 
       const result = await adService.getAd("acc_456", "ad_123");
 
+      // v3 API uses /ads/{id} path (not under ad_accounts)
       expect(mockClient.get).toHaveBeenCalledWith(
-        "/accounts/acc_456/ads/ad_123"
+        "/ads/ad_123"
       );
       expect(result).toEqual(mockAdResponse);
     });
   });
 
   describe("updateAd", () => {
-    it("should update an ad with partial fields", async () => {
+    it("should update an ad using PATCH method and /ads/{id} path", async () => {
       const updates = {
         headline: "Updated Headline!",
       };
 
       const updatedResponse = { ...mockAdResponse, ...updates };
-      mockClient.put.mockResolvedValueOnce({ data: updatedResponse });
+      mockClient.patch.mockResolvedValueOnce({ data: updatedResponse });
 
       const result = await adService.updateAd("acc_456", "ad_123", updates);
 
-      expect(mockClient.put).toHaveBeenCalledWith(
-        "/accounts/acc_456/ads/ad_123",
-        updates
+      // v3 API uses PATCH method and /ads/{id} path (not PUT, not under ad_accounts)
+      expect(mockClient.patch).toHaveBeenCalledWith(
+        "/ads/ad_123",
+        { data: updates }
       );
       expect(result.headline).toBe("Updated Headline!");
     });
@@ -160,13 +164,14 @@ describe("AdService", () => {
   });
 
   describe("deleteAd", () => {
-    it("should delete an ad", async () => {
+    it("should delete an ad using /ads/{id} path", async () => {
       mockClient.delete.mockResolvedValueOnce(undefined);
 
       await adService.deleteAd("acc_456", "ad_123");
 
+      // v3 API uses /ads/{id} path (not under ad_accounts)
       expect(mockClient.delete).toHaveBeenCalledWith(
-        "/accounts/acc_456/ads/ad_123"
+        "/ads/ad_123"
       );
     });
   });
@@ -182,7 +187,7 @@ describe("AdService", () => {
       const result = await adService.listAds("acc_456");
 
       expect(mockClient.get).toHaveBeenCalledWith(
-        "/accounts/acc_456/ads",
+        "/ad_accounts/acc_456/ads",
         expect.objectContaining({})
       );
       expect(result).toEqual(mockList);
@@ -202,7 +207,7 @@ describe("AdService", () => {
       await adService.listAds("acc_456", filters);
 
       expect(mockClient.get).toHaveBeenCalledWith(
-        "/accounts/acc_456/ads",
+        "/ad_accounts/acc_456/ads",
         expect.objectContaining({
           params: expect.objectContaining({
             ad_group_id: "ag_789",
@@ -214,29 +219,31 @@ describe("AdService", () => {
   });
 
   describe("pauseAd", () => {
-    it("should pause an active ad", async () => {
+    it("should pause an active ad using PATCH and /ads/{id} path", async () => {
       const pausedResponse = { ...mockAdResponse, status: "PAUSED" as const };
-      mockClient.put.mockResolvedValueOnce({ data: pausedResponse });
+      mockClient.patch.mockResolvedValueOnce({ data: pausedResponse });
 
       const result = await adService.pauseAd("acc_456", "ad_123");
 
-      expect(mockClient.put).toHaveBeenCalledWith(
-        "/accounts/acc_456/ads/ad_123",
-        { status: "PAUSED" }
+      // v3 API uses PATCH method and /ads/{id} path
+      expect(mockClient.patch).toHaveBeenCalledWith(
+        "/ads/ad_123",
+        { data: { status: "PAUSED" } }
       );
       expect(result.status).toBe("PAUSED");
     });
   });
 
   describe("activateAd", () => {
-    it("should activate a paused ad", async () => {
-      mockClient.put.mockResolvedValueOnce({ data: mockAdResponse });
+    it("should activate a paused ad using PATCH and /ads/{id} path", async () => {
+      mockClient.patch.mockResolvedValueOnce({ data: mockAdResponse });
 
       const result = await adService.activateAd("acc_456", "ad_123");
 
-      expect(mockClient.put).toHaveBeenCalledWith(
-        "/accounts/acc_456/ads/ad_123",
-        { status: "ACTIVE" }
+      // v3 API uses PATCH method and /ads/{id} path
+      expect(mockClient.patch).toHaveBeenCalledWith(
+        "/ads/ad_123",
+        { data: { status: "ACTIVE" } }
       );
       expect(result.status).toBe("ACTIVE");
     });
@@ -252,7 +259,7 @@ describe("AdService", () => {
       const result = await adService.getAdsByAdGroup("acc_456", "ag_789");
 
       expect(mockClient.get).toHaveBeenCalledWith(
-        "/accounts/acc_456/ads",
+        "/ad_accounts/acc_456/ads",
         expect.objectContaining({
           params: expect.objectContaining({
             ad_group_id: "ag_789",

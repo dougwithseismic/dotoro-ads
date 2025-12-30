@@ -36,13 +36,26 @@ export type OAuthState = z.infer<typeof OAuthStateSchema>;
 // Campaign Types
 // ============================================================================
 
+// Reddit v3 API campaign objectives
 export const CampaignObjectiveSchema = z.enum([
-  "AWARENESS",
-  "CONSIDERATION",
+  "APP_INSTALLS",
+  "CATALOG_SALES",
+  "CLICKS",
   "CONVERSIONS",
+  "IMPRESSIONS",
+  "LEAD_GENERATION",
+  "VIDEO_VIEWABLE_IMPRESSIONS",
 ]);
 export type CampaignObjective = z.infer<typeof CampaignObjectiveSchema>;
 
+// Reddit v3 API uses configured_status
+export const CampaignConfiguredStatusSchema = z.enum([
+  "ACTIVE",
+  "PAUSED",
+]);
+export type CampaignConfiguredStatus = z.infer<typeof CampaignConfiguredStatusSchema>;
+
+// Legacy status enum for backward compatibility
 export const CampaignStatusSchema = z.enum([
   "ACTIVE",
   "PAUSED",
@@ -51,13 +64,22 @@ export const CampaignStatusSchema = z.enum([
 ]);
 export type CampaignStatus = z.infer<typeof CampaignStatusSchema>;
 
-// Base campaign schema without refinements (for use with .partial())
+// Reddit v3 API special ad categories
+export const SpecialAdCategorySchema = z.enum([
+  "NONE",
+  "HOUSING",
+  "EMPLOYMENT",
+  "CREDIT",
+]);
+export type SpecialAdCategory = z.infer<typeof SpecialAdCategorySchema>;
+
+// Base campaign schema for Reddit v3 API
 const RedditCampaignBaseSchema = z.object({
   name: z.string().max(255),
   objective: CampaignObjectiveSchema,
-  funding_instrument_id: z.string(),
-  start_date: z.string(), // ISO 8601 date
-  end_date: z.string().optional(),
+  configured_status: CampaignConfiguredStatusSchema,
+  special_ad_categories: z.array(SpecialAdCategorySchema), // Required in v3 API
+  funding_instrument_id: z.string().optional(), // Optional in v3 API
   total_budget_micro: z.number().optional(),
   daily_budget_micro: z.number().optional(),
   is_paid: z.boolean().optional(),
@@ -65,19 +87,13 @@ const RedditCampaignBaseSchema = z.object({
   click_through_attribution_window_days: z.number().min(1).max(30).optional(),
 });
 
-// Full campaign schema with date validation refinement
-export const RedditCampaignSchema = RedditCampaignBaseSchema.refine(
-  (data) => !data.end_date || !data.start_date || new Date(data.end_date) > new Date(data.start_date),
-  { message: "End date must be after start date" }
-);
+// Full campaign schema
+export const RedditCampaignSchema = RedditCampaignBaseSchema;
 export type RedditCampaign = z.infer<typeof RedditCampaignSchema>;
 
 // Update schema includes status for pause/activate operations
-// Uses base schema to support .partial()
-export const UpdateCampaignSchema = RedditCampaignBaseSchema.partial().extend({
-  status: CampaignStatusSchema.optional(),
-}).refine(
-  (data) => !data.end_date || !data.start_date || new Date(data.end_date) > new Date(data.start_date),
+export const UpdateCampaignSchema = RedditCampaignBaseSchema.partial().refine(
+  () => true, // No validation needed for partial updates
   { message: "End date must be after start date" }
 );
 export type UpdateCampaign = z.infer<typeof UpdateCampaignSchema>;
@@ -87,7 +103,7 @@ export const CampaignResponseSchema = z.object({
   account_id: z.string(),
   name: z.string(),
   objective: CampaignObjectiveSchema,
-  funding_instrument_id: z.string(),
+  funding_instrument_id: z.string().nullable().optional(), // Optional in v3 API
   status: CampaignStatusSchema,
   start_date: z.string(),
   end_date: z.string().nullable(),
@@ -118,20 +134,49 @@ export const AdGroupStatusSchema = z.enum([
 ]);
 export type AdGroupStatus = z.infer<typeof AdGroupStatusSchema>;
 
+// Reddit v3 API bid strategies
 export const BidStrategySchema = z.enum([
-  "AUTOMATIC",
-  "MANUAL_CPC",
-  "MANUAL_CPM",
+  "BIDLESS",
+  "MANUAL_BIDDING",
+  "MAXIMIZE_VOLUME",
+  "TARGET_CPX",
 ]);
 export type BidStrategy = z.infer<typeof BidStrategySchema>;
 
+// Reddit v3 API bid types (required for ad groups)
+export const BidTypeSchema = z.enum([
+  "CPC",  // Cost per click
+  "CPM",  // Cost per mille (thousand impressions)
+  "CPV",  // Cost per view
+]);
+export type BidType = z.infer<typeof BidTypeSchema>;
+
+// Ad group configured status for v3 API
+export const AdGroupConfiguredStatusSchema = z.enum([
+  "ACTIVE",
+  "PAUSED",
+]);
+export type AdGroupConfiguredStatus = z.infer<typeof AdGroupConfiguredStatusSchema>;
+
+// Reddit v3 API goal types for budget allocation
+export const GoalTypeSchema = z.enum([
+  "DAILY_SPEND",
+  "LIFETIME_SPEND",
+]);
+export type GoalType = z.infer<typeof GoalTypeSchema>;
+
+// Reddit v3 API ad group schema - uses configured_status instead of start_date
 export const RedditAdGroupSchema = z.object({
   name: z.string().max(255),
   campaign_id: z.string(),
   bid_strategy: BidStrategySchema,
-  bid_micro: z.number().optional(),
-  start_date: z.string(), // ISO 8601 date
-  end_date: z.string().optional(),
+  bid_type: BidTypeSchema, // Required in v3 API
+  configured_status: AdGroupConfiguredStatusSchema,
+  bid_value: z.number().optional(), // v3 API uses bid_value, not bid_micro
+  goal_type: GoalTypeSchema.optional(), // Required for budget in v3 API
+  goal_value: z.number().optional(), // Budget amount in micro-units
+  start_time: z.string().optional(), // ISO format with timezone
+  end_time: z.string().optional(), // ISO format with timezone
   targeting: z.object({
     subreddits: z.array(z.string()).optional(),
     interests: z.array(z.string()).optional(),
@@ -153,10 +198,14 @@ export const AdGroupResponseSchema = z.object({
   campaign_id: z.string(),
   name: z.string(),
   status: AdGroupStatusSchema,
+  configured_status: AdGroupConfiguredStatusSchema.optional(),
   bid_strategy: BidStrategySchema,
-  bid_micro: z.number().nullable(),
-  start_date: z.string(),
-  end_date: z.string().nullable(),
+  bid_type: BidTypeSchema.optional(),
+  bid_value: z.number().nullable(), // v3 API uses bid_value
+  goal_type: GoalTypeSchema.optional(),
+  goal_value: z.number().nullable(),
+  start_time: z.string().nullable(),
+  end_time: z.string().nullable(),
   created_at: z.string(),
   updated_at: z.string(),
 });

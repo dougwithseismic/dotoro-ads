@@ -57,8 +57,8 @@ export class CreativeService {
     };
 
     const response = await this.client.post<RedditApiResponse<CreativeResponse>>(
-      `/accounts/${accountId}/creatives`,
-      payload
+      `/ad_accounts/${accountId}/creatives`,
+      { data: payload }
     );
 
     return response.data;
@@ -72,7 +72,7 @@ export class CreativeService {
     creativeId: string
   ): Promise<CreativeResponse> {
     const response = await this.client.get<RedditApiResponse<CreativeResponse>>(
-      `/accounts/${accountId}/creatives/${creativeId}`
+      `/ad_accounts/${accountId}/creatives/${creativeId}`
     );
 
     return response.data;
@@ -82,7 +82,7 @@ export class CreativeService {
    * Delete a creative
    */
   async deleteCreative(accountId: string, creativeId: string): Promise<void> {
-    await this.client.delete(`/accounts/${accountId}/creatives/${creativeId}`);
+    await this.client.delete(`/ad_accounts/${accountId}/creatives/${creativeId}`);
   }
 
   /**
@@ -95,7 +95,7 @@ export class CreativeService {
     const params = this.buildQueryParams(filters);
 
     const response = await this.client.get<RedditApiListResponse<CreativeResponse>>(
-      `/accounts/${accountId}/creatives`,
+      `/ad_accounts/${accountId}/creatives`,
       { params }
     );
 

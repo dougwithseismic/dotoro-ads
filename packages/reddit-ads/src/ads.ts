@@ -53,8 +53,8 @@ export class AdService {
     this.validateAd(ad);
 
     const response = await this.client.post<RedditApiResponse<AdResponse>>(
-      `/accounts/${accountId}/ads`,
-      ad
+      `/ad_accounts/${accountId}/ads`,
+      { data: ad }
     );
 
     return response.data;
@@ -62,13 +62,14 @@ export class AdService {
 
   /**
    * Get an ad by ID
+   * Note: Reddit v3 API uses /ads/{id} path (not under ad_accounts)
    */
   async getAd(
-    accountId: string,
+    _accountId: string,
     adId: string
   ): Promise<AdResponse> {
     const response = await this.client.get<RedditApiResponse<AdResponse>>(
-      `/accounts/${accountId}/ads/${adId}`
+      `/ads/${adId}`
     );
 
     return response.data;
@@ -76,17 +77,18 @@ export class AdService {
 
   /**
    * Update an ad
+   * Note: Reddit v3 API uses PATCH method and /ads/{id} path (not PUT, not under ad_accounts)
    */
   async updateAd(
-    accountId: string,
+    _accountId: string,
     adId: string,
     updates: UpdateAd
   ): Promise<AdResponse> {
     this.validateAdUpdates(updates);
 
-    const response = await this.client.put<RedditApiResponse<AdResponse>>(
-      `/accounts/${accountId}/ads/${adId}`,
-      updates
+    const response = await this.client.patch<RedditApiResponse<AdResponse>>(
+      `/ads/${adId}`,
+      { data: updates }
     );
 
     return response.data;
@@ -94,9 +96,10 @@ export class AdService {
 
   /**
    * Delete an ad
+   * Note: Reddit v3 API uses /ads/{id} path (not under ad_accounts)
    */
-  async deleteAd(accountId: string, adId: string): Promise<void> {
-    await this.client.delete(`/accounts/${accountId}/ads/${adId}`);
+  async deleteAd(_accountId: string, adId: string): Promise<void> {
+    await this.client.delete(`/ads/${adId}`);
   }
 
   /**
@@ -109,7 +112,7 @@ export class AdService {
     const params = this.buildQueryParams(filters);
 
     const response = await this.client.get<RedditApiListResponse<AdResponse>>(
-      `/accounts/${accountId}/ads`,
+      `/ad_accounts/${accountId}/ads`,
       { params }
     );
 

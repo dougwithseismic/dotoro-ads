@@ -29,7 +29,7 @@ export type {
 
 // Export Services
 export { AdAccountService } from "./accounts.js";
-export type { RedditAdAccount } from "./accounts.js";
+export type { RedditAdAccount, RedditBusiness } from "./accounts.js";
 export { CampaignService, MAX_CAMPAIGN_NAME_LENGTH, MAX_CAMPAIGNS_PER_ACCOUNT } from "./campaigns.js";
 export { AdGroupService, MAX_AD_GROUP_NAME_LENGTH, MAX_AD_GROUPS_PER_CAMPAIGN } from "./ad-groups.js";
 export {
@@ -56,13 +56,18 @@ export type {
   OAuthTokens,
   OAuthState,
   CampaignObjective,
+  CampaignConfiguredStatus,
   CampaignStatus,
+  SpecialAdCategory, // v3 API - required for campaign creation
   RedditCampaign,
   UpdateCampaign,
   CampaignResponse,
   CampaignFilters,
   AdGroupStatus,
+  AdGroupConfiguredStatus,
   BidStrategy,
+  BidType,
+  GoalType, // v3 API - required for ad group budget
   RedditAdGroup,
   UpdateAdGroup,
   AdGroupResponse,

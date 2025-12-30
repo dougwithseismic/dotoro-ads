@@ -34,10 +34,10 @@ describe("RedditApiClient", () => {
         }),
       });
 
-      const result = await client.get("/accounts/abc123/campaigns");
+      const result = await client.get("/ad_accounts/abc123/campaigns");
 
       expect(fetch).toHaveBeenCalledWith(
-        "https://ads-api.reddit.com/api/v3/accounts/abc123/campaigns",
+        "https://ads-api.reddit.com/api/v3/ad_accounts/abc123/campaigns",
         expect.objectContaining({
           method: "GET",
           headers: expect.objectContaining({
@@ -60,7 +60,7 @@ describe("RedditApiClient", () => {
         headers: new Headers(),
       });
 
-      const result = await client.post("/accounts/abc123/campaigns", requestBody);
+      const result = await client.post("/ad_accounts/abc123/campaigns", requestBody);
 
       const fetchCall = vi.mocked(fetch).mock.calls[0];
       expect(fetchCall?.[1]?.method).toBe("POST");
@@ -79,7 +79,7 @@ describe("RedditApiClient", () => {
         headers: new Headers(),
       });
 
-      const result = await client.put("/accounts/abc123/campaigns/123", updateBody);
+      const result = await client.put("/ad_accounts/abc123/campaigns/123", updateBody);
 
       const fetchCall = vi.mocked(fetch).mock.calls[0];
       expect(fetchCall?.[1]?.method).toBe("PUT");
@@ -94,7 +94,7 @@ describe("RedditApiClient", () => {
         headers: new Headers(),
       });
 
-      await client.delete("/accounts/abc123/campaigns/123");
+      await client.delete("/ad_accounts/abc123/campaigns/123");
 
       const fetchCall = vi.mocked(fetch).mock.calls[0];
       expect(fetchCall?.[1]?.method).toBe("DELETE");
@@ -113,7 +113,7 @@ describe("RedditApiClient", () => {
       // Use maxRetries: 0 to disable retries for error testing
       let caughtError: RedditApiException | null = null;
       try {
-        await client.get("/accounts/abc123", { maxRetries: 0 });
+        await client.get("/ad_accounts/abc123", { maxRetries: 0 });
       } catch (error) {
         caughtError = error as RedditApiException;
       }
@@ -132,7 +132,7 @@ describe("RedditApiClient", () => {
       });
 
       // 404 is not retryable, so no maxRetries needed
-      await expect(client.get("/accounts/abc123/campaigns/unknown")).rejects.toThrow(
+      await expect(client.get("/ad_accounts/abc123/campaigns/unknown")).rejects.toThrow(
         RedditApiException
       );
     });
@@ -150,7 +150,7 @@ describe("RedditApiClient", () => {
       // Use maxRetries: 0 to disable retries
       let caughtError: RedditApiException | null = null;
       try {
-        await client.get("/accounts/abc123", { maxRetries: 0 });
+        await client.get("/ad_accounts/abc123", { maxRetries: 0 });
       } catch (error) {
         caughtError = error as RedditApiException;
       }
@@ -172,7 +172,7 @@ describe("RedditApiClient", () => {
       // Use maxRetries: 0 to disable retries
       let caughtError: RedditApiException | null = null;
       try {
-        await client.get("/accounts/abc123", { maxRetries: 0 });
+        await client.get("/ad_accounts/abc123", { maxRetries: 0 });
       } catch (error) {
         caughtError = error as RedditApiException;
       }
@@ -208,7 +208,7 @@ describe("RedditApiClient", () => {
           headers: new Headers(),
         });
 
-      const resultPromise = client.get("/accounts/abc123", { maxRetries: 3 });
+      const resultPromise = client.get("/ad_accounts/abc123", { maxRetries: 3 });
 
       // Advance through retries
       await vi.advanceTimersByTimeAsync(1000); // First retry
@@ -228,7 +228,7 @@ describe("RedditApiClient", () => {
         headers: new Headers(),
       });
 
-      await expect(client.get("/accounts/abc123", { maxRetries: 3 })).rejects.toThrow();
+      await expect(client.get("/ad_accounts/abc123", { maxRetries: 3 })).rejects.toThrow();
 
       expect(fetch).toHaveBeenCalledTimes(1);
     });
@@ -242,7 +242,7 @@ describe("RedditApiClient", () => {
       });
 
       let caughtError: RedditApiException | null = null;
-      const resultPromise = client.get("/accounts/abc123", { maxRetries: 2 }).catch((err) => {
+      const resultPromise = client.get("/ad_accounts/abc123", { maxRetries: 2 }).catch((err) => {
         caughtError = err;
       });
 
@@ -270,7 +270,7 @@ describe("RedditApiClient", () => {
         }),
       });
 
-      await client.get("/accounts/abc123");
+      await client.get("/ad_accounts/abc123");
 
       const status = client.getRateLimitStatus();
       expect(status.remaining).toBe(590);
@@ -289,7 +289,7 @@ describe("RedditApiClient", () => {
         headers: new Headers(),
       });
 
-      client.get("/accounts/abc123");
+      client.get("/ad_accounts/abc123");
 
       const fetchCall = vi.mocked(fetch).mock.calls[0];
       expect(fetchCall?.[1]?.headers).toEqual(
@@ -315,12 +315,12 @@ describe("RedditApiClient", () => {
         headers: new Headers(),
       });
 
-      await clientWithLogging.get("/accounts/abc123");
+      await clientWithLogging.get("/ad_accounts/abc123");
 
       expect(onRequest).toHaveBeenCalledWith(
         expect.objectContaining({
           method: "GET",
-          url: expect.stringContaining("/accounts/abc123"),
+          url: expect.stringContaining("/ad_accounts/abc123"),
         })
       );
     });
@@ -339,7 +339,7 @@ describe("RedditApiClient", () => {
         headers: new Headers(),
       });
 
-      await clientWithLogging.get("/accounts/abc123");
+      await clientWithLogging.get("/ad_accounts/abc123");
 
       expect(onResponse).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -354,7 +354,7 @@ describe("RedditApiClient", () => {
     it("should throw on network failure", async () => {
       global.fetch = vi.fn().mockRejectedValueOnce(new Error("Network error"));
 
-      await expect(client.get("/accounts/abc123", { maxRetries: 0 })).rejects.toThrow(
+      await expect(client.get("/ad_accounts/abc123", { maxRetries: 0 })).rejects.toThrow(
         "Network error"
       );
     });
@@ -370,7 +370,7 @@ describe("RedditApiClient", () => {
 
       let caughtError: RedditApiException | null = null;
       try {
-        await client.get("/accounts/abc123", { maxRetries: 0 });
+        await client.get("/ad_accounts/abc123", { maxRetries: 0 });
       } catch (error) {
         caughtError = error as RedditApiException;
       }
@@ -394,7 +394,7 @@ describe("RedditApiClient", () => {
 
       let caughtError: RedditApiException | null = null;
       try {
-        await client.get("/accounts/abc123", { maxRetries: 0 });
+        await client.get("/ad_accounts/abc123", { maxRetries: 0 });
       } catch (error) {
         caughtError = error as RedditApiException;
       }

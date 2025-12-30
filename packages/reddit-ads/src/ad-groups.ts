@@ -44,8 +44,8 @@ export class AdGroupService {
     this.validateAdGroup(adGroup);
 
     const response = await this.client.post<RedditApiResponse<AdGroupResponse>>(
-      `/accounts/${accountId}/adgroups`,
-      adGroup
+      `/ad_accounts/${accountId}/ad_groups`,
+      { data: adGroup }
     );
 
     return response.data;
@@ -53,13 +53,14 @@ export class AdGroupService {
 
   /**
    * Get an ad group by ID
+   * Note: Reddit v3 API uses /ad_groups/{id} path (not under ad_accounts)
    */
   async getAdGroup(
-    accountId: string,
+    _accountId: string,
     adGroupId: string
   ): Promise<AdGroupResponse> {
     const response = await this.client.get<RedditApiResponse<AdGroupResponse>>(
-      `/accounts/${accountId}/adgroups/${adGroupId}`
+      `/ad_groups/${adGroupId}`
     );
 
     return response.data;
@@ -67,9 +68,10 @@ export class AdGroupService {
 
   /**
    * Update an ad group
+   * Note: Reddit v3 API uses PATCH method and /ad_groups/{id} path (not PUT, not under ad_accounts)
    */
   async updateAdGroup(
-    accountId: string,
+    _accountId: string,
     adGroupId: string,
     updates: UpdateAdGroup
   ): Promise<AdGroupResponse> {
@@ -77,9 +79,9 @@ export class AdGroupService {
       this.validateAdGroupName(updates.name);
     }
 
-    const response = await this.client.put<RedditApiResponse<AdGroupResponse>>(
-      `/accounts/${accountId}/adgroups/${adGroupId}`,
-      updates
+    const response = await this.client.patch<RedditApiResponse<AdGroupResponse>>(
+      `/ad_groups/${adGroupId}`,
+      { data: updates }
     );
 
     return response.data;
@@ -87,9 +89,10 @@ export class AdGroupService {
 
   /**
    * Delete an ad group
+   * Note: Reddit v3 API uses /ad_groups/{id} path (not under ad_accounts)
    */
-  async deleteAdGroup(accountId: string, adGroupId: string): Promise<void> {
-    await this.client.delete(`/accounts/${accountId}/adgroups/${adGroupId}`);
+  async deleteAdGroup(_accountId: string, adGroupId: string): Promise<void> {
+    await this.client.delete(`/ad_groups/${adGroupId}`);
   }
 
   /**
@@ -102,7 +105,7 @@ export class AdGroupService {
     const params = this.buildQueryParams(filters);
 
     const response = await this.client.get<RedditApiListResponse<AdGroupResponse>>(
-      `/accounts/${accountId}/adgroups`,
+      `/ad_accounts/${accountId}/ad_groups`,
       { params }
     );
 
@@ -140,7 +143,8 @@ export class AdGroupService {
   }
 
   /**
-   * Validate ad group data
+   * Validate ad group data for Reddit v3 API
+   * Note: v3 API uses configured_status instead of start_date, requires bid_type
    */
   private validateAdGroup(adGroup: RedditAdGroup): void {
     this.validateAdGroupName(adGroup.name);
@@ -163,10 +167,19 @@ export class AdGroupService {
       });
     }
 
-    if (!adGroup.start_date) {
+    if (!adGroup.bid_type) {
       throw new RedditApiException({
         code: "VALIDATION_ERROR",
-        message: "Start date is required",
+        message: "Bid type is required",
+        statusCode: 400,
+        retryable: false,
+      });
+    }
+
+    if (!adGroup.configured_status) {
+      throw new RedditApiException({
+        code: "VALIDATION_ERROR",
+        message: "Configured status is required",
         statusCode: 400,
         retryable: false,
       });

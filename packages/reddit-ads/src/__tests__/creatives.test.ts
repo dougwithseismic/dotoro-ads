@@ -56,13 +56,14 @@ describe("CreativeService", () => {
 
       const result = await creativeService.uploadCreative("acc_456", upload);
 
+      // v3 API wraps payload in { data: ... }
       expect(mockClient.post).toHaveBeenCalledWith(
-        "/accounts/acc_456/creatives",
-        expect.objectContaining({
+        "/ad_accounts/acc_456/creatives",
+        { data: expect.objectContaining({
           name: "My Image",
           type: "IMAGE",
           file_url: "https://example.com/image.jpg",
-        })
+        }) }
       );
       expect(result).toEqual(mockCreativeResponse);
     });
@@ -100,7 +101,7 @@ describe("CreativeService", () => {
       const result = await creativeService.getCreative("acc_456", "cr_123");
 
       expect(mockClient.get).toHaveBeenCalledWith(
-        "/accounts/acc_456/creatives/cr_123"
+        "/ad_accounts/acc_456/creatives/cr_123"
       );
       expect(result).toEqual(mockCreativeResponse);
     });
@@ -113,7 +114,7 @@ describe("CreativeService", () => {
       await creativeService.deleteCreative("acc_456", "cr_123");
 
       expect(mockClient.delete).toHaveBeenCalledWith(
-        "/accounts/acc_456/creatives/cr_123"
+        "/ad_accounts/acc_456/creatives/cr_123"
       );
     });
   });
@@ -129,7 +130,7 @@ describe("CreativeService", () => {
       const result = await creativeService.listCreatives("acc_456");
 
       expect(mockClient.get).toHaveBeenCalledWith(
-        "/accounts/acc_456/creatives",
+        "/ad_accounts/acc_456/creatives",
         expect.objectContaining({})
       );
       expect(result).toEqual(mockList);
@@ -144,7 +145,7 @@ describe("CreativeService", () => {
       await creativeService.listCreatives("acc_456", { type: "IMAGE" });
 
       expect(mockClient.get).toHaveBeenCalledWith(
-        "/accounts/acc_456/creatives",
+        "/ad_accounts/acc_456/creatives",
         expect.objectContaining({
           params: expect.objectContaining({
             type: "IMAGE",

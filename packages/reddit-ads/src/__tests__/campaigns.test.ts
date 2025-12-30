@@ -13,7 +13,7 @@ describe("CampaignService", () => {
   let mockClient: {
     get: ReturnType<typeof vi.fn>;
     post: ReturnType<typeof vi.fn>;
-    put: ReturnType<typeof vi.fn>;
+    patch: ReturnType<typeof vi.fn>;
     delete: ReturnType<typeof vi.fn>;
   };
 
@@ -37,7 +37,7 @@ describe("CampaignService", () => {
     mockClient = {
       get: vi.fn(),
       post: vi.fn(),
-      put: vi.fn(),
+      patch: vi.fn(),
       delete: vi.fn(),
     };
 
@@ -47,20 +47,22 @@ describe("CampaignService", () => {
 
   describe("createCampaign", () => {
     it("should create a campaign with required fields", async () => {
+      // Reddit v3 API uses configured_status instead of start_date
       const newCampaign: RedditCampaign = {
         name: "My New Campaign",
-        objective: "AWARENESS",
+        objective: "IMPRESSIONS",
+        configured_status: "ACTIVE",
         funding_instrument_id: "fi_123",
-        start_date: "2025-02-01T00:00:00Z",
       };
 
       mockClient.post.mockResolvedValueOnce({ data: mockCampaignResponse });
 
       const result = await campaignService.createCampaign("acc_456", newCampaign);
 
+      // v3 API wraps payload in { data: ... }
       expect(mockClient.post).toHaveBeenCalledWith(
-        "/accounts/acc_456/campaigns",
-        newCampaign
+        "/ad_accounts/acc_456/campaigns",
+        { data: newCampaign }
       );
       expect(result).toEqual(mockCampaignResponse);
     });
@@ -68,9 +70,9 @@ describe("CampaignService", () => {
     it("should validate campaign name length", async () => {
       const invalidCampaign: RedditCampaign = {
         name: "x".repeat(256), // Exceeds 255 char limit
-        objective: "AWARENESS",
+        objective: "IMPRESSIONS",
+        configured_status: "ACTIVE",
         funding_instrument_id: "fi_123",
-        start_date: "2025-02-01T00:00:00Z",
       };
 
       await expect(
@@ -81,9 +83,9 @@ describe("CampaignService", () => {
     it("should validate campaign name is not empty", async () => {
       const invalidCampaign: RedditCampaign = {
         name: "",
-        objective: "AWARENESS",
+        objective: "IMPRESSIONS",
+        configured_status: "ACTIVE",
         funding_instrument_id: "fi_123",
-        start_date: "2025-02-01T00:00:00Z",
       };
 
       await expect(
@@ -94,9 +96,9 @@ describe("CampaignService", () => {
     it("should validate campaign name is not whitespace only", async () => {
       const invalidCampaign: RedditCampaign = {
         name: "   ",
-        objective: "AWARENESS",
+        objective: "IMPRESSIONS",
+        configured_status: "ACTIVE",
         funding_instrument_id: "fi_123",
-        start_date: "2025-02-01T00:00:00Z",
       };
 
       await expect(
@@ -108,8 +110,8 @@ describe("CampaignService", () => {
       const invalidCampaign = {
         name: "Valid Name",
         objective: undefined,
+        configured_status: "ACTIVE",
         funding_instrument_id: "fi_123",
-        start_date: "2025-02-01T00:00:00Z",
       } as unknown as RedditCampaign;
 
       await expect(
@@ -117,39 +119,25 @@ describe("CampaignService", () => {
       ).rejects.toThrow("Campaign objective is required");
     });
 
-    it("should validate funding instrument is required", async () => {
+    it("should validate configured_status is required", async () => {
       const invalidCampaign = {
         name: "Valid Name",
-        objective: "AWARENESS",
-        funding_instrument_id: "",
-        start_date: "2025-02-01T00:00:00Z",
-      } as unknown as RedditCampaign;
-
-      await expect(
-        campaignService.createCampaign("acc_456", invalidCampaign)
-      ).rejects.toThrow("Funding instrument ID is required");
-    });
-
-    it("should validate start date is required", async () => {
-      const invalidCampaign = {
-        name: "Valid Name",
-        objective: "AWARENESS",
+        objective: "IMPRESSIONS",
+        configured_status: "",
         funding_instrument_id: "fi_123",
-        start_date: "",
       } as unknown as RedditCampaign;
 
       await expect(
         campaignService.createCampaign("acc_456", invalidCampaign)
-      ).rejects.toThrow("Start date is required");
+      ).rejects.toThrow("Configured status is required");
     });
 
     it("should include optional fields when provided", async () => {
       const campaignWithOptionals: RedditCampaign = {
         name: "Campaign with Budget",
         objective: "CONVERSIONS",
+        configured_status: "ACTIVE",
         funding_instrument_id: "fi_123",
-        start_date: "2025-02-01T00:00:00Z",
-        end_date: "2025-03-01T00:00:00Z",
         total_budget_micro: 500000000,
         daily_budget_micro: 20000000,
       };
@@ -158,41 +146,44 @@ describe("CampaignService", () => {
 
       await campaignService.createCampaign("acc_456", campaignWithOptionals);
 
+      // v3 API wraps payload in { data: ... }
       expect(mockClient.post).toHaveBeenCalledWith(
-        "/accounts/acc_456/campaigns",
-        campaignWithOptionals
+        "/ad_accounts/acc_456/campaigns",
+        { data: campaignWithOptionals }
       );
     });
   });
 
   describe("getCampaign", () => {
-    it("should fetch a campaign by ID", async () => {
+    it("should fetch a campaign by ID using /campaigns/{id} path", async () => {
       mockClient.get.mockResolvedValueOnce({ data: mockCampaignResponse });
 
       const result = await campaignService.getCampaign("acc_456", "camp_123");
 
+      // v3 API uses /campaigns/{id} path (not under ad_accounts)
       expect(mockClient.get).toHaveBeenCalledWith(
-        "/accounts/acc_456/campaigns/camp_123"
+        "/campaigns/camp_123"
       );
       expect(result).toEqual(mockCampaignResponse);
     });
   });
 
   describe("updateCampaign", () => {
-    it("should update a campaign with partial fields", async () => {
+    it("should update a campaign using PATCH method and /campaigns/{id} path", async () => {
       const updates = {
         name: "Updated Campaign Name",
         daily_budget_micro: 15000000,
       };
 
       const updatedResponse = { ...mockCampaignResponse, ...updates };
-      mockClient.put.mockResolvedValueOnce({ data: updatedResponse });
+      mockClient.patch.mockResolvedValueOnce({ data: updatedResponse });
 
       const result = await campaignService.updateCampaign("acc_456", "camp_123", updates);
 
-      expect(mockClient.put).toHaveBeenCalledWith(
-        "/accounts/acc_456/campaigns/camp_123",
-        updates
+      // v3 API uses PATCH method and /campaigns/{id} path (not PUT, not under ad_accounts)
+      expect(mockClient.patch).toHaveBeenCalledWith(
+        "/campaigns/camp_123",
+        { data: updates }
       );
       expect(result.name).toBe("Updated Campaign Name");
     });
@@ -209,13 +200,14 @@ describe("CampaignService", () => {
   });
 
   describe("deleteCampaign", () => {
-    it("should delete a campaign", async () => {
+    it("should delete a campaign using /campaigns/{id} path", async () => {
       mockClient.delete.mockResolvedValueOnce(undefined);
 
       await campaignService.deleteCampaign("acc_456", "camp_123");
 
+      // v3 API uses /campaigns/{id} path (not under ad_accounts)
       expect(mockClient.delete).toHaveBeenCalledWith(
-        "/accounts/acc_456/campaigns/camp_123"
+        "/campaigns/camp_123"
       );
     });
   });
@@ -231,7 +223,7 @@ describe("CampaignService", () => {
       const result = await campaignService.listCampaigns("acc_456");
 
       expect(mockClient.get).toHaveBeenCalledWith(
-        "/accounts/acc_456/campaigns",
+        "/ad_accounts/acc_456/campaigns",
         expect.objectContaining({})
       );
       expect(result).toEqual(mockList);
@@ -253,7 +245,7 @@ describe("CampaignService", () => {
       await campaignService.listCampaigns("acc_456", filters);
 
       expect(mockClient.get).toHaveBeenCalledWith(
-        "/accounts/acc_456/campaigns",
+        "/ad_accounts/acc_456/campaigns",
         expect.objectContaining({
           params: expect.objectContaining({
             status: "ACTIVE",
@@ -277,7 +269,7 @@ describe("CampaignService", () => {
       await campaignService.listCampaigns("acc_456", filters);
 
       expect(mockClient.get).toHaveBeenCalledWith(
-        "/accounts/acc_456/campaigns",
+        "/ad_accounts/acc_456/campaigns",
         expect.objectContaining({
           params: expect.objectContaining({
             page: 2,
@@ -289,29 +281,31 @@ describe("CampaignService", () => {
   });
 
   describe("pauseCampaign", () => {
-    it("should pause an active campaign", async () => {
+    it("should pause an active campaign using PATCH and /campaigns/{id} path", async () => {
       const pausedResponse = { ...mockCampaignResponse, status: "PAUSED" as const };
-      mockClient.put.mockResolvedValueOnce({ data: pausedResponse });
+      mockClient.patch.mockResolvedValueOnce({ data: pausedResponse });
 
       const result = await campaignService.pauseCampaign("acc_456", "camp_123");
 
-      expect(mockClient.put).toHaveBeenCalledWith(
-        "/accounts/acc_456/campaigns/camp_123",
-        { status: "PAUSED" }
+      // v3 API uses PATCH method, configured_status and /campaigns/{id} path
+      expect(mockClient.patch).toHaveBeenCalledWith(
+        "/campaigns/camp_123",
+        { data: { configured_status: "PAUSED" } }
       );
       expect(result.status).toBe("PAUSED");
     });
   });
 
   describe("activateCampaign", () => {
-    it("should activate a paused campaign", async () => {
-      mockClient.put.mockResolvedValueOnce({ data: mockCampaignResponse });
+    it("should activate a paused campaign using PATCH and /campaigns/{id} path", async () => {
+      mockClient.patch.mockResolvedValueOnce({ data: mockCampaignResponse });
 
       const result = await campaignService.activateCampaign("acc_456", "camp_123");
 
-      expect(mockClient.put).toHaveBeenCalledWith(
-        "/accounts/acc_456/campaigns/camp_123",
-        { status: "ACTIVE" }
+      // v3 API uses PATCH method, configured_status and /campaigns/{id} path
+      expect(mockClient.patch).toHaveBeenCalledWith(
+        "/campaigns/camp_123",
+        { data: { configured_status: "ACTIVE" } }
       );
       expect(result.status).toBe("ACTIVE");
     });

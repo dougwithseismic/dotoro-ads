@@ -13,20 +13,23 @@ describe("AdGroupService", () => {
   let mockClient: {
     get: ReturnType<typeof vi.fn>;
     post: ReturnType<typeof vi.fn>;
-    put: ReturnType<typeof vi.fn>;
+    patch: ReturnType<typeof vi.fn>;
     delete: ReturnType<typeof vi.fn>;
   };
 
+  // Reddit v3 API response format - uses configured_status and bid_value
   const mockAdGroupResponse: AdGroupResponse = {
     id: "ag_123",
     account_id: "acc_456",
     campaign_id: "camp_789",
     name: "Test Ad Group",
     status: "ACTIVE",
-    bid_strategy: "AUTOMATIC",
-    bid_micro: null,
-    start_date: "2025-01-15T00:00:00Z",
-    end_date: null,
+    configured_status: "ACTIVE",
+    bid_strategy: "MAXIMIZE_VOLUME",
+    bid_type: "CPC",
+    bid_value: null,
+    start_time: null,
+    end_time: null,
     created_at: "2025-01-10T00:00:00Z",
     updated_at: "2025-01-10T00:00:00Z",
   };
@@ -35,7 +38,7 @@ describe("AdGroupService", () => {
     mockClient = {
       get: vi.fn(),
       post: vi.fn(),
-      put: vi.fn(),
+      patch: vi.fn(),
       delete: vi.fn(),
     };
 
@@ -45,20 +48,23 @@ describe("AdGroupService", () => {
 
   describe("createAdGroup", () => {
     it("should create an ad group with required fields", async () => {
+      // Reddit v3 API uses configured_status instead of start_date, requires bid_type
       const newAdGroup: RedditAdGroup = {
         name: "My New Ad Group",
         campaign_id: "camp_789",
-        bid_strategy: "AUTOMATIC",
-        start_date: "2025-02-01T00:00:00Z",
+        bid_strategy: "MAXIMIZE_VOLUME",
+        bid_type: "CPC",
+        configured_status: "ACTIVE",
       };
 
       mockClient.post.mockResolvedValueOnce({ data: mockAdGroupResponse });
 
       const result = await adGroupService.createAdGroup("acc_456", newAdGroup);
 
+      // v3 API wraps payload in { data: ... }
       expect(mockClient.post).toHaveBeenCalledWith(
-        "/accounts/acc_456/adgroups",
-        newAdGroup
+        "/ad_accounts/acc_456/ad_groups",
+        { data: newAdGroup }
       );
       expect(result).toEqual(mockAdGroupResponse);
     });
@@ -67,8 +73,9 @@ describe("AdGroupService", () => {
       const invalidAdGroup: RedditAdGroup = {
         name: "x".repeat(256),
         campaign_id: "camp_789",
-        bid_strategy: "AUTOMATIC",
-        start_date: "2025-02-01T00:00:00Z",
+        bid_strategy: "MAXIMIZE_VOLUME",
+        bid_type: "CPC",
+        configured_status: "ACTIVE",
       };
 
       await expect(
@@ -80,9 +87,10 @@ describe("AdGroupService", () => {
       const adGroupWithTargeting: RedditAdGroup = {
         name: "Targeted Ad Group",
         campaign_id: "camp_789",
-        bid_strategy: "MANUAL_CPC",
+        bid_strategy: "MANUAL_BIDDING",
+        bid_type: "CPC",
+        configured_status: "ACTIVE",
         bid_micro: 100000,
-        start_date: "2025-02-01T00:00:00Z",
         targeting: {
           subreddits: ["r/technology", "r/programming"],
           interests: ["technology", "gaming"],
@@ -94,54 +102,58 @@ describe("AdGroupService", () => {
 
       await adGroupService.createAdGroup("acc_456", adGroupWithTargeting);
 
+      // v3 API wraps payload in { data: ... }
       expect(mockClient.post).toHaveBeenCalledWith(
-        "/accounts/acc_456/adgroups",
-        adGroupWithTargeting
+        "/ad_accounts/acc_456/ad_groups",
+        { data: adGroupWithTargeting }
       );
     });
   });
 
   describe("getAdGroup", () => {
-    it("should fetch an ad group by ID", async () => {
+    it("should fetch an ad group by ID using /ad_groups/{id} path", async () => {
       mockClient.get.mockResolvedValueOnce({ data: mockAdGroupResponse });
 
       const result = await adGroupService.getAdGroup("acc_456", "ag_123");
 
+      // v3 API uses /ad_groups/{id} path (not under ad_accounts)
       expect(mockClient.get).toHaveBeenCalledWith(
-        "/accounts/acc_456/adgroups/ag_123"
+        "/ad_groups/ag_123"
       );
       expect(result).toEqual(mockAdGroupResponse);
     });
   });
 
   describe("updateAdGroup", () => {
-    it("should update an ad group with partial fields", async () => {
+    it("should update an ad group using PATCH method and /ad_groups/{id} path", async () => {
       const updates = {
         name: "Updated Ad Group Name",
         bid_micro: 150000,
       };
 
       const updatedResponse = { ...mockAdGroupResponse, ...updates };
-      mockClient.put.mockResolvedValueOnce({ data: updatedResponse });
+      mockClient.patch.mockResolvedValueOnce({ data: updatedResponse });
 
       const result = await adGroupService.updateAdGroup("acc_456", "ag_123", updates);
 
-      expect(mockClient.put).toHaveBeenCalledWith(
-        "/accounts/acc_456/adgroups/ag_123",
-        updates
+      // v3 API uses PATCH method and /ad_groups/{id} path (not PUT, not under ad_accounts)
+      expect(mockClient.patch).toHaveBeenCalledWith(
+        "/ad_groups/ag_123",
+        { data: updates }
       );
       expect(result.name).toBe("Updated Ad Group Name");
     });
   });
 
   describe("deleteAdGroup", () => {
-    it("should delete an ad group", async () => {
+    it("should delete an ad group using /ad_groups/{id} path", async () => {
       mockClient.delete.mockResolvedValueOnce(undefined);
 
       await adGroupService.deleteAdGroup("acc_456", "ag_123");
 
+      // v3 API uses /ad_groups/{id} path (not under ad_accounts)
       expect(mockClient.delete).toHaveBeenCalledWith(
-        "/accounts/acc_456/adgroups/ag_123"
+        "/ad_groups/ag_123"
       );
     });
   });
@@ -157,7 +169,7 @@ describe("AdGroupService", () => {
       const result = await adGroupService.listAdGroups("acc_456");
 
       expect(mockClient.get).toHaveBeenCalledWith(
-        "/accounts/acc_456/adgroups",
+        "/ad_accounts/acc_456/ad_groups",
         expect.objectContaining({})
       );
       expect(result).toEqual(mockList);
@@ -177,7 +189,7 @@ describe("AdGroupService", () => {
       await adGroupService.listAdGroups("acc_456", filters);
 
       expect(mockClient.get).toHaveBeenCalledWith(
-        "/accounts/acc_456/adgroups",
+        "/ad_accounts/acc_456/ad_groups",
         expect.objectContaining({
           params: expect.objectContaining({
             campaign_id: "camp_789",
@@ -189,29 +201,31 @@ describe("AdGroupService", () => {
   });
 
   describe("pauseAdGroup", () => {
-    it("should pause an active ad group", async () => {
+    it("should pause an active ad group using PATCH and /ad_groups/{id} path", async () => {
       const pausedResponse = { ...mockAdGroupResponse, status: "PAUSED" as const };
-      mockClient.put.mockResolvedValueOnce({ data: pausedResponse });
+      mockClient.patch.mockResolvedValueOnce({ data: pausedResponse });
 
       const result = await adGroupService.pauseAdGroup("acc_456", "ag_123");
 
-      expect(mockClient.put).toHaveBeenCalledWith(
-        "/accounts/acc_456/adgroups/ag_123",
-        { status: "PAUSED" }
+      // v3 API uses PATCH method and /ad_groups/{id} path
+      expect(mockClient.patch).toHaveBeenCalledWith(
+        "/ad_groups/ag_123",
+        { data: { status: "PAUSED" } }
       );
       expect(result.status).toBe("PAUSED");
     });
   });
 
   describe("activateAdGroup", () => {
-    it("should activate a paused ad group", async () => {
-      mockClient.put.mockResolvedValueOnce({ data: mockAdGroupResponse });
+    it("should activate a paused ad group using PATCH and /ad_groups/{id} path", async () => {
+      mockClient.patch.mockResolvedValueOnce({ data: mockAdGroupResponse });
 
       const result = await adGroupService.activateAdGroup("acc_456", "ag_123");
 
-      expect(mockClient.put).toHaveBeenCalledWith(
-        "/accounts/acc_456/adgroups/ag_123",
-        { status: "ACTIVE" }
+      // v3 API uses PATCH method and /ad_groups/{id} path
+      expect(mockClient.patch).toHaveBeenCalledWith(
+        "/ad_groups/ag_123",
+        { data: { status: "ACTIVE" } }
       );
       expect(result.status).toBe("ACTIVE");
     });
@@ -227,7 +241,7 @@ describe("AdGroupService", () => {
       const result = await adGroupService.getAdGroupsByCampaign("acc_456", "camp_789");
 
       expect(mockClient.get).toHaveBeenCalledWith(
-        "/accounts/acc_456/adgroups",
+        "/ad_accounts/acc_456/ad_groups",
         expect.objectContaining({
           params: expect.objectContaining({
             campaign_id: "camp_789",
