@@ -541,7 +541,8 @@ describe("RedditAdsAdapter - Type Transformations", () => {
             targeting: {
               subreddits: ["r/technology", "r/programming"],
               locations: ["US", "CA"],
-              devices: ["DESKTOP", "MOBILE"],
+              // v3 API transforms simple device types to DeviceTargeting objects
+              devices: [{ type: "DESKTOP" }, { type: "MOBILE" }],
               interests: ["technology", "software"],
             },
           }),
@@ -1739,6 +1740,862 @@ describe("RedditAdsAdapter - Missing finalUrl Validation", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Tests: Advanced Settings (Campaign Set Config)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("RedditAdsAdapter - Advanced Settings", () => {
+  let adapter: RedditAdsAdapter;
+  let mockClient: ReturnType<typeof createMockClient>;
+
+  beforeEach(() => {
+    mockClient = createMockClient();
+    adapter = new RedditAdsAdapter({
+      client: mockClient as any,
+      accountId: "test-account-123",
+      fundingInstrumentId: "funding-instrument-456",
+    });
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  describe("campaign advanced settings", () => {
+    it("includes start_time when provided in advancedSettings", async () => {
+      const campaign = createMockCampaign({
+        campaignData: {
+          objective: "awareness",
+          advancedSettings: {
+            reddit: {
+              campaign: {
+                startTime: "2025-01-15T09:00:00+00:00",
+              },
+            },
+          },
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-campaign-123" },
+      });
+
+      await adapter.createCampaign(campaign);
+
+      expect(mockClient.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            start_time: "2025-01-15T09:00:00+00:00",
+          }),
+        })
+      );
+    });
+
+    it("includes end_time when provided in advancedSettings", async () => {
+      const campaign = createMockCampaign({
+        campaignData: {
+          objective: "awareness",
+          advancedSettings: {
+            reddit: {
+              campaign: {
+                endTime: "2025-12-31T23:59:59+00:00",
+              },
+            },
+          },
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-campaign-123" },
+      });
+
+      await adapter.createCampaign(campaign);
+
+      expect(mockClient.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            end_time: "2025-12-31T23:59:59+00:00",
+          }),
+        })
+      );
+    });
+
+    it("includes both start_time and end_time when provided", async () => {
+      const campaign = createMockCampaign({
+        campaignData: {
+          objective: "awareness",
+          advancedSettings: {
+            reddit: {
+              campaign: {
+                startTime: "2025-01-15T09:00:00+00:00",
+                endTime: "2025-03-15T23:59:59+00:00",
+              },
+            },
+          },
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-campaign-123" },
+      });
+
+      await adapter.createCampaign(campaign);
+
+      expect(mockClient.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            start_time: "2025-01-15T09:00:00+00:00",
+            end_time: "2025-03-15T23:59:59+00:00",
+          }),
+        })
+      );
+    });
+
+    it("includes special_ad_categories from advancedSettings", async () => {
+      const campaign = createMockCampaign({
+        campaignData: {
+          objective: "awareness",
+          advancedSettings: {
+            reddit: {
+              campaign: {
+                specialAdCategories: ["HOUSING", "CREDIT"],
+              },
+            },
+          },
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-campaign-123" },
+      });
+
+      await adapter.createCampaign(campaign);
+
+      expect(mockClient.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            special_ad_categories: ["HOUSING", "CREDIT"],
+          }),
+        })
+      );
+    });
+
+    it("includes view_through_attribution_window_days when provided", async () => {
+      const campaign = createMockCampaign({
+        campaignData: {
+          objective: "conversions",
+          advancedSettings: {
+            reddit: {
+              campaign: {
+                viewThroughAttributionDays: 7,
+              },
+            },
+          },
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-campaign-123" },
+      });
+
+      await adapter.createCampaign(campaign);
+
+      expect(mockClient.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            view_through_attribution_window_days: 7,
+          }),
+        })
+      );
+    });
+
+    it("includes click_through_attribution_window_days when provided", async () => {
+      const campaign = createMockCampaign({
+        campaignData: {
+          objective: "conversions",
+          advancedSettings: {
+            reddit: {
+              campaign: {
+                clickThroughAttributionDays: 30,
+              },
+            },
+          },
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-campaign-123" },
+      });
+
+      await adapter.createCampaign(campaign);
+
+      expect(mockClient.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            click_through_attribution_window_days: 30,
+          }),
+        })
+      );
+    });
+
+    it("includes all advanced settings together", async () => {
+      const campaign = createMockCampaign({
+        campaignData: {
+          objective: "conversions",
+          advancedSettings: {
+            reddit: {
+              campaign: {
+                startTime: "2025-02-01T00:00:00+00:00",
+                endTime: "2025-06-30T23:59:59+00:00",
+                specialAdCategories: ["EMPLOYMENT"],
+                viewThroughAttributionDays: 14,
+                clickThroughAttributionDays: 28,
+              },
+            },
+          },
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-campaign-123" },
+      });
+
+      await adapter.createCampaign(campaign);
+
+      expect(mockClient.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            start_time: "2025-02-01T00:00:00+00:00",
+            end_time: "2025-06-30T23:59:59+00:00",
+            special_ad_categories: ["EMPLOYMENT"],
+            view_through_attribution_window_days: 14,
+            click_through_attribution_window_days: 28,
+          }),
+        })
+      );
+    });
+
+    it("prefers advancedSettings.specialAdCategories over legacy location", async () => {
+      const campaign = createMockCampaign({
+        campaignData: {
+          objective: "awareness",
+          specialAdCategories: ["NONE"], // Legacy location
+          advancedSettings: {
+            reddit: {
+              campaign: {
+                specialAdCategories: ["HOUSING"], // Advanced settings take priority
+              },
+            },
+          },
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-campaign-123" },
+      });
+
+      await adapter.createCampaign(campaign);
+
+      expect(mockClient.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            special_ad_categories: ["HOUSING"], // From advancedSettings, not legacy
+          }),
+        })
+      );
+    });
+  });
+
+  describe("ad group advanced settings", () => {
+    it("includes start_time when provided in ad group advancedSettings", async () => {
+      const adGroup = createMockAdGroup({
+        settings: {
+          advancedSettings: {
+            reddit: {
+              adGroup: {
+                startTime: "2025-01-20T10:00:00+00:00",
+              },
+            },
+          },
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-adgroup-123" },
+      });
+
+      await adapter.createAdGroup(adGroup, "platform-campaign-123");
+
+      expect(mockClient.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            start_time: "2025-01-20T10:00:00+00:00",
+          }),
+        })
+      );
+    });
+
+    it("includes end_time when provided in ad group advancedSettings", async () => {
+      const adGroup = createMockAdGroup({
+        settings: {
+          advancedSettings: {
+            reddit: {
+              adGroup: {
+                endTime: "2025-04-30T18:00:00+00:00",
+              },
+            },
+          },
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-adgroup-123" },
+      });
+
+      await adapter.createAdGroup(adGroup, "platform-campaign-123");
+
+      expect(mockClient.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            end_time: "2025-04-30T18:00:00+00:00",
+          }),
+        })
+      );
+    });
+
+    it("includes both start_time and end_time for ad group", async () => {
+      const adGroup = createMockAdGroup({
+        settings: {
+          advancedSettings: {
+            reddit: {
+              adGroup: {
+                startTime: "2025-02-01T08:00:00+00:00",
+                endTime: "2025-02-28T20:00:00+00:00",
+              },
+            },
+          },
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-adgroup-123" },
+      });
+
+      await adapter.createAdGroup(adGroup, "platform-campaign-123");
+
+      expect(mockClient.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            start_time: "2025-02-01T08:00:00+00:00",
+            end_time: "2025-02-28T20:00:00+00:00",
+          }),
+        })
+      );
+    });
+
+    it("combines ad group advanced settings with other settings", async () => {
+      const adGroup = createMockAdGroup({
+        settings: {
+          bidding: {
+            strategy: "manual_cpc",
+            maxCpc: "2.00",
+          },
+          budget: {
+            type: "daily",
+            amount: 50,
+          },
+          advancedSettings: {
+            reddit: {
+              adGroup: {
+                startTime: "2025-03-01T00:00:00+00:00",
+                endTime: "2025-03-31T23:59:59+00:00",
+              },
+            },
+          },
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-adgroup-123" },
+      });
+
+      await adapter.createAdGroup(adGroup, "platform-campaign-123");
+
+      expect(mockClient.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            bid_strategy: "MANUAL_BIDDING",
+            bid_value: 2_000_000,
+            goal_type: "DAILY_SPEND",
+            goal_value: 50_000_000,
+            start_time: "2025-03-01T00:00:00+00:00",
+            end_time: "2025-03-31T23:59:59+00:00",
+          }),
+        })
+      );
+    });
+  });
+
+  describe("no advanced settings", () => {
+    it("does not include start_time/end_time when advancedSettings is not provided", async () => {
+      const campaign = createMockCampaign({
+        campaignData: {
+          objective: "awareness",
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-campaign-123" },
+      });
+
+      await adapter.createCampaign(campaign);
+
+      const callArgs = mockClient.post.mock.calls[0]?.[1] as { data?: Record<string, unknown> } | undefined;
+      const dataPayload = callArgs?.data;
+      expect(dataPayload?.start_time).toBeUndefined();
+      expect(dataPayload?.end_time).toBeUndefined();
+    });
+
+    it("does not include attribution windows when not provided", async () => {
+      const campaign = createMockCampaign({
+        campaignData: {
+          objective: "conversions",
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-campaign-123" },
+      });
+
+      await adapter.createCampaign(campaign);
+
+      const callArgs = mockClient.post.mock.calls[0]?.[1] as { data?: Record<string, unknown> } | undefined;
+      const dataPayload = callArgs?.data;
+      expect(dataPayload?.view_through_attribution_window_days).toBeUndefined();
+      expect(dataPayload?.click_through_attribution_window_days).toBeUndefined();
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tests: Undefined Budget Handling (Code Review Issue #6)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tests: DateTime Normalization (Invalid startTime/endTime Handling)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("RedditAdsAdapter - DateTime Normalization", () => {
+  let adapter: RedditAdsAdapter;
+  let mockClient: ReturnType<typeof createMockClient>;
+
+  beforeEach(() => {
+    mockClient = createMockClient();
+    adapter = new RedditAdsAdapter({
+      client: mockClient as any,
+      accountId: "test-account-123",
+      fundingInstrumentId: "funding-instrument-456",
+    });
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  describe("campaign datetime handling", () => {
+    it("passes through valid ISO 8601 datetime strings", async () => {
+      const campaign = createMockCampaign({
+        campaignData: {
+          objective: "awareness",
+          advancedSettings: {
+            reddit: {
+              campaign: {
+                startTime: "2025-01-15T09:00:00Z",
+                endTime: "2025-12-31T23:59:59+00:00",
+              },
+            },
+          },
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-campaign-123" },
+      });
+
+      await adapter.createCampaign(campaign);
+
+      expect(mockClient.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            start_time: "2025-01-15T09:00:00Z",
+            end_time: "2025-12-31T23:59:59+00:00",
+          }),
+        })
+      );
+    });
+
+    it("converts Date objects to ISO strings", async () => {
+      const startDate = new Date("2025-06-01T12:00:00Z");
+      const endDate = new Date("2025-06-30T18:00:00Z");
+
+      const campaign = createMockCampaign({
+        campaignData: {
+          objective: "awareness",
+          advancedSettings: {
+            reddit: {
+              campaign: {
+                startTime: startDate as unknown as string, // Simulating Date object
+                endTime: endDate as unknown as string,
+              },
+            },
+          },
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-campaign-123" },
+      });
+
+      await adapter.createCampaign(campaign);
+
+      const callArgs = mockClient.post.mock.calls[0]?.[1] as { data?: Record<string, unknown> } | undefined;
+      const dataPayload = callArgs?.data;
+
+      // Should be converted to ISO strings
+      expect(dataPayload?.start_time).toBe("2025-06-01T12:00:00.000Z");
+      expect(dataPayload?.end_time).toBe("2025-06-30T18:00:00.000Z");
+    });
+
+    it("converts boolean true to current datetime (start now)", async () => {
+      const beforeTest = new Date();
+
+      const campaign = createMockCampaign({
+        campaignData: {
+          objective: "awareness",
+          advancedSettings: {
+            reddit: {
+              campaign: {
+                startTime: true as unknown as string, // Boolean true from checkbox
+              },
+            },
+          },
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-campaign-123" },
+      });
+
+      await adapter.createCampaign(campaign);
+
+      const callArgs = mockClient.post.mock.calls[0]?.[1] as { data?: Record<string, unknown> } | undefined;
+      const dataPayload = callArgs?.data;
+
+      // Should be a valid ISO string representing "now"
+      expect(dataPayload?.start_time).toBeDefined();
+      expect(typeof dataPayload?.start_time).toBe("string");
+      const parsedTime = new Date(dataPayload?.start_time as string);
+      expect(parsedTime.getTime()).toBeGreaterThanOrEqual(beforeTest.getTime());
+      expect(parsedTime.getTime()).toBeLessThanOrEqual(Date.now() + 1000); // Within 1 second
+    });
+
+    it("skips boolean false values (does not set start_time)", async () => {
+      const campaign = createMockCampaign({
+        campaignData: {
+          objective: "awareness",
+          advancedSettings: {
+            reddit: {
+              campaign: {
+                startTime: false as unknown as string, // Boolean false
+              },
+            },
+          },
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-campaign-123" },
+      });
+
+      await adapter.createCampaign(campaign);
+
+      const callArgs = mockClient.post.mock.calls[0]?.[1] as { data?: Record<string, unknown> } | undefined;
+      const dataPayload = callArgs?.data;
+
+      // Should NOT have start_time set
+      expect(dataPayload?.start_time).toBeUndefined();
+    });
+
+    it("skips empty string values", async () => {
+      const campaign = createMockCampaign({
+        campaignData: {
+          objective: "awareness",
+          advancedSettings: {
+            reddit: {
+              campaign: {
+                startTime: "", // Empty string
+                endTime: "",
+              },
+            },
+          },
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-campaign-123" },
+      });
+
+      await adapter.createCampaign(campaign);
+
+      const callArgs = mockClient.post.mock.calls[0]?.[1] as { data?: Record<string, unknown> } | undefined;
+      const dataPayload = callArgs?.data;
+
+      expect(dataPayload?.start_time).toBeUndefined();
+      expect(dataPayload?.end_time).toBeUndefined();
+    });
+
+    it("skips invalid datetime strings", async () => {
+      const campaign = createMockCampaign({
+        campaignData: {
+          objective: "awareness",
+          advancedSettings: {
+            reddit: {
+              campaign: {
+                startTime: "not-a-date",
+                endTime: "invalid-datetime",
+              },
+            },
+          },
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-campaign-123" },
+      });
+
+      await adapter.createCampaign(campaign);
+
+      const callArgs = mockClient.post.mock.calls[0]?.[1] as { data?: Record<string, unknown> } | undefined;
+      const dataPayload = callArgs?.data;
+
+      expect(dataPayload?.start_time).toBeUndefined();
+      expect(dataPayload?.end_time).toBeUndefined();
+    });
+
+    it("skips numeric values (timestamps without proper conversion)", async () => {
+      const campaign = createMockCampaign({
+        campaignData: {
+          objective: "awareness",
+          advancedSettings: {
+            reddit: {
+              campaign: {
+                startTime: 1735689600000 as unknown as string, // Raw timestamp
+              },
+            },
+          },
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-campaign-123" },
+      });
+
+      await adapter.createCampaign(campaign);
+
+      const callArgs = mockClient.post.mock.calls[0]?.[1] as { data?: Record<string, unknown> } | undefined;
+      const dataPayload = callArgs?.data;
+
+      // Raw numbers should be skipped (not valid ISO 8601)
+      expect(dataPayload?.start_time).toBeUndefined();
+    });
+
+    it("skips null values", async () => {
+      const campaign = createMockCampaign({
+        campaignData: {
+          objective: "awareness",
+          advancedSettings: {
+            reddit: {
+              campaign: {
+                startTime: null as unknown as string,
+                endTime: null as unknown as string,
+              },
+            },
+          },
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-campaign-123" },
+      });
+
+      await adapter.createCampaign(campaign);
+
+      const callArgs = mockClient.post.mock.calls[0]?.[1] as { data?: Record<string, unknown> } | undefined;
+      const dataPayload = callArgs?.data;
+
+      expect(dataPayload?.start_time).toBeUndefined();
+      expect(dataPayload?.end_time).toBeUndefined();
+    });
+  });
+
+  describe("ad group datetime handling", () => {
+    it("passes through valid ISO 8601 datetime strings for ad groups", async () => {
+      const adGroup = createMockAdGroup({
+        settings: {
+          advancedSettings: {
+            reddit: {
+              adGroup: {
+                startTime: "2025-02-01T08:00:00+00:00",
+                endTime: "2025-02-28T20:00:00Z",
+              },
+            },
+          },
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-adgroup-123" },
+      });
+
+      await adapter.createAdGroup(adGroup, "platform-campaign-123");
+
+      expect(mockClient.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            start_time: "2025-02-01T08:00:00+00:00",
+            end_time: "2025-02-28T20:00:00Z",
+          }),
+        })
+      );
+    });
+
+    it("converts Date objects to ISO strings for ad groups", async () => {
+      const startDate = new Date("2025-03-15T09:00:00Z");
+
+      const adGroup = createMockAdGroup({
+        settings: {
+          advancedSettings: {
+            reddit: {
+              adGroup: {
+                startTime: startDate as unknown as string,
+              },
+            },
+          },
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-adgroup-123" },
+      });
+
+      await adapter.createAdGroup(adGroup, "platform-campaign-123");
+
+      const callArgs = mockClient.post.mock.calls[0]?.[1] as { data?: Record<string, unknown> } | undefined;
+      const dataPayload = callArgs?.data;
+
+      expect(dataPayload?.start_time).toBe("2025-03-15T09:00:00.000Z");
+    });
+
+    it("converts boolean true to current datetime for ad groups", async () => {
+      const beforeTest = new Date();
+
+      const adGroup = createMockAdGroup({
+        settings: {
+          advancedSettings: {
+            reddit: {
+              adGroup: {
+                startTime: true as unknown as string,
+              },
+            },
+          },
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-adgroup-123" },
+      });
+
+      await adapter.createAdGroup(adGroup, "platform-campaign-123");
+
+      const callArgs = mockClient.post.mock.calls[0]?.[1] as { data?: Record<string, unknown> } | undefined;
+      const dataPayload = callArgs?.data;
+
+      expect(dataPayload?.start_time).toBeDefined();
+      expect(typeof dataPayload?.start_time).toBe("string");
+      const parsedTime = new Date(dataPayload?.start_time as string);
+      expect(parsedTime.getTime()).toBeGreaterThanOrEqual(beforeTest.getTime());
+    });
+
+    it("skips invalid datetime values for ad groups", async () => {
+      const adGroup = createMockAdGroup({
+        settings: {
+          advancedSettings: {
+            reddit: {
+              adGroup: {
+                startTime: "not-valid",
+                endTime: false as unknown as string,
+              },
+            },
+          },
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-adgroup-123" },
+      });
+
+      await adapter.createAdGroup(adGroup, "platform-campaign-123");
+
+      const callArgs = mockClient.post.mock.calls[0]?.[1] as { data?: Record<string, unknown> } | undefined;
+      const dataPayload = callArgs?.data;
+
+      expect(dataPayload?.start_time).toBeUndefined();
+      expect(dataPayload?.end_time).toBeUndefined();
+    });
+
+    it("skips empty strings for ad groups", async () => {
+      const adGroup = createMockAdGroup({
+        settings: {
+          advancedSettings: {
+            reddit: {
+              adGroup: {
+                startTime: "",
+                endTime: "",
+              },
+            },
+          },
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-adgroup-123" },
+      });
+
+      await adapter.createAdGroup(adGroup, "platform-campaign-123");
+
+      const callArgs = mockClient.post.mock.calls[0]?.[1] as { data?: Record<string, unknown> } | undefined;
+      const dataPayload = callArgs?.data;
+
+      expect(dataPayload?.start_time).toBeUndefined();
+      expect(dataPayload?.end_time).toBeUndefined();
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Tests: Undefined Budget Handling (Code Review Issue #6)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1793,6 +2650,338 @@ describe("RedditAdsAdapter - Undefined Budget Handling", () => {
       const dataPayload = callArgs?.data;
       expect(dataPayload?.daily_budget_micro).toBeUndefined();
       expect(dataPayload?.total_budget_micro).toBeUndefined();
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tests: Legacy DateTime Settings Handling (Top-level settings migration)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("RedditAdsAdapter - Legacy DateTime Settings Handling", () => {
+  let adapter: RedditAdsAdapter;
+  let mockClient: ReturnType<typeof createMockClient>;
+
+  beforeEach(() => {
+    mockClient = createMockClient();
+    adapter = new RedditAdsAdapter({
+      client: mockClient as any,
+      accountId: "test-account-123",
+      fundingInstrumentId: "funding-instrument-456",
+    });
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  describe("ad group legacy start_time handling", () => {
+    it("normalizes valid ISO 8601 start_time from top-level settings (legacy data)", async () => {
+      const adGroup = createMockAdGroup({
+        settings: {
+          start_time: "2025-01-15T09:00:00Z", // Valid ISO at top level (legacy)
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-adgroup-123" },
+      });
+
+      await adapter.createAdGroup(adGroup, "platform-campaign-123");
+
+      expect(mockClient.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            start_time: "2025-01-15T09:00:00Z",
+          }),
+        })
+      );
+    });
+
+    it("normalizes startTime (camelCase) from top-level settings (legacy data)", async () => {
+      const adGroup = createMockAdGroup({
+        settings: {
+          startTime: "2025-02-20T14:30:00+00:00", // camelCase variant
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-adgroup-123" },
+      });
+
+      await adapter.createAdGroup(adGroup, "platform-campaign-123");
+
+      expect(mockClient.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            start_time: "2025-02-20T14:30:00+00:00",
+          }),
+        })
+      );
+    });
+
+    it("rejects invalid start_time string from top-level settings", async () => {
+      const adGroup = createMockAdGroup({
+        settings: {
+          start_time: "invalid-date", // Invalid at top level
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-adgroup-123" },
+      });
+
+      await adapter.createAdGroup(adGroup, "platform-campaign-123");
+
+      // start_time should NOT be in the payload
+      const callArgs = mockClient.post.mock.calls[0]?.[1] as { data?: Record<string, unknown> } | undefined;
+      const dataPayload = callArgs?.data;
+      expect(dataPayload?.start_time).toBeUndefined();
+    });
+
+    it("converts boolean true to current datetime from top-level settings (legacy checkbox)", async () => {
+      const beforeTest = new Date();
+
+      const adGroup = createMockAdGroup({
+        settings: {
+          start_time: true, // Boolean from old checkbox
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-adgroup-123" },
+      });
+
+      await adapter.createAdGroup(adGroup, "platform-campaign-123");
+
+      // start_time should be current time (true means "start now")
+      const callArgs = mockClient.post.mock.calls[0]?.[1] as { data?: Record<string, unknown> } | undefined;
+      const dataPayload = callArgs?.data;
+      expect(dataPayload?.start_time).toBeDefined();
+      expect(typeof dataPayload?.start_time).toBe("string");
+      const parsedTime = new Date(dataPayload?.start_time as string);
+      expect(parsedTime.getTime()).toBeGreaterThanOrEqual(beforeTest.getTime());
+      expect(parsedTime.getTime()).toBeLessThanOrEqual(Date.now() + 1000);
+    });
+
+    it("skips boolean false from top-level settings", async () => {
+      const adGroup = createMockAdGroup({
+        settings: {
+          start_time: false, // Boolean false
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-adgroup-123" },
+      });
+
+      await adapter.createAdGroup(adGroup, "platform-campaign-123");
+
+      const callArgs = mockClient.post.mock.calls[0]?.[1] as { data?: Record<string, unknown> } | undefined;
+      const dataPayload = callArgs?.data;
+      expect(dataPayload?.start_time).toBeUndefined();
+    });
+  });
+
+  describe("ad group legacy end_time handling", () => {
+    it("normalizes valid ISO 8601 end_time from top-level settings (legacy data)", async () => {
+      const adGroup = createMockAdGroup({
+        settings: {
+          end_time: "2025-12-31T23:59:59Z", // Valid ISO at top level
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-adgroup-123" },
+      });
+
+      await adapter.createAdGroup(adGroup, "platform-campaign-123");
+
+      expect(mockClient.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            end_time: "2025-12-31T23:59:59Z",
+          }),
+        })
+      );
+    });
+
+    it("normalizes endTime (camelCase) from top-level settings", async () => {
+      const adGroup = createMockAdGroup({
+        settings: {
+          endTime: "2025-06-30T18:00:00+00:00", // camelCase variant
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-adgroup-123" },
+      });
+
+      await adapter.createAdGroup(adGroup, "platform-campaign-123");
+
+      expect(mockClient.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            end_time: "2025-06-30T18:00:00+00:00",
+          }),
+        })
+      );
+    });
+
+    it("rejects invalid end_time string from top-level settings", async () => {
+      const adGroup = createMockAdGroup({
+        settings: {
+          end_time: "not-a-date",
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-adgroup-123" },
+      });
+
+      await adapter.createAdGroup(adGroup, "platform-campaign-123");
+
+      const callArgs = mockClient.post.mock.calls[0]?.[1] as { data?: Record<string, unknown> } | undefined;
+      const dataPayload = callArgs?.data;
+      expect(dataPayload?.end_time).toBeUndefined();
+    });
+  });
+
+  describe("advancedSettings priority over top-level settings", () => {
+    it("prefers advancedSettings.startTime over top-level start_time", async () => {
+      const adGroup = createMockAdGroup({
+        settings: {
+          start_time: "2025-01-01T00:00:00Z", // Top level (should be ignored)
+          advancedSettings: {
+            reddit: {
+              adGroup: {
+                startTime: "2025-06-15T09:00:00Z", // Advanced settings (should be used)
+              },
+            },
+          },
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-adgroup-123" },
+      });
+
+      await adapter.createAdGroup(adGroup, "platform-campaign-123");
+
+      // Should use advancedSettings value
+      expect(mockClient.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            start_time: "2025-06-15T09:00:00Z",
+          }),
+        })
+      );
+    });
+
+    it("prefers advancedSettings.endTime over top-level end_time", async () => {
+      const adGroup = createMockAdGroup({
+        settings: {
+          end_time: "2025-03-01T00:00:00Z", // Top level (should be ignored)
+          advancedSettings: {
+            reddit: {
+              adGroup: {
+                endTime: "2025-12-31T23:59:59Z", // Advanced settings (should be used)
+              },
+            },
+          },
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-adgroup-123" },
+      });
+
+      await adapter.createAdGroup(adGroup, "platform-campaign-123");
+
+      expect(mockClient.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            end_time: "2025-12-31T23:59:59Z",
+          }),
+        })
+      );
+    });
+
+    it("falls back to top-level start_time when advancedSettings has no startTime", async () => {
+      const adGroup = createMockAdGroup({
+        settings: {
+          start_time: "2025-04-01T10:00:00Z", // Top level (should be used as fallback)
+          advancedSettings: {
+            reddit: {
+              adGroup: {
+                // No startTime here
+                endTime: "2025-05-01T18:00:00Z",
+              },
+            },
+          },
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-adgroup-123" },
+      });
+
+      await adapter.createAdGroup(adGroup, "platform-campaign-123");
+
+      expect(mockClient.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            start_time: "2025-04-01T10:00:00Z", // From top-level
+            end_time: "2025-05-01T18:00:00Z", // From advancedSettings
+          }),
+        })
+      );
+    });
+  });
+
+  describe("combined legacy settings with other ad group settings", () => {
+    it("handles legacy datetime with bidding and budget settings", async () => {
+      const adGroup = createMockAdGroup({
+        settings: {
+          start_time: "2025-03-15T08:00:00Z",
+          end_time: "2025-03-31T20:00:00Z",
+          bidding: {
+            strategy: "manual_cpc",
+            maxCpc: "1.50",
+          },
+          budget: {
+            type: "daily",
+            amount: 25,
+          },
+        },
+      });
+
+      mockClient.post.mockResolvedValueOnce({
+        data: { id: "reddit-adgroup-123" },
+      });
+
+      await adapter.createAdGroup(adGroup, "platform-campaign-123");
+
+      expect(mockClient.post).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          data: expect.objectContaining({
+            start_time: "2025-03-15T08:00:00Z",
+            end_time: "2025-03-31T20:00:00Z",
+            bid_strategy: "MANUAL_BIDDING",
+            bid_value: 1_500_000,
+            goal_type: "DAILY_SPEND",
+            goal_value: 25_000_000,
+          }),
+        })
+      );
     });
   });
 });

@@ -788,6 +788,7 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
    * Transform our AdGroup type to Reddit v3 API format
    *
    * Advanced settings are read from adGroup.settings.advancedSettings.reddit.adGroup
+   * Also handles legacy data where datetime was stored at the top level of settings
    */
   private transformAdGroup(
     adGroup: AdGroup,
@@ -807,6 +808,9 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
     } | undefined;
     const advancedSettings = (settings as { advancedSettings?: PlatformAdvancedSettings } | undefined)
       ?.advancedSettings?.reddit?.adGroup;
+
+    // Cast settings for legacy datetime field access
+    const rawSettings = settings as Record<string, unknown> | undefined;
 
     const redditAdGroup: RedditAdGroup = {
       name: adGroup.name,
@@ -840,6 +844,7 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
     }
 
     // Apply advanced settings: start_time, end_time - normalized to handle invalid values
+    // Advanced settings take priority over legacy top-level settings
     if (advancedSettings) {
       // Start time (ISO 8601 with timezone) - normalized to handle invalid values
       const normalizedStartTime = normalizeDateTime(advancedSettings.startTime);
@@ -851,6 +856,30 @@ export class RedditAdsAdapter implements CampaignSetPlatformAdapter {
       const normalizedEndTime = normalizeDateTime(advancedSettings.endTime);
       if (normalizedEndTime) {
         redditAdGroup.end_time = normalizedEndTime;
+      }
+    }
+
+    // Handle legacy datetime fields from top-level settings (fallback if not set by advancedSettings)
+    // This handles old campaign sets where start_time/end_time were stored directly in settings
+    if (rawSettings) {
+      // Check for start_time at top level of settings (legacy data)
+      // Only apply if not already set by advancedSettings
+      if (!redditAdGroup.start_time) {
+        const rawStartTime = rawSettings.start_time ?? rawSettings.startTime;
+        const normalizedRawStartTime = normalizeDateTime(rawStartTime);
+        if (normalizedRawStartTime) {
+          redditAdGroup.start_time = normalizedRawStartTime;
+        }
+      }
+
+      // Check for end_time at top level of settings (legacy data)
+      // Only apply if not already set by advancedSettings
+      if (!redditAdGroup.end_time) {
+        const rawEndTime = rawSettings.end_time ?? rawSettings.endTime;
+        const normalizedRawEndTime = normalizeDateTime(rawEndTime);
+        if (normalizedRawEndTime) {
+          redditAdGroup.end_time = normalizedRawEndTime;
+        }
       }
     }
 
